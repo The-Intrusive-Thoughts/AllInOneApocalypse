@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": "aioa",
+  "version": "${version}",
+  "name": "${mod_name}",
+  "description": "${description}",
+  "authors": [
+    "${mod_author}"
+  ],
+  "license": "${license}",
+  "icon": "logo.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.flubburr.aioa.fabric.AioaFabric"
+    ],
+    "client": [
+      "com.flubburr.aioa.fabric.AioaFabricClient"
+    ],
+    "modmenu": [
+      "com.flubburr.aioa.fabric.config.AioaModMenuIntegration"
+    ]
+  },
+  "mixins": [
+    "${mod_id}.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}",
+    "java": ">=17",
+    "midnightlib": "*"
+  },
+  "suggests": {
+    "modmenu": "*",
+    "cloth-config": "*",
+    "cloth-config2": "*",
+    "supermartijn642configlib": "*"
+  }
+}

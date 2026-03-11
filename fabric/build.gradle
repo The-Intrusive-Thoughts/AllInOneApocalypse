@@ -1,0 +1,103 @@
+plugins {
+    id 'multiloader-loader'
+    id 'fabric-loom'
+}
+
+def midnightLibJar = file('libs/midnightlib-fabric-1.9.2+1.20.1.jar')
+def modMenuJar = file('libs/modmenu-7.2.2.jar')
+def clothConfigJar = file('libs/cloth-config-11.1.136-fabric.jar')
+def superMartijnConfigLibJar = file('libs/supermartijn642sconfiglib-1.1.8-fabric-mc1.20.jar')
+def enableModMenuRuntime = providers.gradleProperty("aioa.fabric.enableModMenuRuntime")
+        .orElse("false")
+        .get()
+        .toBoolean()
+def enableOptionalConfigModsRuntime = providers.gradleProperty("aioa.fabric.enableOptionalConfigModsRuntime")
+        .orElse("false")
+        .get()
+        .toBoolean()
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    mappings loom.layered {
+        officialMojangMappings()
+        parchment("org.parchmentmc.data:parchment-${parchment_minecraft}:${parchment_version}@zip")
+    }
+    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+    // AIOA manual dependency placeholders:
+    // - Drop MidnightLib into fabric/libs and replace MidnightLib-PLACEHOLDER.jar with the real filename.
+    // - Drop Mod Menu into fabric/libs and replace ModMenu-PLACEHOLDER.jar with the real filename.
+    // - Optional compatibility jars can also live in fabric/libs:
+    //   - cloth-config-...-fabric.jar
+    //   - supermartijn642sconfiglib-...-fabric-...jar
+    // These are loader-specific UI dependencies only; the shared gameplay logic stays in :common.
+    // MidnightLib is the base config backend on Fabric.
+    // Mod Menu stays optional; enable runtime loading only when desired.
+    if (midnightLibJar.exists()) {
+        modImplementation files(midnightLibJar)
+    }
+    if (modMenuJar.exists()) {
+        modCompileOnly files(modMenuJar)
+        if (enableModMenuRuntime) {
+            modRuntimeOnly files(modMenuJar)
+        } else {
+            logger.lifecycle("AIOA Fabric setup: Mod Menu runtime is disabled (compile-only only). " +
+                    "Use -Paioa.fabric.enableModMenuRuntime=true to load Mod Menu in dev runs.")
+        }
+    }
+    if (clothConfigJar.exists()) {
+        modCompileOnly files(clothConfigJar)
+        if (enableOptionalConfigModsRuntime) {
+            modRuntimeOnly files(clothConfigJar)
+        }
+    }
+    if (superMartijnConfigLibJar.exists()) {
+        modCompileOnly files(superMartijnConfigLibJar)
+        if (enableOptionalConfigModsRuntime) {
+            modRuntimeOnly files(superMartijnConfigLibJar)
+        }
+    }
+    implementation group: 'com.google.code.findbugs', name: 'jsr305', version: '3.0.1'
+    implementation project(":common")
+}
+
+if (!midnightLibJar.exists()) {
+    logger.lifecycle("AIOA Fabric setup: add MidnightLib to fabric/libs and update fabric/build.gradle.")
+}
+if (!modMenuJar.exists()) {
+    logger.lifecycle("AIOA Fabric setup: Mod Menu jar is missing. That's okay unless you want Mod Menu integration in dev.")
+}
+if (!clothConfigJar.exists()) {
+    logger.lifecycle("AIOA Fabric setup: Cloth Config jar not found in fabric/libs (optional).")
+}
+if (!superMartijnConfigLibJar.exists()) {
+    logger.lifecycle("AIOA Fabric setup: SuperMartijn642's Config Lib jar not found in fabric/libs (optional).")
+}
+if (!enableOptionalConfigModsRuntime) {
+    logger.lifecycle("AIOA Fabric setup: Optional config-mod runtime loading is disabled. " +
+            "Use -Paioa.fabric.enableOptionalConfigModsRuntime=true to load Cloth Config / SuperMartijn642 Config Lib in dev runs.")
+}
+
+loom {
+    if (project(":common").file("src/main/resources/${mod_id}.accesswidener").exists()) {
+        accessWidenerPath.set(project(":common").file("src/main/resources/${mod_id}.accesswidener"))
+    }
+    mixin {
+        useLegacyMixinAp = true
+        defaultRefmapName.set("${mod_id}.refmap.json")
+    }
+    runs {
+        client {
+            client()
+            setConfigName("Fabric Client")
+            ideConfigGenerated(true)
+            runDir("run")
+        }
+        server {
+            server()
+            setConfigName("Fabric Server")
+            ideConfigGenerated(true)
+            runDir("run")
+        }
+    }
+}
