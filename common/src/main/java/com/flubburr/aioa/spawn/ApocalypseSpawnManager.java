@@ -17,6 +17,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.SpawnPlacements;
+import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.NaturalSpawner;
 import net.minecraft.world.level.block.state.BlockState;
@@ -24,11 +25,15 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class ApocalypseSpawnManager {
+
+    private static final ConcurrentHashMap<Class<?>, Optional<Method>> SET_BABY_METHOD_CACHE = new ConcurrentHashMap<>();
 
     private ApocalypseSpawnManager() {
     }
@@ -229,6 +234,9 @@ public final class ApocalypseSpawnManager {
         }
 
         mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), MobSpawnType.EVENT, null, null);
+        if (settings.removeBabyVariants && !ensureAdultVariant(mob)) {
+            return false;
+        }
         if (settings.preventSunlightBurn) {
             mob.addTag(AioaConstants.DAY_SPAWN_TAG);
         }
@@ -286,6 +294,49 @@ public final class ApocalypseSpawnManager {
     private static int randomOffset(RandomSource random, int minDistance, int maxDistance) {
         int distance = Mth.nextInt(random, minDistance, maxDistance);
         return random.nextBoolean() ? distance : -distance;
+    }
+
+    private static boolean ensureAdultVariant(Mob mob) {
+        if (!mob.isBaby()) {
+            return true;
+        }
+
+        if (mob instanceof AgeableMob ageableMob) {
+            ageableMob.setAge(0);
+        }
+
+        if (mob.isBaby()) {
+            Optional<Method> setBabyMethod = resolveSetBabyMethod(mob.getClass());
+            if (setBabyMethod.isPresent()) {
+                try {
+                    setBabyMethod.get().invoke(mob, false);
+                } catch (Exception exception) {
+                    AioaConstants.LOG.debug("AIOA could not force adult variant for '{}'.", mob.getType(), exception);
+                }
+            }
+        }
+
+        if (mob.isBaby()) {
+            AioaConfigManager.warnOnce(
+                    "baby-removal-unsupported:" + mob.getType(),
+                    "AIOA skipped spawning '" + mob.getType() + "' because removeBabyVariants is enabled and this entity cannot be forced to an adult variant."
+            );
+            return false;
+        }
+
+        return true;
+    }
+
+    private static Optional<Method> resolveSetBabyMethod(Class<?> type) {
+        return SET_BABY_METHOD_CACHE.computeIfAbsent(type, key -> {
+            try {
+                Method method = key.getMethod("setBaby", boolean.class);
+                method.setAccessible(true);
+                return Optional.of(method);
+            } catch (Exception ignored) {
+                return Optional.empty();
+            }
+        });
     }
 
     private record ResolvedSpawnEntry(AioaSpawnEntry entry, EntityType<?> entityType) {

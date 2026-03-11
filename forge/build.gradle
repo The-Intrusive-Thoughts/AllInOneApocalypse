@@ -23,6 +23,24 @@ def enableOptionalConfigModsRuntime = providers.gradleProperty("aioa.forge.enabl
         .get()
         .toBoolean()
 
+def embeddedYaclJarTask = tasks.register("prepareEmbeddedYaclJar", Jar) {
+    archiveFileName.set("aioa-embedded-yacl.jar")
+    destinationDirectory.set(layout.buildDirectory.dir("embedded-libs"))
+
+    if (yaclJar.exists()) {
+        from(zipTree(yaclJar)) {
+            exclude "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA"
+        }
+    }
+
+    manifest {
+        attributes(
+                "Automatic-Module-Name": "com.flubburr.aioa.embedded.yacl"
+        )
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
 legacyForge {
     version = "${minecraft_version}-${forge_version}"
 
@@ -73,6 +91,7 @@ dependencies {
     // - Enable runtime loading with: -Paioa.enableYaclRuntime=true
     if (yaclJar.exists()) {
         compileOnly files(yaclJar)
+        jarJar files(embeddedYaclJarTask.flatMap { it.archiveFile })
         if (enableYaclRuntime) {
             runtimeOnly files(yaclJar)
         } else {
@@ -108,7 +127,7 @@ dependencies {
 }
 
 if (!yaclJar.exists()) {
-    logger.lifecycle("AIOA Forge setup: add a YACL jar to forge/libs and update forge/build.gradle.")
+    logger.lifecycle("AIOA Forge setup: YACL jar not found in forge/libs. Forge will use the built-in fallback config screen.")
 }
 if (!catalogueJar.exists()) {
     logger.lifecycle("AIOA Forge setup: Catalogue jar not found in forge/libs (optional).")
@@ -128,6 +147,7 @@ if (!enableOptionalConfigModsRuntime) {
 }
 
 jar {
+    dependsOn(embeddedYaclJarTask)
     finalizedBy('reobfJar')
     manifest.attributes([
             "MixinConfigs": "${mod_id}.mixins.json"

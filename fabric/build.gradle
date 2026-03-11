@@ -101,3 +101,12 @@ loom {
         }
     }
 }
+
+tasks.named("jar", Jar).configure {
+    if (midnightLibJar.exists()) {
+        from(midnightLibJar) {
+            into("META-INF/jars")
+            rename { "aioa-embedded-midnightlib.jar" }
+        }
+    }
+}

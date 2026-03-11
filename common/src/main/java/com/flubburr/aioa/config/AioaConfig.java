@@ -69,6 +69,7 @@ public final class AioaConfig {
         public boolean requireDaytime = true;
         public boolean requireClearSky = true;
         public boolean preventSunlightBurn = true;
+        public boolean removeBabyVariants = false;
         public boolean exportMobCatalog = true;
         public int spawnIntervalTicks = 200;
         public int spawnAttemptsPerPlayer = 2;
@@ -89,6 +90,7 @@ public final class AioaConfig {
             copy.requireDaytime = this.requireDaytime;
             copy.requireClearSky = this.requireClearSky;
             copy.preventSunlightBurn = this.preventSunlightBurn;
+            copy.removeBabyVariants = this.removeBabyVariants;
             copy.exportMobCatalog = this.exportMobCatalog;
             copy.spawnIntervalTicks = this.spawnIntervalTicks;
             copy.spawnAttemptsPerPlayer = this.spawnAttemptsPerPlayer;

@@ -66,6 +66,12 @@ public final class AioaMidnightConfig extends MidnightConfig {
     @Entry(category = DAY_CATEGORY)
     public static boolean prevent_sunlight_burn = true;
 
+    @Entry(category = DAY_CATEGORY)
+    public static boolean remove_baby_variants = false;
+
+    @Entry(category = DAY_CATEGORY)
+    public static boolean export_mob_catalog = true;
+
     @Entry(category = DAY_CATEGORY, min = 20, max = 24000)
     public static int spawn_interval_ticks = 200;
 
@@ -111,6 +117,8 @@ public final class AioaMidnightConfig extends MidnightConfig {
         require_daytime = config.daySurfaceSpawns.requireDaytime;
         require_clear_sky = config.daySurfaceSpawns.requireClearSky;
         prevent_sunlight_burn = config.daySurfaceSpawns.preventSunlightBurn;
+        remove_baby_variants = config.daySurfaceSpawns.removeBabyVariants;
+        export_mob_catalog = config.daySurfaceSpawns.exportMobCatalog;
         spawn_interval_ticks = config.daySurfaceSpawns.spawnIntervalTicks;
         spawn_attempts_per_player = config.daySurfaceSpawns.spawnAttemptsPerPlayer;
         min_spawn_distance = config.daySurfaceSpawns.minSpawnDistance;
@@ -142,6 +150,8 @@ public final class AioaMidnightConfig extends MidnightConfig {
         config.daySurfaceSpawns.requireDaytime = require_daytime;
         config.daySurfaceSpawns.requireClearSky = require_clear_sky;
         config.daySurfaceSpawns.preventSunlightBurn = prevent_sunlight_burn;
+        config.daySurfaceSpawns.removeBabyVariants = remove_baby_variants;
+        config.daySurfaceSpawns.exportMobCatalog = export_mob_catalog;
         config.daySurfaceSpawns.spawnIntervalTicks = spawn_interval_ticks;
         config.daySurfaceSpawns.spawnAttemptsPerPlayer = spawn_attempts_per_player;
         config.daySurfaceSpawns.minSpawnDistance = min_spawn_distance;

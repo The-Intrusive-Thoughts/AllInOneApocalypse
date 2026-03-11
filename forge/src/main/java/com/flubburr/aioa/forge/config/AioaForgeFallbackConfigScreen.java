@@ -20,7 +20,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
     private AioaConfig editableConfig;
 
     private AioaForgeFallbackConfigScreen(Screen parent, AioaConfig editableConfig) {
-        super(Component.literal("AIOA Config (Forge Fallback)"));
+        super(tr("aioa.forge.fallback.title"));
         this.parent = parent;
         this.editableConfig = editableConfig;
     }
@@ -36,23 +36,23 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
         int y = 44;
         int step = 24;
 
-        this.addRenderableWidget(Button.builder(Component.literal("Hostile Spawn Control"), button ->
+        this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.hostile_settings"), button ->
                         this.minecraft.setScreen(new HostileSettingsScreen(this, this.editableConfig)))
                 .bounds(centerX - buttonWidth / 2, y, buttonWidth, 20)
                 .build());
         y += step;
 
-        this.addRenderableWidget(Button.builder(Component.literal("Day Surface Spawn Settings"), button ->
+        this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.day_settings"), button ->
                         this.minecraft.setScreen(new DaySurfaceSettingsScreen(this, this.editableConfig)))
                 .bounds(centerX - buttonWidth / 2, y, buttonWidth, 20)
                 .build());
         y += step;
 
-        this.addRenderableWidget(Button.builder(Component.literal("Edit Hostile Allow-List (one id per line)"), button ->
+        this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.hostile_allowlist"), button ->
                         this.minecraft.setScreen(new DelimitedListScreen(
                                 this,
-                                "Hostile Allow-List",
-                                "Each line should be a valid entity id such as minecraft:zombie.",
+                                tr("aioa.forge.fallback.list.hostile_allowlist.title"),
+                                tr("aioa.forge.fallback.list.hostile_allowlist.desc"),
                                 this.editableConfig.hostileSpawnControl.whitelistEntityIds,
                                 value -> this.editableConfig.hostileSpawnControl.whitelistEntityIds = new ArrayList<>(value)
                         )))
@@ -60,11 +60,11 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
                 .build());
         y += step;
 
-        this.addRenderableWidget(Button.builder(Component.literal("Edit Allowed Biomes (one id per line)"), button ->
+        this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.allowed_biomes"), button ->
                         this.minecraft.setScreen(new DelimitedListScreen(
                                 this,
-                                "Allowed Biome IDs",
-                                "Leave empty to allow all biomes.",
+                                tr("aioa.forge.fallback.list.allowed_biomes.title"),
+                                tr("aioa.forge.fallback.list.allowed_biomes.desc"),
                                 this.editableConfig.daySurfaceSpawns.allowedBiomeIds,
                                 value -> this.editableConfig.daySurfaceSpawns.allowedBiomeIds = new ArrayList<>(value)
                         )))
@@ -72,11 +72,11 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
                 .build());
         y += step;
 
-        this.addRenderableWidget(Button.builder(Component.literal("Edit Day Spawn Pool Entries (one per line)"), button ->
+        this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.day_pool"), button ->
                         this.minecraft.setScreen(new DelimitedListScreen(
                                 this,
-                                "Day Spawn Pool Entries",
-                                "Format: entity_id;enabled=true;weight=10;chance=1.0;min=1;max=3",
+                                tr("aioa.forge.fallback.list.day_pool.title"),
+                                tr("aioa.forge.fallback.list.day_pool.desc"),
                                 this.editableConfig.daySurfaceSpawns.spawnPoolEntries,
                                 value -> this.editableConfig.daySurfaceSpawns.spawnPoolEntries = new ArrayList<>(value)
                         )))
@@ -85,12 +85,12 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
         y += step + 4;
 
         int bottomY = this.height - 28;
-        this.addRenderableWidget(Button.builder(Component.literal("Reset to Defaults"), button ->
+        this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.reset_defaults"), button ->
                         this.minecraft.setScreen(new AioaForgeFallbackConfigScreen(this.parent, AioaConfig.createDefault())))
                 .bounds(centerX - buttonWidth / 2, y, buttonWidth, 20)
                 .build());
 
-        this.addRenderableWidget(Button.builder(Component.literal("Save"), button -> {
+        this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.save"), button -> {
                     this.editableConfig = this.editableConfig.sanitize();
                     AioaConfigManager.save(this.editableConfig);
                     this.onClose();
@@ -98,7 +98,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
                 .bounds(centerX - 142, bottomY, 140, 20)
                 .build());
 
-        this.addRenderableWidget(Button.builder(Component.literal("Cancel"), button -> this.onClose())
+        this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.cancel"), button -> this.onClose())
                 .bounds(centerX + 2, bottomY, 140, 20)
                 .build());
     }
@@ -114,7 +114,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
         guiGraphics.drawCenteredString(
                 this.font,
-                Component.literal("YACL is unavailable. Use this built-in Forge config editor."),
+                tr("aioa.forge.fallback.subtitle"),
                 this.width / 2,
                 28,
                 0xA0A0A0
@@ -122,8 +122,16 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
         super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 
-    private static Component booleanLabel(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "ON" : "OFF"));
+    private static Component booleanLabel(String labelKey, boolean value) {
+        return Component.translatable(
+                "aioa.forge.fallback.toggle_format",
+                tr(labelKey),
+                value ? tr("aioa.common.on") : tr("aioa.common.off")
+        );
+    }
+
+    private static Component tr(String key) {
+        return Component.translatable(key);
     }
 
     private static final class HostileSettingsScreen extends Screen {
@@ -138,7 +146,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
         private boolean ignoreSpecialSpawns;
 
         private HostileSettingsScreen(Screen parent, AioaConfig editableConfig) {
-            super(Component.literal("Hostile Spawn Control"));
+            super(tr("aioa.forge.fallback.hostile.title"));
             this.parent = parent;
             this.editableConfig = editableConfig;
         }
@@ -156,47 +164,47 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
             int y = 44;
             int step = 24;
 
-            this.addRenderableWidget(Button.builder(booleanLabel("Hostile nullification", this.enabled), button -> {
+            this.addRenderableWidget(Button.builder(booleanLabel("aioa.forge.fallback.hostile.enabled", this.enabled), button -> {
                         this.enabled = !this.enabled;
-                        button.setMessage(booleanLabel("Hostile nullification", this.enabled));
+                        button.setMessage(booleanLabel("aioa.forge.fallback.hostile.enabled", this.enabled));
                     })
                     .bounds(centerX - w / 2, y, w, 20)
                     .build());
             y += step;
 
-            this.addRenderableWidget(Button.builder(booleanLabel("Overworld only", this.overworldOnly), button -> {
+            this.addRenderableWidget(Button.builder(booleanLabel("aioa.forge.fallback.hostile.overworld_only", this.overworldOnly), button -> {
                         this.overworldOnly = !this.overworldOnly;
-                        button.setMessage(booleanLabel("Overworld only", this.overworldOnly));
+                        button.setMessage(booleanLabel("aioa.forge.fallback.hostile.overworld_only", this.overworldOnly));
                     })
                     .bounds(centerX - w / 2, y, w, 20)
                     .build());
             y += step;
 
-            this.addRenderableWidget(Button.builder(booleanLabel("Ignore structure spawns", this.ignoreStructureSpawns), button -> {
+            this.addRenderableWidget(Button.builder(booleanLabel("aioa.forge.fallback.hostile.ignore_structure_spawns", this.ignoreStructureSpawns), button -> {
                         this.ignoreStructureSpawns = !this.ignoreStructureSpawns;
-                        button.setMessage(booleanLabel("Ignore structure spawns", this.ignoreStructureSpawns));
+                        button.setMessage(booleanLabel("aioa.forge.fallback.hostile.ignore_structure_spawns", this.ignoreStructureSpawns));
                     })
                     .bounds(centerX - w / 2, y, w, 20)
                     .build());
             y += step;
 
-            this.addRenderableWidget(Button.builder(booleanLabel("Ignore spawner spawns", this.ignoreSpawnerSpawns), button -> {
+            this.addRenderableWidget(Button.builder(booleanLabel("aioa.forge.fallback.hostile.ignore_spawner_spawns", this.ignoreSpawnerSpawns), button -> {
                         this.ignoreSpawnerSpawns = !this.ignoreSpawnerSpawns;
-                        button.setMessage(booleanLabel("Ignore spawner spawns", this.ignoreSpawnerSpawns));
+                        button.setMessage(booleanLabel("aioa.forge.fallback.hostile.ignore_spawner_spawns", this.ignoreSpawnerSpawns));
                     })
                     .bounds(centerX - w / 2, y, w, 20)
                     .build());
             y += step;
 
-            this.addRenderableWidget(Button.builder(booleanLabel("Ignore special spawns", this.ignoreSpecialSpawns), button -> {
+            this.addRenderableWidget(Button.builder(booleanLabel("aioa.forge.fallback.hostile.ignore_special_spawns", this.ignoreSpecialSpawns), button -> {
                         this.ignoreSpecialSpawns = !this.ignoreSpecialSpawns;
-                        button.setMessage(booleanLabel("Ignore special spawns", this.ignoreSpecialSpawns));
+                        button.setMessage(booleanLabel("aioa.forge.fallback.hostile.ignore_special_spawns", this.ignoreSpecialSpawns));
                     })
                     .bounds(centerX - w / 2, y, w, 20)
                     .build());
 
             int bottomY = this.height - 28;
-            this.addRenderableWidget(Button.builder(Component.literal("Done"), button -> {
+            this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.done"), button -> {
                         this.editableConfig.hostileSpawnControl.enabled = this.enabled;
                         this.editableConfig.hostileSpawnControl.overworldOnly = this.overworldOnly;
                         this.editableConfig.hostileSpawnControl.ignoreStructureSpawns = this.ignoreStructureSpawns;
@@ -207,7 +215,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
                     .bounds(centerX - 142, bottomY, 140, 20)
                     .build());
 
-            this.addRenderableWidget(Button.builder(Component.literal("Cancel"), button -> this.minecraft.setScreen(this.parent))
+            this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.cancel"), button -> this.minecraft.setScreen(this.parent))
                     .bounds(centerX + 2, bottomY, 140, 20)
                     .build());
         }
@@ -235,6 +243,8 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
         private boolean requireDaytime;
         private boolean requireClearSky;
         private boolean preventSunlightBurn;
+        private boolean removeBabyVariants;
+        private boolean exportMobCatalog;
 
         private EditBox spawnIntervalTicks;
         private EditBox spawnAttemptsPerPlayer;
@@ -243,7 +253,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
         private EditBox maxNearbyManagedMobs;
 
         private DaySurfaceSettingsScreen(Screen parent, AioaConfig editableConfig) {
-            super(Component.literal("Day Surface Spawn Settings"));
+            super(tr("aioa.forge.fallback.day.title"));
             this.parent = parent;
             this.editableConfig = editableConfig;
         }
@@ -255,51 +265,69 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
             this.requireDaytime = this.editableConfig.daySurfaceSpawns.requireDaytime;
             this.requireClearSky = this.editableConfig.daySurfaceSpawns.requireClearSky;
             this.preventSunlightBurn = this.editableConfig.daySurfaceSpawns.preventSunlightBurn;
+            this.removeBabyVariants = this.editableConfig.daySurfaceSpawns.removeBabyVariants;
+            this.exportMobCatalog = this.editableConfig.daySurfaceSpawns.exportMobCatalog;
 
             int centerX = this.width / 2;
             int w = 300;
             int y = 34;
             int step = 20;
 
-            this.addRenderableWidget(Button.builder(booleanLabel("Enable day surface spawns", this.enabled), button -> {
+            this.addRenderableWidget(Button.builder(booleanLabel("aioa.forge.fallback.day.enabled", this.enabled), button -> {
                         this.enabled = !this.enabled;
-                        button.setMessage(booleanLabel("Enable day surface spawns", this.enabled));
+                        button.setMessage(booleanLabel("aioa.forge.fallback.day.enabled", this.enabled));
                     })
                     .bounds(centerX - w / 2, y, w, 20)
                     .build());
             y += step;
 
-            this.addRenderableWidget(Button.builder(booleanLabel("Overworld only", this.overworldOnly), button -> {
+            this.addRenderableWidget(Button.builder(booleanLabel("aioa.forge.fallback.day.overworld_only", this.overworldOnly), button -> {
                         this.overworldOnly = !this.overworldOnly;
-                        button.setMessage(booleanLabel("Overworld only", this.overworldOnly));
+                        button.setMessage(booleanLabel("aioa.forge.fallback.day.overworld_only", this.overworldOnly));
                     })
                     .bounds(centerX - w / 2, y, w, 20)
                     .build());
             y += step;
 
-            this.addRenderableWidget(Button.builder(booleanLabel("Require daytime", this.requireDaytime), button -> {
+            this.addRenderableWidget(Button.builder(booleanLabel("aioa.forge.fallback.day.require_daytime", this.requireDaytime), button -> {
                         this.requireDaytime = !this.requireDaytime;
-                        button.setMessage(booleanLabel("Require daytime", this.requireDaytime));
+                        button.setMessage(booleanLabel("aioa.forge.fallback.day.require_daytime", this.requireDaytime));
                     })
                     .bounds(centerX - w / 2, y, w, 20)
                     .build());
             y += step;
 
-            this.addRenderableWidget(Button.builder(booleanLabel("Require clear sky", this.requireClearSky), button -> {
+            this.addRenderableWidget(Button.builder(booleanLabel("aioa.forge.fallback.day.require_clear_sky", this.requireClearSky), button -> {
                         this.requireClearSky = !this.requireClearSky;
-                        button.setMessage(booleanLabel("Require clear sky", this.requireClearSky));
+                        button.setMessage(booleanLabel("aioa.forge.fallback.day.require_clear_sky", this.requireClearSky));
                     })
                     .bounds(centerX - w / 2, y, w, 20)
                     .build());
             y += step;
 
-            this.addRenderableWidget(Button.builder(booleanLabel("Prevent sunlight burn", this.preventSunlightBurn), button -> {
+            this.addRenderableWidget(Button.builder(booleanLabel("aioa.forge.fallback.day.prevent_sunlight_burn", this.preventSunlightBurn), button -> {
                         this.preventSunlightBurn = !this.preventSunlightBurn;
-                        button.setMessage(booleanLabel("Prevent sunlight burn", this.preventSunlightBurn));
+                        button.setMessage(booleanLabel("aioa.forge.fallback.day.prevent_sunlight_burn", this.preventSunlightBurn));
+                    })
+                    .bounds(centerX - w / 2, y, w, 20)
+                    .build());
+            y += step;
+
+            this.addRenderableWidget(Button.builder(booleanLabel("aioa.forge.fallback.day.remove_baby_variants", this.removeBabyVariants), button -> {
+                        this.removeBabyVariants = !this.removeBabyVariants;
+                        button.setMessage(booleanLabel("aioa.forge.fallback.day.remove_baby_variants", this.removeBabyVariants));
                     })
                     .bounds(centerX - w / 2, y, w, 20)
                     .build());
             y += step + 8;
+
+            this.addRenderableWidget(Button.builder(booleanLabel("aioa.forge.fallback.day.export_mob_catalog", this.exportMobCatalog), button -> {
+                        this.exportMobCatalog = !this.exportMobCatalog;
+                        button.setMessage(booleanLabel("aioa.forge.fallback.day.export_mob_catalog", this.exportMobCatalog));
+                    })
+                    .bounds(centerX - w / 2, y, w, 20)
+                    .build());
+            y += step;
 
             int labelX = centerX - 150;
             int inputX = centerX + 52;
@@ -317,19 +345,21 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
             this.addRenderableWidget(this.maxSpawnDistance);
             this.addRenderableWidget(this.maxNearbyManagedMobs);
 
-            this.spawnIntervalTicks.setHint(Component.literal("20-24000"));
-            this.spawnAttemptsPerPlayer.setHint(Component.literal("1-16"));
-            this.minSpawnDistance.setHint(Component.literal(">=8"));
-            this.maxSpawnDistance.setHint(Component.literal(">= min+8"));
-            this.maxNearbyManagedMobs.setHint(Component.literal(">=1"));
+            this.spawnIntervalTicks.setHint(tr("aioa.forge.fallback.day.hint.interval"));
+            this.spawnAttemptsPerPlayer.setHint(tr("aioa.forge.fallback.day.hint.attempts"));
+            this.minSpawnDistance.setHint(tr("aioa.forge.fallback.day.hint.min_distance"));
+            this.maxSpawnDistance.setHint(tr("aioa.forge.fallback.day.hint.max_distance"));
+            this.maxNearbyManagedMobs.setHint(tr("aioa.forge.fallback.day.hint.max_nearby"));
 
             int bottomY = this.height - 28;
-            this.addRenderableWidget(Button.builder(Component.literal("Done"), button -> {
+            this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.done"), button -> {
                         this.editableConfig.daySurfaceSpawns.enabled = this.enabled;
                         this.editableConfig.daySurfaceSpawns.overworldOnly = this.overworldOnly;
                         this.editableConfig.daySurfaceSpawns.requireDaytime = this.requireDaytime;
                         this.editableConfig.daySurfaceSpawns.requireClearSky = this.requireClearSky;
                         this.editableConfig.daySurfaceSpawns.preventSunlightBurn = this.preventSunlightBurn;
+                        this.editableConfig.daySurfaceSpawns.removeBabyVariants = this.removeBabyVariants;
+                        this.editableConfig.daySurfaceSpawns.exportMobCatalog = this.exportMobCatalog;
 
                         this.editableConfig.daySurfaceSpawns.spawnIntervalTicks = Math.max(20, parseInt(this.spawnIntervalTicks, this.editableConfig.daySurfaceSpawns.spawnIntervalTicks));
                         this.editableConfig.daySurfaceSpawns.spawnAttemptsPerPlayer = clamp(parseInt(this.spawnAttemptsPerPlayer, this.editableConfig.daySurfaceSpawns.spawnAttemptsPerPlayer), 1, 16);
@@ -345,7 +375,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
                     .bounds(centerX - 142, bottomY, 140, 20)
                     .build());
 
-            this.addRenderableWidget(Button.builder(Component.literal("Cancel"), button -> this.minecraft.setScreen(this.parent))
+            this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.cancel"), button -> this.minecraft.setScreen(this.parent))
                     .bounds(centerX + 2, bottomY, 140, 20)
                     .build());
 
@@ -372,20 +402,20 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
 
             int labelX = this.width / 2 - 150;
-            int y = 142;
+            int y = 162;
             int step = 20;
             int color = 0xA0A0A0;
-            guiGraphics.drawString(this.font, Component.literal("Spawn interval ticks"), labelX, y + 6, color);
-            guiGraphics.drawString(this.font, Component.literal("Spawn attempts per player"), labelX, y + step + 6, color);
-            guiGraphics.drawString(this.font, Component.literal("Minimum spawn distance"), labelX, y + (step * 2) + 6, color);
-            guiGraphics.drawString(this.font, Component.literal("Maximum spawn distance"), labelX, y + (step * 3) + 6, color);
-            guiGraphics.drawString(this.font, Component.literal("Max nearby managed mobs"), labelX, y + (step * 4) + 6, color);
+            guiGraphics.drawString(this.font, tr("aioa.forge.fallback.day.label.spawn_interval_ticks"), labelX, y + 6, color);
+            guiGraphics.drawString(this.font, tr("aioa.forge.fallback.day.label.spawn_attempts_per_player"), labelX, y + step + 6, color);
+            guiGraphics.drawString(this.font, tr("aioa.forge.fallback.day.label.min_spawn_distance"), labelX, y + (step * 2) + 6, color);
+            guiGraphics.drawString(this.font, tr("aioa.forge.fallback.day.label.max_spawn_distance"), labelX, y + (step * 3) + 6, color);
+            guiGraphics.drawString(this.font, tr("aioa.forge.fallback.day.label.max_nearby_managed_mobs"), labelX, y + (step * 4) + 6, color);
 
             super.render(guiGraphics, mouseX, mouseY, partialTick);
         }
 
         private EditBox createNumberBox(int x, int y, int width, int value) {
-            EditBox box = new EditBox(this.font, x, y, width, 20, Component.literal("number"));
+            EditBox box = new EditBox(this.font, x, y, width, 20, tr("aioa.forge.fallback.day.number_box"));
             box.setValue(Integer.toString(value));
             box.setFilter(text -> text.isEmpty() || text.matches("\\d{1,6}"));
             box.setMaxLength(6);
@@ -412,19 +442,19 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
     private static final class DelimitedListScreen extends Screen {
 
         private final Screen parent;
-        private final String description;
+        private final Component description;
         private final List<String> initialValues;
         private final Consumer<List<String>> saveConsumer;
         private MultiLineEditBox editor;
 
         private DelimitedListScreen(
                 Screen parent,
-                String title,
-                String description,
+                Component title,
+                Component description,
                 List<String> initialValues,
                 Consumer<List<String>> saveConsumer
         ) {
-            super(Component.literal(title));
+            super(title);
             this.parent = parent;
             this.description = description;
             this.initialValues = new ArrayList<>(initialValues);
@@ -444,15 +474,15 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
                     editorY,
                     editorWidth,
                     editorHeight,
-                    Component.literal("Entries"),
-                    Component.literal("One entry per line")
+                    tr("aioa.forge.fallback.list.entries"),
+                    tr("aioa.forge.fallback.list.entries_hint")
             );
             this.editor.setCharacterLimit(32767);
             this.editor.setValue(String.join("\n", this.initialValues));
             this.addRenderableWidget(this.editor);
 
             int bottomY = this.height - 28;
-            this.addRenderableWidget(Button.builder(Component.literal("Done"), button -> {
+            this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.done"), button -> {
                         List<String> values = this.editor.getValue()
                                 .lines()
                                 .map(String::trim)
@@ -464,7 +494,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
                     .bounds(this.width / 2 - 142, bottomY, 140, 20)
                     .build());
 
-            this.addRenderableWidget(Button.builder(Component.literal("Cancel"), button -> this.minecraft.setScreen(this.parent))
+            this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.cancel"), button -> this.minecraft.setScreen(this.parent))
                     .bounds(this.width / 2 + 2, bottomY, 140, 20)
                     .build());
 
@@ -485,7 +515,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             this.renderBackground(guiGraphics);
             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
-            guiGraphics.drawCenteredString(this.font, Component.literal(this.description), this.width / 2, 30, 0xA0A0A0);
+            guiGraphics.drawCenteredString(this.font, this.description, this.width / 2, 30, 0xA0A0A0);
             super.render(guiGraphics, mouseX, mouseY, partialTick);
         }
     }
