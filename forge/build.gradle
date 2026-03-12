@@ -4,7 +4,7 @@ plugins {
 }
 
 if (!forge_version) {
-    throw new GradleException("Unsupported forge profile for minecraft_version=${minecraft_version}. Supported forge profiles in this project: 1.20.3, 1.20.4.")
+    throw new GradleException("Unsupported forge profile for minecraft_version=${minecraft_version}. Supported forge profile in this project: 1.20.6 (Forge is not published for 1.20.5).")
 }
 
 def libsDir = file('libs')
@@ -53,12 +53,6 @@ minecraft {
     runs {
         configureEach {
             workingDirectory project.file('run')
-
-            mods {
-                "${mod_id}" {
-                    source sourceSets.main
-                }
-            }
         }
 
         client {
@@ -143,8 +137,27 @@ if (!enableOptionalConfigModsRuntime) {
 }
 
 tasks.named('jar', Jar).configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     finalizedBy('reobfJar')
     manifest.attributes([
             'MixinConfigs': "${mod_id}.mixins.json"
     ])
+}
+
+tasks.matching { it.name in ['runClient', 'runServer', 'runData'] }.configureEach {
+    doFirst {
+        File resourcesDir = sourceSets.main.output.resourcesDir
+        File classesDir = sourceSets.main.output.classesDirs.files.find { it.exists() }
+
+        if (resourcesDir != null && resourcesDir.exists() && classesDir != null) {
+            copy {
+                from resourcesDir
+                into classesDir
+            }
+
+            if (hasProperty('classpath') && classpath != null) {
+                classpath = files(classpath.files.findAll { it.absoluteFile != resourcesDir.absoluteFile })
+            }
+        }
+    }
 }

@@ -4,8 +4,8 @@ plugins {
 }
 
 def mcVersionProfiles = [
-        '1.20.3': [fabricApi: '0.91.1+1.20.3', forge: '49.0.2', forgeLoaderRange: '[49,)', midnightLib: '1.5.3-fabric', modMenu: '9.0.0'],
-        '1.20.4': [fabricApi: '0.97.3+1.20.4', forge: '49.2.4', forgeLoaderRange: '[49,)', midnightLib: '1.5.3-fabric', modMenu: '9.0.0'],
+        '1.20.5': [fabricApi: '0.97.8+1.20.5', forge: null, forgeLoaderRange: null, midnightLib: '1.5.5-fabric', modMenu: '10.0.0'],
+        '1.20.6': [fabricApi: '0.100.8+1.20.6', forge: '50.2.4', forgeLoaderRange: '[50,)', midnightLib: '1.5.5-fabric', modMenu: '10.0.0'],
 ]
 
 def selectedProfile = mcVersionProfiles[minecraft_version]
@@ -14,7 +14,7 @@ if (selectedProfile == null) {
 }
 
 ext.fabric_version = selectedProfile.fabricApi
-ext.forge_version = selectedProfile.forge
-ext.forge_loader_version_range = selectedProfile.forgeLoaderRange
+ext.forge_version = selectedProfile.forge ?: "disabled-for-${minecraft_version}"
+ext.forge_loader_version_range = selectedProfile.forgeLoaderRange ?: "[0,)"
 ext.midnightlib_version = selectedProfile.midnightLib
 ext.modmenu_version = selectedProfile.modMenu

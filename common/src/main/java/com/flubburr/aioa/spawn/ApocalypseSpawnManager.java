@@ -16,6 +16,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.level.Level;
@@ -233,7 +234,7 @@ public final class ApocalypseSpawnManager {
             return false;
         }
 
-        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), MobSpawnType.EVENT, null, null);
+        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), MobSpawnType.EVENT, (SpawnGroupData) null);
         if (settings.removeBabyVariants && !ensureAdultVariant(mob)) {
             return false;
         }
@@ -246,8 +247,7 @@ public final class ApocalypseSpawnManager {
     }
 
     private static boolean isPotentialSpawnPosition(ServerLevel level, BlockPos spawnPosition, EntityType<?> entityType) {
-        SpawnPlacements.Type placementType = SpawnPlacements.getPlacementType(entityType);
-        if (!NaturalSpawner.isSpawnPositionOk(placementType, level, spawnPosition, entityType)) {
+        if (!SpawnPlacements.isSpawnPositionOk(entityType, level, spawnPosition)) {
             return false;
         }
 
