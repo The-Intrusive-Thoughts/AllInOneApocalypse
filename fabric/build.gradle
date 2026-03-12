@@ -3,10 +3,30 @@ plugins {
     id 'fabric-loom'
 }
 
-def midnightLibJar = file('libs/midnightlib-fabric-1.9.2+1.20.1.jar')
-def modMenuJar = file('libs/modmenu-7.2.2.jar')
-def clothConfigJar = file('libs/cloth-config-11.1.136-fabric.jar')
-def superMartijnConfigLibJar = file('libs/supermartijn642sconfiglib-1.1.8-fabric-mc1.20.jar')
+def libsDir = file('libs')
+def pickLibJar = { Closure<Boolean> matcher ->
+    if (!libsDir.exists()) {
+        return null
+    }
+
+    def jars = libsDir.listFiles()
+            .findAll { it.isFile() && it.length() > 0 && it.name.toLowerCase(Locale.ROOT).endsWith(".jar") }
+            .sort { a, b -> b.name <=> a.name }
+
+    def preferred = jars.find {
+        def lower = it.name.toLowerCase(Locale.ROOT)
+        matcher(lower) && lower.contains(minecraft_version)
+    }
+    if (preferred != null) {
+        return preferred
+    }
+
+    return jars.find { matcher(it.name.toLowerCase(Locale.ROOT)) }
+}
+
+def modMenuJar = pickLibJar { name -> name.startsWith('modmenu-') }
+def clothConfigJar = pickLibJar { name -> name.startsWith('cloth-config-') && name.contains('fabric') }
+def superMartijnConfigLibJar = pickLibJar { name -> name.contains('supermartijn642') && name.contains('configlib') && name.contains('fabric') }
 def enableModMenuRuntime = providers.gradleProperty("aioa.fabric.enableModMenuRuntime")
         .orElse("false")
         .get()
@@ -20,23 +40,20 @@ dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
     mappings loom.layered {
         officialMojangMappings()
-        parchment("org.parchmentmc.data:parchment-${parchment_minecraft}:${parchment_version}@zip")
     }
     modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
     // AIOA manual dependency placeholders:
-    // - Drop MidnightLib into fabric/libs and replace MidnightLib-PLACEHOLDER.jar with the real filename.
-    // - Drop Mod Menu into fabric/libs and replace ModMenu-PLACEHOLDER.jar with the real filename.
+    // - Drop Mod Menu into fabric/libs to override the default Maven version if needed.
     // - Optional compatibility jars can also live in fabric/libs:
     //   - cloth-config-...-fabric.jar
     //   - supermartijn642sconfiglib-...-fabric-...jar
     // These are loader-specific UI dependencies only; the shared gameplay logic stays in :common.
-    // MidnightLib is the base config backend on Fabric.
+    // MidnightLib is resolved from Maven by minecraft_version profile for safer upgrades.
     // Mod Menu stays optional; enable runtime loading only when desired.
-    if (midnightLibJar.exists()) {
-        modImplementation files(midnightLibJar)
-    }
-    if (modMenuJar.exists()) {
+    modImplementation "maven.modrinth:midnightlib:${midnightlib_version}"
+    def modMenuDep = "maven.modrinth:modmenu:${modmenu_version}"
+    if (modMenuJar != null && modMenuJar.exists()) {
         modCompileOnly files(modMenuJar)
         if (enableModMenuRuntime) {
             modRuntimeOnly files(modMenuJar)
@@ -44,14 +61,19 @@ dependencies {
             logger.lifecycle("AIOA Fabric setup: Mod Menu runtime is disabled (compile-only only). " +
                     "Use -Paioa.fabric.enableModMenuRuntime=true to load Mod Menu in dev runs.")
         }
+    } else {
+        modCompileOnly modMenuDep
+        if (enableModMenuRuntime) {
+            modRuntimeOnly modMenuDep
+        }
     }
-    if (clothConfigJar.exists()) {
+    if (clothConfigJar != null && clothConfigJar.exists()) {
         modCompileOnly files(clothConfigJar)
         if (enableOptionalConfigModsRuntime) {
             modRuntimeOnly files(clothConfigJar)
         }
     }
-    if (superMartijnConfigLibJar.exists()) {
+    if (superMartijnConfigLibJar != null && superMartijnConfigLibJar.exists()) {
         modCompileOnly files(superMartijnConfigLibJar)
         if (enableOptionalConfigModsRuntime) {
             modRuntimeOnly files(superMartijnConfigLibJar)
@@ -61,16 +83,13 @@ dependencies {
     implementation project(":common")
 }
 
-if (!midnightLibJar.exists()) {
-    logger.lifecycle("AIOA Fabric setup: add MidnightLib to fabric/libs and update fabric/build.gradle.")
+if (modMenuJar == null || !modMenuJar.exists()) {
+    logger.lifecycle("AIOA Fabric setup: Mod Menu jar not found in fabric/libs (optional). Using Maven dependency modmenu:${modmenu_version}.")
 }
-if (!modMenuJar.exists()) {
-    logger.lifecycle("AIOA Fabric setup: Mod Menu jar is missing. That's okay unless you want Mod Menu integration in dev.")
-}
-if (!clothConfigJar.exists()) {
+if (clothConfigJar == null || !clothConfigJar.exists()) {
     logger.lifecycle("AIOA Fabric setup: Cloth Config jar not found in fabric/libs (optional).")
 }
-if (!superMartijnConfigLibJar.exists()) {
+if (superMartijnConfigLibJar == null || !superMartijnConfigLibJar.exists()) {
     logger.lifecycle("AIOA Fabric setup: SuperMartijn642's Config Lib jar not found in fabric/libs (optional).")
 }
 if (!enableOptionalConfigModsRuntime) {
@@ -103,10 +122,13 @@ loom {
 }
 
 tasks.named("jar", Jar).configure {
-    if (midnightLibJar.exists()) {
-        from(midnightLibJar) {
-            into("META-INF/jars")
-            rename { "aioa-embedded-midnightlib.jar" }
+    // MidnightLib is supplied as a normal dependency for dev/runtime and distribution.
+}
+
+tasks.matching { it.name in ["runClient", "runServer"] }.configureEach {
+    doFirst {
+        delete fileTree("run/mods") {
+            include "midnightlib*.jar"
         }
     }
 }

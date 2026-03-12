@@ -1,17 +1,5 @@
 plugins {
     id 'multiloader-common'
-    id 'net.neoforged.moddev.legacyforge'
-}
-
-legacyForge {
-    mcpVersion = minecraft_version
-    if (file("src/main/resources/META-INF/accesstransformer.cfg").exists()) {
-        accessTransformers = ["src/main/resources/META-INF/accesstransformer.cfg"]
-    }
-    parchment {
-        minecraftVersion = parchment_minecraft
-        mappingsVersion = parchment_version
-    }
 }
 
 dependencies {
@@ -33,4 +21,13 @@ configurations {
 artifacts {
     commonJava sourceSets.main.java.sourceDirectories.singleFile
     commonResources sourceSets.main.resources.sourceDirectories.singleFile
+}
+
+// The common module is consumed as shared source directories by loader modules.
+// Skip direct compilation here to avoid duplicate/mismatched mapping compiles.
+tasks.named('compileJava', JavaCompile).configure {
+    enabled = false
+}
+tasks.named('javadoc', Javadoc).configure {
+    enabled = false
 }

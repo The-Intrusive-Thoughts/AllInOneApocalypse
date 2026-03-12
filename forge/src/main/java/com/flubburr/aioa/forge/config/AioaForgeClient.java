@@ -1,6 +1,7 @@
 package com.flubburr.aioa.forge.config;
 
 import com.flubburr.aioa.AioaConstants;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraftforge.client.ConfigScreenHandler;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -22,7 +23,7 @@ public final class AioaForgeClient {
         );
     }
 
-    private static Screen createScreen(Screen parent) {
+    private static Screen createScreen(Minecraft minecraft, Screen parent) {
         if (isClassPresent("dev.isxander.yacl3.api.YetAnotherConfigLib")) {
             Screen yaclScreen = createYaclScreen(parent);
             if (yaclScreen != null) {

@@ -1,4 +1,20 @@
 plugins {
     id 'fabric-loom' version '1.13-SNAPSHOT' apply(false)
-    id 'net.neoforged.moddev.legacyforge' version '2.0.77' apply(false)
+    id 'net.minecraftforge.gradle' version '[6.0.24,6.2)' apply(false)
 }
+
+def mcVersionProfiles = [
+        '1.20.3': [fabricApi: '0.91.1+1.20.3', forge: '49.0.2', forgeLoaderRange: '[49,)', midnightLib: '1.5.3-fabric', modMenu: '9.0.0'],
+        '1.20.4': [fabricApi: '0.97.3+1.20.4', forge: '49.2.4', forgeLoaderRange: '[49,)', midnightLib: '1.5.3-fabric', modMenu: '9.0.0'],
+]
+
+def selectedProfile = mcVersionProfiles[minecraft_version]
+if (selectedProfile == null) {
+    throw new GradleException("Unsupported minecraft_version '${minecraft_version}'. Supported: ${mcVersionProfiles.keySet().join(', ')}")
+}
+
+ext.fabric_version = selectedProfile.fabricApi
+ext.forge_version = selectedProfile.forge
+ext.forge_loader_version_range = selectedProfile.forgeLoaderRange
+ext.midnightlib_version = selectedProfile.midnightLib
+ext.modmenu_version = selectedProfile.modMenu

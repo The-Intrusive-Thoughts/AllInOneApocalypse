@@ -24,4 +24,14 @@ plugins {
 rootProject.name = 'AIOA'
 include("common")
 include("fabric")
-include("forge")
+
+def localProperties = new Properties()
+file("gradle.properties").withInputStream { localProperties.load(it) }
+def selectedMinecraftVersion = (localProperties.getProperty("minecraft_version") ?: "").trim()
+
+// Forge has no published artifacts for 1.20.5.
+if (selectedMinecraftVersion == "1.20.5") {
+    println("AIOA setup: Forge module disabled for Minecraft 1.20.5 (no Forge artifact published for this version).")
+} else {
+    include("forge")
+}

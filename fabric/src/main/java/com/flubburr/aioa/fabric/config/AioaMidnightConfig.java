@@ -3,29 +3,20 @@ package com.flubburr.aioa.fabric.config;
 import com.flubburr.aioa.AioaConstants;
 import com.flubburr.aioa.config.AioaConfig;
 import com.flubburr.aioa.config.AioaConfigManager;
-import eu.midnightdust.lib.config.EntryInfo;
 import eu.midnightdust.lib.config.MidnightConfig;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public final class AioaMidnightConfig extends MidnightConfig {
 
     private static final String HOSTILE_CATEGORY = "hostile_spawn_control";
     private static final String DAY_CATEGORY = "day_surface_spawns";
-    private static final String ENTRY_KEY_PREFIX = AioaConstants.MOD_ID + ":";
 
     private static boolean initialized;
-    private static final Field ENTRY_VALUE_FIELD;
-    private static final Field ENTRY_TEMP_VALUE_FIELD;
-    private static final Field ENTRY_DEFAULT_VALUE_FIELD;
-
-    static {
-        ENTRY_VALUE_FIELD = resolveEntryInfoField("value");
-        ENTRY_TEMP_VALUE_FIELD = resolveEntryInfoField("tempValue");
-        ENTRY_DEFAULT_VALUE_FIELD = resolveEntryInfoField("defaultValue");
-    }
 
     @Comment(category = HOSTILE_CATEGORY)
     public static String hostile_spawn_settings_comment = "";
@@ -130,12 +121,10 @@ public final class AioaMidnightConfig extends MidnightConfig {
         syncMidnightEntryState();
     }
 
-    @Override
     public void loadValuesFromJson() {
         pullFromCommon();
     }
 
-    @Override
     public void writeChanges() {
         AioaConfig config = AioaConfigManager.getConfigCopy();
         config.hostileSpawnControl.enabled = enable_hostile_spawn_nullification;
@@ -168,45 +157,134 @@ public final class AioaMidnightConfig extends MidnightConfig {
         return source == null ? new ArrayList<>() : new ArrayList<>(source);
     }
 
-    private static Field resolveEntryInfoField(String fieldName) {
+    private static Field resolveField(Class<?> type, String fieldName) {
+        Class<?> current = type;
+        while (current != null) {
+            try {
+                Field field = current.getDeclaredField(fieldName);
+                field.setAccessible(true);
+                return field;
+            } catch (NoSuchFieldException ignored) {
+                current = current.getSuperclass();
+            } catch (Exception exception) {
+                AioaConstants.LOG.warn("AIOA could not access MidnightLib field '{}' on {}.", fieldName, type.getName(), exception);
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static Method resolveMethod(Class<?> type, String methodName) {
+        Class<?> current = type;
+        while (current != null) {
+            try {
+                Method method = current.getDeclaredMethod(methodName);
+                method.setAccessible(true);
+                return method;
+            } catch (NoSuchMethodException ignored) {
+                current = current.getSuperclass();
+            } catch (Exception exception) {
+                AioaConstants.LOG.warn("AIOA could not access MidnightLib method '{}' on {}.", methodName, type.getName(), exception);
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static Field resolveEntriesField() {
         try {
-            Field field = EntryInfo.class.getDeclaredField(fieldName);
+            Field field = MidnightConfig.class.getDeclaredField("entries");
             field.setAccessible(true);
             return field;
         } catch (Exception exception) {
-            AioaConstants.LOG.warn("AIOA could not access MidnightLib internals for '{}' state sync.", fieldName, exception);
+            AioaConstants.LOG.warn("AIOA could not access MidnightLib 'entries' field for state sync.", exception);
             return null;
         }
     }
 
     private static void syncMidnightEntryState() {
-        if (ENTRY_VALUE_FIELD == null || ENTRY_TEMP_VALUE_FIELD == null || ENTRY_DEFAULT_VALUE_FIELD == null) {
+        Field entriesField = resolveEntriesField();
+        if (entriesField == null) {
             return;
         }
 
-        entries.forEach((key, entryInfo) -> {
-            if (!key.startsWith(ENTRY_KEY_PREFIX) || entryInfo.field == null || entryInfo.entry == null) {
+        Object container;
+        try {
+            container = entriesField.get(null);
+        } catch (Exception exception) {
+            AioaConstants.LOG.warn("AIOA could not read MidnightLib entries for state sync.", exception);
+            return;
+        }
+
+        if (container instanceof Map<?, ?> entryMap) {
+            for (Map.Entry<?, ?> entry : entryMap.entrySet()) {
+                syncOneEntry(entry.getValue(), String.valueOf(entry.getKey()));
+            }
+            return;
+        }
+
+        if (container instanceof Iterable<?> iterableEntries) {
+            for (Object entryInfo : iterableEntries) {
+                syncOneEntry(entryInfo, null);
+            }
+        }
+    }
+
+    private static void syncOneEntry(Object entryInfo, String key) {
+        if (entryInfo == null) {
+            return;
+        }
+
+        Class<?> entryType = entryInfo.getClass();
+        Field reflectedFieldHolder = resolveField(entryType, "field");
+        if (reflectedFieldHolder == null) {
+            return;
+        }
+
+        Field configField;
+        try {
+            configField = (Field) reflectedFieldHolder.get(entryInfo);
+        } catch (Exception exception) {
+            return;
+        }
+
+        if (configField == null || configField.getDeclaringClass() != AioaMidnightConfig.class) {
+            return;
+        }
+
+        Field valueField = resolveField(entryType, "value");
+        Field tempValueField = resolveField(entryType, "tempValue");
+        Field defaultValueField = resolveField(entryType, "defaultValue");
+        Method toTemporaryValueMethod = resolveMethod(entryType, "toTemporaryValue");
+        Method updateConditionsMethod = resolveMethod(entryType, "updateConditions");
+        if (valueField == null) {
+            return;
+        }
+
+        try {
+            Object fieldValue = configField.get(null);
+            if (fieldValue == null && defaultValueField != null) {
+                fieldValue = defaultValueField.get(entryInfo);
+            }
+            if (fieldValue == null) {
                 return;
             }
 
-            try {
-                Object fieldValue = entryInfo.field.get(null);
-                if (fieldValue == null) {
-                    fieldValue = ENTRY_DEFAULT_VALUE_FIELD.get(entryInfo);
-                }
-                if (fieldValue == null) {
-                    return;
-                }
+            valueField.set(entryInfo, fieldValue);
 
-                ENTRY_VALUE_FIELD.set(entryInfo, fieldValue);
-                ENTRY_TEMP_VALUE_FIELD.set(entryInfo, entryInfo.toTemporaryValue());
-                entryInfo.updateConditions();
-            } catch (Exception exception) {
-                AioaConfigManager.warnOnce(
-                        "midnight-sync-" + key,
-                        "AIOA could not sync MidnightLib state for '" + key + "'. Config UI may be partially degraded."
-                );
+            if (tempValueField != null && toTemporaryValueMethod != null) {
+                tempValueField.set(entryInfo, toTemporaryValueMethod.invoke(entryInfo));
             }
-        });
+
+            if (updateConditionsMethod != null) {
+                updateConditionsMethod.invoke(entryInfo);
+            }
+        } catch (Exception exception) {
+            String keySuffix = key == null ? configField.getName() : key;
+            AioaConfigManager.warnOnce(
+                    "midnight-sync-" + keySuffix,
+                    "AIOA could not sync MidnightLib state for '" + keySuffix + "'. Config UI may be partially degraded."
+            );
+        }
     }
 }

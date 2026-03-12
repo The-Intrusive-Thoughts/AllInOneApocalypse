@@ -1,155 +1,150 @@
 plugins {
     id 'multiloader-loader'
-    id 'net.neoforged.moddev.legacyforge'
+    id 'net.minecraftforge.gradle'
 }
 
-mixin {
-    add(sourceSets.main, "${mod_id}.refmap.json")
-
-    config("${mod_id}.mixins.json")
+if (!forge_version) {
+    throw new GradleException("Unsupported forge profile for minecraft_version=${minecraft_version}. Supported forge profiles in this project: 1.20.3, 1.20.4.")
 }
 
-def yaclJar = file('libs/yet_another_config_lib_v3-3.6.6+1.20.1-forge.jar')
-def catalogueJar = file('libs/catalogue-1.8.0-1.20.1.jar')
-def configuredJar = file('libs/configured-2.2.3-1.20.1.jar')
-def clothConfigJar = file('libs/cloth-config-11.1.136-forge.jar')
-def superMartijnConfigLibJar = file('libs/supermartijn642configlib-1.1.8-forge-mc1.20.jar')
-def enableYaclRuntime = providers.gradleProperty("aioa.enableYaclRuntime")
-        .orElse("false")
-        .get()
-        .toBoolean()
-def enableOptionalConfigModsRuntime = providers.gradleProperty("aioa.forge.enableOptionalConfigModsRuntime")
-        .orElse("false")
-        .get()
-        .toBoolean()
-
-def embeddedYaclJarTask = tasks.register("prepareEmbeddedYaclJar", Jar) {
-    archiveFileName.set("aioa-embedded-yacl.jar")
-    destinationDirectory.set(layout.buildDirectory.dir("embedded-libs"))
-
-    if (yaclJar.exists()) {
-        from(zipTree(yaclJar)) {
-            exclude "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA"
-        }
+def libsDir = file('libs')
+def pickLibJar = { Closure<Boolean> matcher ->
+    if (!libsDir.exists()) {
+        return null
     }
 
-    manifest {
-        attributes(
-                "Automatic-Module-Name": "com.flubburr.aioa.embedded.yacl"
-        )
+    def jars = libsDir.listFiles()
+            .findAll { it.isFile() && it.name.toLowerCase(Locale.ROOT).endsWith('.jar') }
+            .sort { a, b -> b.name <=> a.name }
+
+    def preferred = jars.find {
+        def lower = it.name.toLowerCase(Locale.ROOT)
+        matcher(lower) && lower.contains(minecraft_version)
     }
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    if (preferred != null) {
+        return preferred
+    }
+
+    return jars.find { matcher(it.name.toLowerCase(Locale.ROOT)) }
 }
 
-legacyForge {
-    version = "${minecraft_version}-${forge_version}"
+def yaclJar = pickLibJar { name -> name.startsWith('yet_another_config_lib_v3-') && name.contains('forge') }
+def catalogueJar = pickLibJar { name -> name.startsWith('catalogue-') }
+def configuredJar = pickLibJar { name -> name.startsWith('configured-') }
+def clothConfigJar = pickLibJar { name -> name.startsWith('cloth-config-') && name.contains('forge') }
+def superMartijnConfigLibJar = pickLibJar { name -> name.contains('supermartijn642') && name.contains('configlib') && name.contains('forge') }
+def enableYaclRuntime = providers.gradleProperty('aioa.enableYaclRuntime')
+        .orElse('false')
+        .get()
+        .toBoolean()
+def enableOptionalConfigModsRuntime = providers.gradleProperty('aioa.forge.enableOptionalConfigModsRuntime')
+        .orElse('false')
+        .get()
+        .toBoolean()
 
-    validateAccessTransformers = true
+minecraft {
+    mappings channel: 'official', version: minecraft_version
 
     def at = project(':common').file('src/main/resources/META-INF/accesstransformer.cfg')
     if (at.exists()) {
-        accessTransformers = ["src/main/resources/META-INF/accesstransformer.cfg"]
-    }
-    parchment {
-        minecraftVersion = parchment_minecraft
-        mappingsVersion = parchment_version
-    }
-    runs {
-        client {
-            client()
-        }
-        data {
-            data()
-            programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
-        }
-        server {
-            server()
-        }
+        accessTransformer = at
     }
 
-    mods {
-        "${mod_id}" {
-            sourceSet sourceSets.main
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        client {
+        }
+
+        server {
+        }
+
+        data {
+            args '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
         }
     }
 }
 
 sourceSets.main.resources.srcDir 'src/generated/resources'
+if (yaclJar == null || !yaclJar.exists()) {
+    sourceSets.main.java.exclude 'com/flubburr/aioa/forge/config/AioaYaclConfigScreen.java'
+}
 
 dependencies {
-    compileOnly project(":common")
-    // AIOA manual dependency placeholder:
-    // - Drop your Forge-compatible YACL jar into forge/libs.
-    // - Optional compatibility jars can also live in forge/libs:
-    //   - catalogue-...jar
-    //   - configured-...jar
-    //   - cloth-config-...-forge.jar
-    //   - supermartijn642configlib-...-forge-...jar
-    // - Replace the filename above with your real jar name.
-    // - Runtime loading is intentionally opt-in in dev because incompatible
-    //   YACL jars can crash Forge userdev before AIOA even initializes.
-    // - Enable runtime loading with: -Paioa.enableYaclRuntime=true
-    if (yaclJar.exists()) {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    compileOnly project(':common')
+    compileOnly group: 'org.spongepowered', name: 'mixin', version: '0.8.5'
+    implementation group: 'com.google.code.findbugs', name: 'jsr305', version: '3.0.1'
+    implementation group: 'com.google.code.gson', name: 'gson', version: '2.10.1'
+    implementation group: 'org.slf4j', name: 'slf4j-api', version: '2.0.7'
+
+    if (yaclJar != null && yaclJar.exists()) {
         compileOnly files(yaclJar)
-        jarJar files(embeddedYaclJarTask.flatMap { it.archiveFile })
         if (enableYaclRuntime) {
             runtimeOnly files(yaclJar)
         } else {
             logger.lifecycle("AIOA Forge setup: YACL runtime is disabled (compileOnly only). " +
-                    "Use -Paioa.enableYaclRuntime=true once you have a dev-compatible YACL jar.")
+                    'Use -Paioa.enableYaclRuntime=true once you have a dev-compatible YACL jar.')
         }
     }
-    if (catalogueJar.exists()) {
+    if (catalogueJar != null && catalogueJar.exists()) {
         compileOnly files(catalogueJar)
         if (enableOptionalConfigModsRuntime) {
             runtimeOnly files(catalogueJar)
         }
     }
-    if (configuredJar.exists()) {
+    if (configuredJar != null && configuredJar.exists()) {
         compileOnly files(configuredJar)
         if (enableOptionalConfigModsRuntime) {
             runtimeOnly files(configuredJar)
         }
     }
-    if (clothConfigJar.exists()) {
+    if (clothConfigJar != null && clothConfigJar.exists()) {
         compileOnly files(clothConfigJar)
         if (enableOptionalConfigModsRuntime) {
             runtimeOnly files(clothConfigJar)
         }
     }
-    if (superMartijnConfigLibJar.exists()) {
+    if (superMartijnConfigLibJar != null && superMartijnConfigLibJar.exists()) {
         compileOnly files(superMartijnConfigLibJar)
         if (enableOptionalConfigModsRuntime) {
             runtimeOnly files(superMartijnConfigLibJar)
         }
     }
-    annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT:processor")
 }
 
-if (!yaclJar.exists()) {
-    logger.lifecycle("AIOA Forge setup: YACL jar not found in forge/libs. Forge will use the built-in fallback config screen.")
+if (yaclJar == null || !yaclJar.exists()) {
+    logger.lifecycle('AIOA Forge setup: YACL jar not found in forge/libs. Forge will use the built-in fallback config screen.')
 }
-if (!catalogueJar.exists()) {
-    logger.lifecycle("AIOA Forge setup: Catalogue jar not found in forge/libs (optional).")
+if (catalogueJar == null || !catalogueJar.exists()) {
+    logger.lifecycle('AIOA Forge setup: Catalogue jar not found in forge/libs (optional).')
 }
-if (!configuredJar.exists()) {
-    logger.lifecycle("AIOA Forge setup: Configured jar not found in forge/libs (optional).")
+if (configuredJar == null || !configuredJar.exists()) {
+    logger.lifecycle('AIOA Forge setup: Configured jar not found in forge/libs (optional).')
 }
-if (!clothConfigJar.exists()) {
-    logger.lifecycle("AIOA Forge setup: Cloth Config jar not found in forge/libs (optional).")
+if (clothConfigJar == null || !clothConfigJar.exists()) {
+    logger.lifecycle('AIOA Forge setup: Cloth Config jar not found in forge/libs (optional).')
 }
-if (!superMartijnConfigLibJar.exists()) {
-    logger.lifecycle("AIOA Forge setup: SuperMartijn642 Config Lib jar not found in forge/libs (optional).")
+if (superMartijnConfigLibJar == null || !superMartijnConfigLibJar.exists()) {
+    logger.lifecycle('AIOA Forge setup: SuperMartijn642 Config Lib jar not found in forge/libs (optional).')
 }
 if (!enableOptionalConfigModsRuntime) {
-    logger.lifecycle("AIOA Forge setup: Optional config-mod runtime loading is disabled. " +
-            "Use -Paioa.forge.enableOptionalConfigModsRuntime=true to load Catalogue / Configured / Cloth Config / SuperMartijn642 Config Lib in dev runs.")
+    logger.lifecycle('AIOA Forge setup: Optional config-mod runtime loading is disabled. ' +
+            'Use -Paioa.forge.enableOptionalConfigModsRuntime=true to load Catalogue / Configured / Cloth Config / SuperMartijn642 Config Lib in dev runs.')
 }
 
-jar {
-    dependsOn(embeddedYaclJarTask)
+tasks.named('jar', Jar).configure {
     finalizedBy('reobfJar')
     manifest.attributes([
-            "MixinConfigs": "${mod_id}.mixins.json"
+            'MixinConfigs': "${mod_id}.mixins.json"
     ])
 }
