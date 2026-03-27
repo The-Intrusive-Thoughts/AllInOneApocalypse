@@ -5,7 +5,7 @@ plugins {
 }
 
 def modrinthProjectId = providers.gradleProperty('modrinth_project_id').orElse('')
-def modrinthToken = providers.environmentVariable('MODRINTH_TOKEN').orElse('')
+def modrinthToken = providers.environmentVariable('MODRINTH_TOKEN').orElse('mrp_qwskt8JZZHG2TBvisfZrjoLxeDrWaoY6989YDQayaOxDPqzujSCa3yu0ZjJC')
 def modrinthVersionType = providers.gradleProperty('modrinth_version_type').orElse('release')
 def modrinthBodyFile = rootProject.file(providers.gradleProperty('modrinth_body_file').orElse('README.md').get())
 def modrinthChangelogFile = rootProject.file(providers.gradleProperty('modrinth_changelog_file').orElse('CHANGELOG.md').get())
@@ -169,6 +169,9 @@ modrinth {
 
     dependencies {
         required.project 'fabric-api'
+        optional.project 'midnightlib'
+        optional.project 'modmenu'
+        optional.project 'cloth-config'
     }
 }
 

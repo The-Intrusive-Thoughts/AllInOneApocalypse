@@ -190,6 +190,11 @@ modrinth {
     uploadFile = tasks.named('jar')
     gameVersions = [minecraft_version]
     loaders = ['forge']
+
+    dependencies {
+        optional.project 'yacl'
+        optional.project 'cloth-config'
+    }
 }
 
 tasks.named('modrinth').configure {
