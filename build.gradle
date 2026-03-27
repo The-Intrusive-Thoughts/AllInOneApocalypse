@@ -1,6 +1,7 @@
 plugins {
     id 'fabric-loom' version '1.13-SNAPSHOT' apply(false)
     id 'net.minecraftforge.gradle' version '[6.0.24,6.2)' apply(false)
+    id 'com.modrinth.minotaur' version '2.+' apply(false)
 }
 
 def mcVersionProfiles = [
@@ -18,3 +19,14 @@ ext.forge_version = selectedProfile.forge ?: "disabled-for-${minecraft_version}"
 ext.forge_loader_version_range = selectedProfile.forgeLoaderRange ?: "[0,)"
 ext.midnightlib_version = selectedProfile.midnightLib
 ext.modmenu_version = selectedProfile.modMenu
+
+tasks.register('publishModrinth') {
+    group = 'publishing'
+    description = 'Syncs the Modrinth project body and publishes all configured loader artifacts.'
+
+    dependsOn(':fabric:modrinth')
+
+    if (findProject(':forge') != null) {
+        dependsOn(':forge:modrinth')
+    }
+}
