@@ -161,7 +161,7 @@ modrinth {
             ? modrinthChangelogFile.getText('UTF-8')
             : "Release ${fabricVersionNumber}"
     uploadFile = tasks.named('remapJar')
-    gameVersions = ['1.21.2', '1.21.3']
+    gameVersions = rootProject.fabric_modrinth_game_versions
     loaders = ['fabric']
     syncBodyFrom = modrinthBodyFile.exists()
             ? modrinthBodyFile.getText('UTF-8')
