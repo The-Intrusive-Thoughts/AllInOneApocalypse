@@ -1,6 +1,23 @@
 plugins {
     id 'multiloader-loader'
     id 'net.minecraftforge.gradle'
+    id 'com.modrinth.minotaur'
+}
+
+def modrinthProjectId = providers.gradleProperty('modrinth_project_id').orElse('')
+def modrinthToken = providers.environmentVariable('MODRINTH_TOKEN').orElse('')
+def modrinthVersionType = providers.gradleProperty('modrinth_version_type').orElse('release')
+def modrinthChangelogFile = rootProject.file(providers.gradleProperty('modrinth_changelog_file').orElse('CHANGELOG.md').get())
+def forgeReleaseName = "${mod_name} ${version} for Minecraft ${minecraft_version} (Forge)"
+def forgeVersionNumber = "${version}+mc${minecraft_version}-forge"
+
+def requireModrinthPublishConfig = {
+    if (!modrinthProjectId.get().trim()) {
+        throw new GradleException('Set modrinth_project_id in gradle.properties before publishing to Modrinth.')
+    }
+    if (!modrinthToken.get().trim()) {
+        throw new GradleException('Set the MODRINTH_TOKEN environment variable before publishing to Modrinth.')
+    }
 }
 
 if (!forge_version) {
@@ -143,8 +160,36 @@ if (!enableOptionalConfigModsRuntime) {
 }
 
 tasks.named('jar', Jar).configure {
-    finalizedBy('reobfJar')
+    if (tasks.names.contains('reobfJar')) {
+        finalizedBy('reobfJar')
+    }
     manifest.attributes([
             'MixinConfigs': "${mod_id}.mixins.json"
     ])
+}
+
+modrinth {
+    token = modrinthToken.get()
+    projectId = modrinthProjectId.get()
+    versionNumber = forgeVersionNumber
+    versionName = forgeReleaseName
+    versionType = modrinthVersionType.get()
+    changelog = modrinthChangelogFile.exists()
+            ? modrinthChangelogFile.getText('UTF-8')
+            : "Release ${forgeVersionNumber}"
+    uploadFile = tasks.named('jar')
+    gameVersions = [minecraft_version]
+    loaders = ['forge']
+
+    dependencies {
+        optional.project 'yacl'
+        optional.project 'cloth-config'
+    }
+}
+
+tasks.named('modrinth').configure {
+    dependsOn tasks.named('build')
+    doFirst {
+        requireModrinthPublishConfig()
+    }
 }
