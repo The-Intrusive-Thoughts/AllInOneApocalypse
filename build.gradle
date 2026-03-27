@@ -32,6 +32,9 @@ ext.forge_loader_version_range = selectedProfile.forgeLoaderRange ?: "[0,)"
 ext.midnightlib_version = selectedProfile.midnightLib
 ext.modmenu_version = selectedProfile.modMenu
 ext.fabric_modrinth_game_versions = selectedProfile.fabricGameVersions ?: [minecraft_version]
+ext.publish_forge_to_modrinth = selectedProfile.containsKey('publishForgeToModrinth')
+        ? selectedProfile.publishForgeToModrinth
+        : true
 
 tasks.register('publishModrinth') {
     group = 'publishing'
@@ -39,7 +42,11 @@ tasks.register('publishModrinth') {
 
     dependsOn(':fabric:modrinth')
 
-    if (findProject(':forge') != null) {
+    if (findProject(':forge') != null && publish_forge_to_modrinth) {
         dependsOn(':forge:modrinth')
+    } else if (findProject(':forge') != null) {
+        doFirst {
+            logger.lifecycle("Skipping Forge Modrinth publish for Minecraft ${minecraft_version}; this profile is not enabled for aggregate Modrinth publishing.")
+        }
     }
 }
