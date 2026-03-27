@@ -6,6 +6,8 @@ By default, the mod disables the spawning of most hostile mobs so that zombies b
 
 The mod also allows zombies to spawn on the surface during the day and prevents them from burning in sunlight. This can also be enabled or disabled in the config.
 
+### this mod is intended for modpack use so feel free to use it!
+
 ## Configuration
 
 AIOA includes a simple spawn configuration that allows you to add modded mobs to the daytime spawn list.
