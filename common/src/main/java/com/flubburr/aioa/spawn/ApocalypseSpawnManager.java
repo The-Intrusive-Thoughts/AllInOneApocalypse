@@ -47,7 +47,7 @@ public final class ApocalypseSpawnManager {
         if (settings.overworldOnly && !level.dimension().equals(Level.OVERWORLD)) {
             return;
         }
-        if (settings.requireDaytime && !level.isDay()) {
+        if (settings.requireDaytime && !isDaytime(level)) {
             return;
         }
         if (level.getGameTime() % settings.spawnIntervalTicks != 0L) {
@@ -222,7 +222,7 @@ public final class ApocalypseSpawnManager {
             return false;
         }
 
-        mob.moveTo(
+        mob.snapTo(
                 spawnPosition.getX() + 0.5D,
                 spawnPosition.getY(),
                 spawnPosition.getZ() + 0.5D,
@@ -294,6 +294,10 @@ public final class ApocalypseSpawnManager {
     private static int randomOffset(RandomSource random, int minDistance, int maxDistance) {
         int distance = Mth.nextInt(random, minDistance, maxDistance);
         return random.nextBoolean() ? distance : -distance;
+    }
+
+    private static boolean isDaytime(ServerLevel level) {
+        return level.dimensionType().hasSkyLight() && level.getSkyDarken() < 4;
     }
 
     private static boolean ensureAdultVariant(Mob mob) {
