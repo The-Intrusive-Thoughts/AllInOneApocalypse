@@ -4,8 +4,8 @@ import com.flubburr.aioa.spawn.HostileSpawnFilter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.level.ServerLevelAccessor;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,7 +20,7 @@ public abstract class SpawnPlacementsMixin {
     private static <T extends Entity> void aioa$cancelConfiguredHostileSpawns(
             EntityType<T> entityType,
             ServerLevelAccessor level,
-            MobSpawnType spawnType,
+            EntitySpawnReason spawnType,
             BlockPos pos,
             RandomSource random,
             CallbackInfoReturnable<Boolean> cir

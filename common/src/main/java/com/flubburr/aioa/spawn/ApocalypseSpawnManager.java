@@ -13,9 +13,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.entity.AgeableMob;
@@ -217,7 +217,7 @@ public final class ApocalypseSpawnManager {
             return false;
         }
 
-        Entity entity = entityType.create(level);
+        Entity entity = entityType.create(level, EntitySpawnReason.EVENT);
         if (!(entity instanceof Mob mob)) {
             return false;
         }
@@ -234,7 +234,7 @@ public final class ApocalypseSpawnManager {
             return false;
         }
 
-        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), MobSpawnType.EVENT, (SpawnGroupData) null);
+        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), EntitySpawnReason.EVENT, (SpawnGroupData) null);
         if (settings.removeBabyVariants && !ensureAdultVariant(mob)) {
             return false;
         }
@@ -261,7 +261,7 @@ public final class ApocalypseSpawnManager {
         }
 
         ResourceLocation biomeId = level.registryAccess()
-                .registryOrThrow(Registries.BIOME)
+                .lookupOrThrow(Registries.BIOME)
                 .getKey(level.getBiome(pos).value());
 
         if (biomeId == null) {

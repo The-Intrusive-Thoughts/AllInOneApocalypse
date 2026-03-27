@@ -6,6 +6,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
@@ -34,7 +35,7 @@ public final class AioaEntityHelper {
 
     public static Optional<EntityType<?>> resolveEntityType(ResourceLocation entityId) {
         return BuiltInRegistries.ENTITY_TYPE.containsKey(entityId)
-                ? Optional.of(BuiltInRegistries.ENTITY_TYPE.get(entityId))
+                ? Optional.ofNullable(BuiltInRegistries.ENTITY_TYPE.getValue(entityId))
                 : Optional.empty();
     }
 
@@ -65,7 +66,7 @@ public final class AioaEntityHelper {
 
     private static MobClassification inspectEntityType(EntityType<?> entityType, ServerLevel level, ResourceLocation id) {
         try {
-            Entity entity = entityType.create(level);
+            Entity entity = entityType.create(level, EntitySpawnReason.COMMAND);
             if (!(entity instanceof Mob mob)) {
                 return MobClassification.NONE;
             }

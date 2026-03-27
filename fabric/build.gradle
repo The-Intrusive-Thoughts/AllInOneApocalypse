@@ -1,6 +1,24 @@
 plugins {
     id 'multiloader-loader'
     id 'fabric-loom'
+    id 'com.modrinth.minotaur'
+}
+
+def modrinthProjectId = providers.gradleProperty('modrinth_project_id').orElse('')
+def modrinthToken = providers.environmentVariable('MODRINTH_TOKEN').orElse('')
+def modrinthVersionType = providers.gradleProperty('modrinth_version_type').orElse('release')
+def modrinthBodyFile = rootProject.file(providers.gradleProperty('modrinth_body_file').orElse('README.md').get())
+def modrinthChangelogFile = rootProject.file(providers.gradleProperty('modrinth_changelog_file').orElse('CHANGELOG.md').get())
+def fabricReleaseName = "${mod_name} ${version} for Minecraft ${fabric_minecraft_version_range} (Fabric)"
+def fabricVersionNumber = "${version}+mc${minecraft_version}-fabric"
+
+def requireModrinthPublishConfig = {
+    if (!modrinthProjectId.get().trim()) {
+        throw new GradleException('Set modrinth_project_id in gradle.properties before publishing to Modrinth.')
+    }
+    if (!modrinthToken.get().trim()) {
+        throw new GradleException('Set the MODRINTH_TOKEN environment variable before publishing to Modrinth.')
+    }
 }
 
 def libsDir = file('libs')
@@ -130,5 +148,40 @@ tasks.matching { it.name in ["runClient", "runServer"] }.configureEach {
         delete fileTree("run/mods") {
             include "midnightlib*.jar"
         }
+    }
+}
+
+modrinth {
+    token = modrinthToken.get()
+    projectId = modrinthProjectId.get()
+    versionNumber = fabricVersionNumber
+    versionName = fabricReleaseName
+    versionType = modrinthVersionType.get()
+    changelog = modrinthChangelogFile.exists()
+            ? modrinthChangelogFile.getText('UTF-8')
+            : "Release ${fabricVersionNumber}"
+    uploadFile = tasks.named('remapJar')
+    gameVersions = ['1.21.2', '1.21.3']
+    loaders = ['fabric']
+    syncBodyFrom = modrinthBodyFile.exists()
+            ? modrinthBodyFile.getText('UTF-8')
+            : ''
+
+    dependencies {
+        required.project 'fabric-api'
+    }
+}
+
+tasks.named('modrinth').configure {
+    dependsOn tasks.named('build')
+    dependsOn tasks.named('modrinthSyncBody')
+    doFirst {
+        requireModrinthPublishConfig()
+    }
+}
+
+tasks.named('modrinthSyncBody').configure {
+    doFirst {
+        requireModrinthPublishConfig()
     }
 }
