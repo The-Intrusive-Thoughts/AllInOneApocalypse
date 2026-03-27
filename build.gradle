@@ -1,4 +1,16 @@
 plugins {
     id 'fabric-loom' version '1.13-SNAPSHOT' apply(false)
     id 'net.neoforged.moddev.legacyforge' version '2.0.77' apply(false)
+    id 'com.modrinth.minotaur' version '2.+' apply(false)
+}
+
+tasks.register('publishModrinth') {
+    group = 'publishing'
+    description = 'Syncs the Modrinth project body and publishes all configured loader artifacts.'
+
+    dependsOn(':fabric:modrinth')
+
+    if (findProject(':forge') != null) {
+        dependsOn(':forge:modrinth')
+    }
 }
