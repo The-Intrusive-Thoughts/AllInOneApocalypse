@@ -9,6 +9,6 @@ public final class AioaFabric implements ModInitializer {
     @Override
     public void onInitialize() {
         AioaCommon.init();
-        ServerTickEvents.END_WORLD_TICK.register(AioaCommon::onServerLevelTick);
+        ServerTickEvents.END_LEVEL_TICK.register(AioaCommon::onServerLevelTick);
     }
 }

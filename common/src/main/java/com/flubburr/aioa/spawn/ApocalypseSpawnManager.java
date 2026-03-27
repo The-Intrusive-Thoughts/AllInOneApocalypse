@@ -288,7 +288,7 @@ public final class ApocalypseSpawnManager {
 
     private static int countNearbyManagedMobs(ServerLevel level, BlockPos center, int range) {
         AABB searchBox = new AABB(center).inflate(range);
-        return level.getEntitiesOfClass(Mob.class, searchBox, mob -> mob.getTags().contains(AioaConstants.DAY_SPAWN_TAG)).size();
+        return level.getEntitiesOfClass(Mob.class, searchBox, mob -> mob.entityTags().contains(AioaConstants.DAY_SPAWN_TAG)).size();
     }
 
     private static int randomOffset(RandomSource random, int minDistance, int maxDistance) {

@@ -1,3 +1,16 @@
 plugins {
-    id 'groovy-gradle-plugin'
+    id 'java-gradle-plugin'
+}
+
+gradlePlugin {
+    plugins {
+        register('multiloaderCommon') {
+            id = 'multiloader-common'
+            implementationClass = 'MultiloaderCommonPlugin'
+        }
+        register('multiloaderLoader') {
+            id = 'multiloader-loader'
+            implementationClass = 'MultiloaderLoaderPlugin'
+        }
+    }
 }

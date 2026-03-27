@@ -1,6 +1,6 @@
 plugins {
     id 'multiloader-loader'
-    id 'fabric-loom'
+    id 'net.fabricmc.fabric-loom'
     id 'com.modrinth.minotaur'
 }
 
@@ -56,11 +56,13 @@ def enableOptionalConfigModsRuntime = providers.gradleProperty("aioa.fabric.enab
 
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
-    mappings loom.layered {
-        officialMojangMappings()
+    if (minecraft_version != '26.1') {
+        mappings loom.layered {
+            officialMojangMappings()
+        }
     }
-    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
     // AIOA manual dependency placeholders:
     // - Drop Mod Menu into fabric/libs to override the default Maven version if needed.
     // - Optional compatibility jars can also live in fabric/libs:
@@ -69,32 +71,32 @@ dependencies {
     // These are loader-specific UI dependencies only; the shared gameplay logic stays in :common.
     // MidnightLib is resolved from Maven by minecraft_version profile for safer upgrades.
     // Mod Menu stays optional; enable runtime loading only when desired.
-    modImplementation "maven.modrinth:midnightlib:${midnightlib_version}"
+    implementation "maven.modrinth:midnightlib:${midnightlib_version}"
     def modMenuDep = "maven.modrinth:modmenu:${modmenu_version}"
     if (modMenuJar != null && modMenuJar.exists()) {
-        modCompileOnly files(modMenuJar)
+        compileOnly files(modMenuJar)
         if (enableModMenuRuntime) {
-            modRuntimeOnly files(modMenuJar)
+            runtimeOnly files(modMenuJar)
         } else {
             logger.lifecycle("AIOA Fabric setup: Mod Menu runtime is disabled (compile-only only). " +
                     "Use -Paioa.fabric.enableModMenuRuntime=true to load Mod Menu in dev runs.")
         }
     } else {
-        modCompileOnly modMenuDep
+        compileOnly modMenuDep
         if (enableModMenuRuntime) {
-            modRuntimeOnly modMenuDep
+            runtimeOnly modMenuDep
         }
     }
     if (clothConfigJar != null && clothConfigJar.exists()) {
-        modCompileOnly files(clothConfigJar)
+        compileOnly files(clothConfigJar)
         if (enableOptionalConfigModsRuntime) {
-            modRuntimeOnly files(clothConfigJar)
+            runtimeOnly files(clothConfigJar)
         }
     }
     if (superMartijnConfigLibJar != null && superMartijnConfigLibJar.exists()) {
-        modCompileOnly files(superMartijnConfigLibJar)
+        compileOnly files(superMartijnConfigLibJar)
         if (enableOptionalConfigModsRuntime) {
-            modRuntimeOnly files(superMartijnConfigLibJar)
+            runtimeOnly files(superMartijnConfigLibJar)
         }
     }
     implementation group: 'com.google.code.findbugs', name: 'jsr305', version: '3.0.1'
@@ -120,7 +122,9 @@ loom {
         accessWidenerPath.set(project(":common").file("src/main/resources/${mod_id}.accesswidener"))
     }
     mixin {
-        useLegacyMixinAp = true
+        if (minecraft_version != '26.1') {
+            useLegacyMixinAp = true
+        }
         defaultRefmapName.set("${mod_id}.refmap.json")
     }
     runs {
@@ -160,7 +164,7 @@ modrinth {
     changelog = modrinthChangelogFile.exists()
             ? modrinthChangelogFile.getText('UTF-8')
             : "Release ${fabricVersionNumber}"
-    uploadFile = tasks.named('remapJar')
+    uploadFile = tasks.named('jar')
     gameVersions = rootProject.fabric_modrinth_game_versions
     loaders = ['fabric']
     syncBodyFrom = modrinthBodyFile.exists()
