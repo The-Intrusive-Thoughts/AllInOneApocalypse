@@ -14,7 +14,7 @@ public final class AioaForge {
 
     public AioaForge() {
         AioaCommon.init();
-        MinecraftForge.EVENT_BUS.addListener(this::onLevelTick);
+        TickEvent.LevelTickEvent.BUS.addListener(this::onLevelTick);
 
         if (FMLEnvironment.dist.isClient()) {
             AioaForgeClient.registerConfigScreen();

@@ -459,15 +459,11 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
             int editorWidth = 340;
             int editorHeight = Math.max(90, this.height - 110);
 
-            this.editor = new MultiLineEditBox(
-                    this.font,
-                    editorX,
-                    editorY,
-                    editorWidth,
-                    editorHeight,
-                    tr("aioa.forge.fallback.list.entries"),
-                    tr("aioa.forge.fallback.list.entries_hint")
-            );
+            this.editor = MultiLineEditBox.builder()
+                    .setX(editorX)
+                    .setY(editorY)
+                    .setPlaceholder(tr("aioa.forge.fallback.list.entries_hint"))
+                    .build(this.font, editorWidth, editorHeight, tr("aioa.forge.fallback.list.entries"));
             this.editor.setCharacterLimit(32767);
             this.editor.setValue(String.join("\n", this.initialValues));
             this.addRenderableWidget(this.editor);

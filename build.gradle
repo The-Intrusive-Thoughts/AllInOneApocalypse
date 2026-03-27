@@ -12,6 +12,13 @@ def mcVersionProfiles = [
         '1.21.3': [fabricApi: '0.114.1+1.21.3', forge: '53.1.10', forgeLoaderRange: '[53,)', midnightLib: '1.9.2+1.21.1-fabric', modMenu: '11.0.4', fabricGameVersions: ['1.21.2', '1.21.3']],
         '1.21.4': [fabricApi: '0.115.1+1.21.4', forge: '54.1.16', forgeLoaderRange: '[54,)', midnightLib: '1.7.1+1.21.4-fabric', modMenu: '13.0.1', fabricGameVersions: ['1.21.4']],
         '1.21.5': [fabricApi: '0.119.1+1.21.5', forge: '55.1.10', forgeLoaderRange: '[55,)', midnightLib: '1.9.2+1.21.5-fabric', modMenu: '14.0.0', fabricGameVersions: ['1.21.5']],
+        '1.21.6': [fabricApi: '0.128.2+1.21.6', forge: '56.0.9', forgeLoaderRange: '[56,)', midnightLib: '1.9.2+1.21.8-fabric', modMenu: '15.0.2', fabricGameVersions: ['1.21.6']],
+        '1.21.7': [fabricApi: '0.129.0+1.21.7', forge: '57.0.3', forgeLoaderRange: '[57,)', midnightLib: '1.9.2+1.21.8-fabric', modMenu: '15.0.2', fabricGameVersions: ['1.21.7']],
+        '1.21.8': [fabricApi: '0.136.1+1.21.8', forge: '58.1.18', forgeLoaderRange: '[58,)', midnightLib: '1.9.2+1.21.8-fabric', modMenu: '15.0.2', fabricGameVersions: ['1.21.8']],
+        '1.21.9': [fabricApi: '0.134.1+1.21.9', forge: '59.0.5', forgeLoaderRange: '[59,)', midnightLib: '1.9.2+1.21.10-fabric', modMenu: '16.0.1', fabricGameVersions: ['1.21.9']],
+        '1.21.10': [fabricApi: '0.138.4+1.21.10', forge: '60.1.9', forgeLoaderRange: '[60,)', midnightLib: '1.9.2+1.21.10-fabric', modMenu: '16.0.1', fabricGameVersions: ['1.21.10']],
+        '1.21.11': [fabricApi: '0.141.3+1.21.11', forge: '61.1.5', forgeLoaderRange: '[61,)', midnightLib: '1.9.2+1.21.11-fabric', modMenu: '17.0.0', fabricGameVersions: ['1.21.11']],
+        '26.1': [fabricApi: '0.144.3+26.1', forge: '62.0.3', forgeLoaderRange: '[62,)', midnightLib: '1.9.2+26.1-fabric', modMenu: '18.0.0-alpha.8', fabricGameVersions: ['26.1']],
 ]
 
 def selectedProfile = mcVersionProfiles[minecraft_version]
