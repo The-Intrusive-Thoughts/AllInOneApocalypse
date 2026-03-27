@@ -6,7 +6,7 @@ import com.flubburr.aioa.platform.Services;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 
@@ -38,7 +38,7 @@ public final class AioaConfigManager {
     private static volatile Path configPath;
     private static volatile long lastModified = Long.MIN_VALUE;
     private static volatile long nextFilesystemCheckAt = 0L;
-    private static volatile Set<ResourceLocation> burnSafeDaySpawnEntityIds = Set.of();
+    private static volatile Set<Identifier> burnSafeDaySpawnEntityIds = Set.of();
     private static volatile boolean mobCatalogWritten;
 
     private AioaConfigManager() {
@@ -96,7 +96,7 @@ public final class AioaConfigManager {
 
     public static boolean isBurnSafeDaySpawnEntity(EntityType<?> entityType) {
         bootstrap();
-        ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
+        Identifier id = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
         return id != null && burnSafeDaySpawnEntityIds.contains(id);
     }
 

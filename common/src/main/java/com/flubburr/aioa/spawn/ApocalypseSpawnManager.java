@@ -7,7 +7,7 @@ import com.flubburr.aioa.config.AioaConfigManager;
 import com.flubburr.aioa.config.AioaSpawnEntry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -260,7 +260,7 @@ public final class ApocalypseSpawnManager {
             return true;
         }
 
-        ResourceLocation biomeId = level.registryAccess()
+        Identifier biomeId = level.registryAccess()
                 .lookupOrThrow(Registries.BIOME)
                 .getKey(level.getBiome(pos).value());
 
@@ -269,7 +269,7 @@ public final class ApocalypseSpawnManager {
         }
 
         for (String rawBiomeId : settings.allowedBiomeIds) {
-            ResourceLocation configuredBiomeId = ResourceLocation.tryParse(rawBiomeId == null ? "" : rawBiomeId.trim());
+            Identifier configuredBiomeId = Identifier.tryParse(rawBiomeId == null ? "" : rawBiomeId.trim());
             if (configuredBiomeId == null) {
                 AioaConfigManager.warnOnce(
                         "invalid-biome:" + rawBiomeId,

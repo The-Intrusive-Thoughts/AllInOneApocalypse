@@ -1,6 +1,6 @@
 package com.flubburr.aioa.config;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 
 import java.util.Locale;
@@ -9,7 +9,7 @@ import java.util.function.Consumer;
 
 public record AioaSpawnEntry(
         String rawEntry,
-        ResourceLocation entityId,
+        Identifier entityId,
         boolean enabled,
         int weight,
         double chance,
@@ -24,7 +24,7 @@ public record AioaSpawnEntry(
         }
 
         String[] segments = trimmed.split(";");
-        ResourceLocation entityId = ResourceLocation.tryParse(segments[0].trim());
+        Identifier entityId = Identifier.tryParse(segments[0].trim());
         if (entityId == null) {
             warningConsumer.accept("Ignoring malformed AIOA spawn entry '" + trimmed + "': the entity id is invalid.");
             return Optional.empty();

@@ -5,7 +5,7 @@ import com.flubburr.aioa.config.AioaConfig;
 import com.flubburr.aioa.config.AioaConfigManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -55,7 +55,7 @@ public final class HostileSpawnFilter {
             return false;
         }
 
-        ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
+        Identifier entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
         if (isWhitelisted(entityId, settings.whitelistEntityIds)) {
             return false;
         }
@@ -63,9 +63,9 @@ public final class HostileSpawnFilter {
         return AioaEntityHelper.isHostileMob(entityType, level);
     }
 
-    private static boolean isWhitelisted(ResourceLocation entityId, List<String> rawWhitelist) {
+    private static boolean isWhitelisted(Identifier entityId, List<String> rawWhitelist) {
         for (String rawId : rawWhitelist) {
-            ResourceLocation configuredId = ResourceLocation.tryParse(rawId == null ? "" : rawId.trim());
+            Identifier configuredId = Identifier.tryParse(rawId == null ? "" : rawId.trim());
             if (configuredId == null) {
                 AioaConfigManager.warnOnce(
                         "invalid-whitelist-id:" + rawId,
