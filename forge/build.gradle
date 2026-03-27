@@ -4,7 +4,7 @@ plugins {
 }
 
 if (!forge_version) {
-    throw new GradleException("Unsupported forge profile for minecraft_version=${minecraft_version}. Supported forge profile in this project: 1.20.6 (Forge is not published for 1.20.5).")
+    throw new GradleException("Unsupported forge profile for minecraft_version=${minecraft_version}. Supported forge profiles in this project: 1.20.6, 1.21, 1.21.1 (Forge is not published for 1.20.5).")
 }
 
 def libsDir = file('libs')
@@ -138,7 +138,6 @@ if (!enableOptionalConfigModsRuntime) {
 
 tasks.named('jar', Jar).configure {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    finalizedBy('reobfJar')
     manifest.attributes([
             'MixinConfigs': "${mod_id}.mixins.json"
     ])
