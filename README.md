@@ -24,8 +24,8 @@ You can also adjust how frequently those mobs spawn, making it easy to balance m
 
 ## Integrated
 
-[![YACL-TEXTURE.png](common/logo/YACL-TEXTURE.png)](https://modrinth.com/mod/yacl)
-[![ML-TEXTURE.png](common/logo/ML-TEXTURE.png)](https://modrinth.com/mod/midnightlib)
+[![YACL-TEXTURE.png](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/26.1/common/logo/YACL-TEXTURE.png)](https://modrinth.com/mod/yacl)
+[![ML-TEXTURE.png](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/26.1/common/logo/ML-TEXTURE.png)](https://modrinth.com/mod/midnightlib)
 
 
 ## Compatible Config Mods
