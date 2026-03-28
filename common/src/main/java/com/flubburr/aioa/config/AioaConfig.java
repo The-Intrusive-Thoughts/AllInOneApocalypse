@@ -5,7 +5,7 @@ import java.util.List;
 
 public final class AioaConfig {
 
-    public static final int CURRENT_SCHEMA_VERSION = 1;
+    public static final int CURRENT_SCHEMA_VERSION = 2;
 
     public int schemaVersion = CURRENT_SCHEMA_VERSION;
     public HostileSpawnControl hostileSpawnControl = new HostileSpawnControl();
@@ -69,7 +69,12 @@ public final class AioaConfig {
         public boolean requireDaytime = true;
         public boolean requireClearSky = true;
         public boolean preventSunlightBurn = true;
+        @Deprecated
         public boolean removeBabyVariants = false;
+        public ZombieVariantMode zombieVariantMode = ZombieVariantMode.REGULAR_AND_BABY;
+        public ZombieTargetMode zombieTargetMode = ZombieTargetMode.VANILLA;
+        public boolean zombiesCanClimbWalls = true;
+        public boolean refinedZombieAi = true;
         public boolean exportMobCatalog = true;
         public int spawnIntervalTicks = 200;
         public int spawnAttemptsPerPlayer = 2;
@@ -91,6 +96,10 @@ public final class AioaConfig {
             copy.requireClearSky = this.requireClearSky;
             copy.preventSunlightBurn = this.preventSunlightBurn;
             copy.removeBabyVariants = this.removeBabyVariants;
+            copy.zombieVariantMode = this.zombieVariantMode;
+            copy.zombieTargetMode = this.zombieTargetMode;
+            copy.zombiesCanClimbWalls = this.zombiesCanClimbWalls;
+            copy.refinedZombieAi = this.refinedZombieAi;
             copy.exportMobCatalog = this.exportMobCatalog;
             copy.spawnIntervalTicks = this.spawnIntervalTicks;
             copy.spawnAttemptsPerPlayer = this.spawnAttemptsPerPlayer;
@@ -108,6 +117,12 @@ public final class AioaConfig {
             this.minSpawnDistance = Math.max(8, this.minSpawnDistance);
             this.maxSpawnDistance = Math.max(this.minSpawnDistance + 8, this.maxSpawnDistance);
             this.maxNearbyManagedMobs = Math.max(1, this.maxNearbyManagedMobs);
+            if (this.zombieVariantMode == null) {
+                this.zombieVariantMode = this.removeBabyVariants ? ZombieVariantMode.REGULAR_ONLY : ZombieVariantMode.REGULAR_AND_BABY;
+            }
+            if (this.zombieTargetMode == null) {
+                this.zombieTargetMode = ZombieTargetMode.VANILLA;
+            }
 
             if (this.allowedBiomeIds == null) {
                 this.allowedBiomeIds = new ArrayList<>();
@@ -119,5 +134,19 @@ public final class AioaConfig {
                 ));
             }
         }
+    }
+
+    public enum ZombieVariantMode {
+        REGULAR_ONLY,
+        REGULAR_AND_BABY,
+        BABY_ONLY
+    }
+
+    public enum ZombieTargetMode {
+        VANILLA,
+        PLAYERS_ONLY,
+        ANIMALS_ONLY,
+        OTHER_MOBS_ONLY,
+        EVERYTHING
     }
 }
