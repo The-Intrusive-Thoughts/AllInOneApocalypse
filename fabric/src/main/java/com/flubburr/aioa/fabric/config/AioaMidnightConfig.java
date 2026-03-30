@@ -14,6 +14,7 @@ public final class AioaMidnightConfig extends MidnightConfig {
 
     private static final String HOSTILE_CATEGORY = "hostile_spawn_control";
     private static final String DAY_CATEGORY = "day_surface_spawns";
+    private static final String AI_CATEGORY = "mob_behavior";
     private static final String ENTRY_KEY_PREFIX = AioaConstants.MOD_ID + ":";
 
     private static boolean initialized;
@@ -67,9 +68,6 @@ public final class AioaMidnightConfig extends MidnightConfig {
     public static boolean prevent_sunlight_burn = true;
 
     @Entry(category = DAY_CATEGORY)
-    public static boolean remove_baby_variants = false;
-
-    @Entry(category = DAY_CATEGORY)
     public static boolean export_mob_catalog = true;
 
     @Entry(category = DAY_CATEGORY, min = 20, max = 24000)
@@ -92,6 +90,42 @@ public final class AioaMidnightConfig extends MidnightConfig {
 
     @Entry(category = DAY_CATEGORY)
     public static List<String> spawn_pool_entries = new ArrayList<>();
+
+    @Comment(category = AI_CATEGORY)
+    public static String mob_behavior_settings_comment = "";
+
+    @Entry(category = AI_CATEGORY)
+    public static AioaConfig.ZombieVariantMode zombie_variant_mode = AioaConfig.ZombieVariantMode.REGULAR_AND_BABY;
+
+    @Entry(category = AI_CATEGORY)
+    public static AioaConfig.ZombieTargetMode zombie_target_mode = AioaConfig.ZombieTargetMode.VANILLA;
+
+    @Entry(category = AI_CATEGORY)
+    public static boolean zombies_can_climb_walls = true;
+
+    @Entry(category = AI_CATEGORY)
+    public static boolean refined_zombie_ai = true;
+
+    @Entry(category = AI_CATEGORY)
+    public static boolean refined_pathfinding_opens_doors = true;
+
+    @Entry(category = AI_CATEGORY)
+    public static List<String> refined_ai_entity_ids = new ArrayList<>();
+
+    @Entry(category = AI_CATEGORY)
+    public static List<String> wall_climbing_entity_ids = new ArrayList<>();
+
+    @Entry(category = AI_CATEGORY)
+    public static List<String> player_only_target_entity_ids = new ArrayList<>();
+
+    @Entry(category = AI_CATEGORY)
+    public static List<String> animal_target_entity_ids = new ArrayList<>();
+
+    @Entry(category = AI_CATEGORY)
+    public static List<String> other_mob_target_entity_ids = new ArrayList<>();
+
+    @Entry(category = AI_CATEGORY)
+    public static List<String> everything_target_entity_ids = new ArrayList<>();
 
     public static void initialize() {
         if (initialized) {
@@ -117,7 +151,6 @@ public final class AioaMidnightConfig extends MidnightConfig {
         require_daytime = config.daySurfaceSpawns.requireDaytime;
         require_clear_sky = config.daySurfaceSpawns.requireClearSky;
         prevent_sunlight_burn = config.daySurfaceSpawns.preventSunlightBurn;
-        remove_baby_variants = config.daySurfaceSpawns.removeBabyVariants;
         export_mob_catalog = config.daySurfaceSpawns.exportMobCatalog;
         spawn_interval_ticks = config.daySurfaceSpawns.spawnIntervalTicks;
         spawn_attempts_per_player = config.daySurfaceSpawns.spawnAttemptsPerPlayer;
@@ -126,6 +159,18 @@ public final class AioaMidnightConfig extends MidnightConfig {
         max_nearby_managed_mobs = config.daySurfaceSpawns.maxNearbyManagedMobs;
         allowed_biome_ids = safeList(config.daySurfaceSpawns.allowedBiomeIds);
         spawn_pool_entries = safeList(config.daySurfaceSpawns.spawnPoolEntries);
+
+        zombie_variant_mode = config.daySurfaceSpawns.zombieVariantMode;
+        zombie_target_mode = config.daySurfaceSpawns.zombieTargetMode;
+        zombies_can_climb_walls = config.daySurfaceSpawns.zombiesCanClimbWalls;
+        refined_zombie_ai = config.daySurfaceSpawns.refinedZombieAi;
+        refined_pathfinding_opens_doors = config.daySurfaceSpawns.refinedPathfindingOpensDoors;
+        refined_ai_entity_ids = safeList(config.daySurfaceSpawns.refinedAiEntityIds);
+        wall_climbing_entity_ids = safeList(config.daySurfaceSpawns.wallClimbingEntityIds);
+        player_only_target_entity_ids = safeList(config.daySurfaceSpawns.playerOnlyTargetEntityIds);
+        animal_target_entity_ids = safeList(config.daySurfaceSpawns.animalTargetEntityIds);
+        other_mob_target_entity_ids = safeList(config.daySurfaceSpawns.otherMobTargetEntityIds);
+        everything_target_entity_ids = safeList(config.daySurfaceSpawns.everythingTargetEntityIds);
 
         syncMidnightEntryState();
     }
@@ -150,7 +195,6 @@ public final class AioaMidnightConfig extends MidnightConfig {
         config.daySurfaceSpawns.requireDaytime = require_daytime;
         config.daySurfaceSpawns.requireClearSky = require_clear_sky;
         config.daySurfaceSpawns.preventSunlightBurn = prevent_sunlight_burn;
-        config.daySurfaceSpawns.removeBabyVariants = remove_baby_variants;
         config.daySurfaceSpawns.exportMobCatalog = export_mob_catalog;
         config.daySurfaceSpawns.spawnIntervalTicks = spawn_interval_ticks;
         config.daySurfaceSpawns.spawnAttemptsPerPlayer = spawn_attempts_per_player;
@@ -159,6 +203,18 @@ public final class AioaMidnightConfig extends MidnightConfig {
         config.daySurfaceSpawns.maxNearbyManagedMobs = max_nearby_managed_mobs;
         config.daySurfaceSpawns.allowedBiomeIds = safeList(allowed_biome_ids);
         config.daySurfaceSpawns.spawnPoolEntries = safeList(spawn_pool_entries);
+
+        config.daySurfaceSpawns.zombieVariantMode = zombie_variant_mode;
+        config.daySurfaceSpawns.zombieTargetMode = zombie_target_mode;
+        config.daySurfaceSpawns.zombiesCanClimbWalls = zombies_can_climb_walls;
+        config.daySurfaceSpawns.refinedZombieAi = refined_zombie_ai;
+        config.daySurfaceSpawns.refinedPathfindingOpensDoors = refined_pathfinding_opens_doors;
+        config.daySurfaceSpawns.refinedAiEntityIds = safeList(refined_ai_entity_ids);
+        config.daySurfaceSpawns.wallClimbingEntityIds = safeList(wall_climbing_entity_ids);
+        config.daySurfaceSpawns.playerOnlyTargetEntityIds = safeList(player_only_target_entity_ids);
+        config.daySurfaceSpawns.animalTargetEntityIds = safeList(animal_target_entity_ids);
+        config.daySurfaceSpawns.otherMobTargetEntityIds = safeList(other_mob_target_entity_ids);
+        config.daySurfaceSpawns.everythingTargetEntityIds = safeList(everything_target_entity_ids);
 
         AioaConfigManager.save(config);
         pullFromCommon();

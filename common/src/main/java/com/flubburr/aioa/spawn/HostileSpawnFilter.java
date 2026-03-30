@@ -65,16 +65,15 @@ public final class HostileSpawnFilter {
 
     private static boolean isWhitelisted(ResourceLocation entityId, List<String> rawWhitelist) {
         for (String rawId : rawWhitelist) {
-            ResourceLocation configuredId = ResourceLocation.tryParse(rawId == null ? "" : rawId.trim());
-            if (configuredId == null) {
-                AioaConfigManager.warnOnce(
-                        "invalid-whitelist-id:" + rawId,
-                        "AIOA ignored invalid hostile whitelist entity id '" + rawId + "'."
-                );
+            java.util.Optional<ResourceLocation> configuredId = AioaEntityHelper.resolveEntityId(
+                    rawId,
+                    warning -> AioaConfigManager.warnOnce("invalid-whitelist-id:" + rawId, warning)
+            );
+            if (configuredId.isEmpty()) {
                 continue;
             }
 
-            if (configuredId.equals(entityId)) {
+            if (configuredId.get().equals(entityId)) {
                 return true;
             }
         }

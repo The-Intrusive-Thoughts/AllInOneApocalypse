@@ -8,8 +8,7 @@
     "accessor.MobAccessor",
     "LivingEntityMixin",
     "MobMixin",
-    "SpawnPlacementsMixin",
-    "ZombieMixin"
+    "SpawnPlacementsMixin"
   ],
   "client": [],
   "server": [],

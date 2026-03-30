@@ -1,6 +1,5 @@
 package com.flubburr.aioa.forge.config;
 
-import com.flubburr.aioa.client.config.AioaConfigScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraftforge.client.ConfigScreenHandler;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -18,6 +17,10 @@ public final class AioaForgeClient {
     }
 
     private static Screen createScreen(Screen parent) {
-        return AioaConfigScreen.create(parent);
+        try {
+            return AioaYaclConfigScreen.create(parent);
+        } catch (Throwable ignored) {
+            return AioaForgeFallbackConfigScreen.create(parent);
+        }
     }
 }

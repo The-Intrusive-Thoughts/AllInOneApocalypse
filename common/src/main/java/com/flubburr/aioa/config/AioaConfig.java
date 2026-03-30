@@ -5,7 +5,7 @@ import java.util.List;
 
 public final class AioaConfig {
 
-    public static final int CURRENT_SCHEMA_VERSION = 2;
+    public static final int CURRENT_SCHEMA_VERSION = 3;
 
     public int schemaVersion = CURRENT_SCHEMA_VERSION;
     public HostileSpawnControl hostileSpawnControl = new HostileSpawnControl();
@@ -64,6 +64,15 @@ public final class AioaConfig {
     }
 
     public static final class DaySurfaceSpawns {
+        private static final List<String> DEFAULT_APOCALYPSE_MOB_IDS = List.of(
+                "minecraft:zombie",
+                "minecraft:husk",
+                "minecraft:drowned",
+                "minecraft:zombie_villager",
+                "minecraft:zombified_piglin",
+                "minecraft:giant"
+        );
+
         public boolean enabled = true;
         public boolean overworldOnly = true;
         public boolean requireDaytime = true;
@@ -75,6 +84,7 @@ public final class AioaConfig {
         public ZombieTargetMode zombieTargetMode = ZombieTargetMode.VANILLA;
         public boolean zombiesCanClimbWalls = true;
         public boolean refinedZombieAi = true;
+        public boolean refinedPathfindingOpensDoors = true;
         public boolean exportMobCatalog = true;
         public int spawnIntervalTicks = 200;
         public int spawnAttemptsPerPlayer = 2;
@@ -82,6 +92,12 @@ public final class AioaConfig {
         public int maxSpawnDistance = 56;
         public int maxNearbyManagedMobs = 20;
         public List<String> allowedBiomeIds = new ArrayList<>();
+        public List<String> refinedAiEntityIds = new ArrayList<>(DEFAULT_APOCALYPSE_MOB_IDS);
+        public List<String> wallClimbingEntityIds = new ArrayList<>(DEFAULT_APOCALYPSE_MOB_IDS);
+        public List<String> playerOnlyTargetEntityIds = new ArrayList<>();
+        public List<String> animalTargetEntityIds = new ArrayList<>();
+        public List<String> otherMobTargetEntityIds = new ArrayList<>();
+        public List<String> everythingTargetEntityIds = new ArrayList<>();
         public List<String> spawnPoolEntries = new ArrayList<>(List.of(
                 "minecraft:zombie;enabled=true;weight=12;chance=1.0;min=1;max=3",
                 "minecraft:husk;enabled=true;weight=4;chance=0.45;min=1;max=2",
@@ -100,6 +116,7 @@ public final class AioaConfig {
             copy.zombieTargetMode = this.zombieTargetMode;
             copy.zombiesCanClimbWalls = this.zombiesCanClimbWalls;
             copy.refinedZombieAi = this.refinedZombieAi;
+            copy.refinedPathfindingOpensDoors = this.refinedPathfindingOpensDoors;
             copy.exportMobCatalog = this.exportMobCatalog;
             copy.spawnIntervalTicks = this.spawnIntervalTicks;
             copy.spawnAttemptsPerPlayer = this.spawnAttemptsPerPlayer;
@@ -107,6 +124,12 @@ public final class AioaConfig {
             copy.maxSpawnDistance = this.maxSpawnDistance;
             copy.maxNearbyManagedMobs = this.maxNearbyManagedMobs;
             copy.allowedBiomeIds = new ArrayList<>(this.allowedBiomeIds);
+            copy.refinedAiEntityIds = new ArrayList<>(this.refinedAiEntityIds);
+            copy.wallClimbingEntityIds = new ArrayList<>(this.wallClimbingEntityIds);
+            copy.playerOnlyTargetEntityIds = new ArrayList<>(this.playerOnlyTargetEntityIds);
+            copy.animalTargetEntityIds = new ArrayList<>(this.animalTargetEntityIds);
+            copy.otherMobTargetEntityIds = new ArrayList<>(this.otherMobTargetEntityIds);
+            copy.everythingTargetEntityIds = new ArrayList<>(this.everythingTargetEntityIds);
             copy.spawnPoolEntries = new ArrayList<>(this.spawnPoolEntries);
             return copy;
         }
@@ -126,6 +149,24 @@ public final class AioaConfig {
 
             if (this.allowedBiomeIds == null) {
                 this.allowedBiomeIds = new ArrayList<>();
+            }
+            if (this.refinedAiEntityIds == null || this.refinedAiEntityIds.isEmpty()) {
+                this.refinedAiEntityIds = new ArrayList<>(DEFAULT_APOCALYPSE_MOB_IDS);
+            }
+            if (this.wallClimbingEntityIds == null || this.wallClimbingEntityIds.isEmpty()) {
+                this.wallClimbingEntityIds = new ArrayList<>(DEFAULT_APOCALYPSE_MOB_IDS);
+            }
+            if (this.playerOnlyTargetEntityIds == null) {
+                this.playerOnlyTargetEntityIds = new ArrayList<>();
+            }
+            if (this.animalTargetEntityIds == null) {
+                this.animalTargetEntityIds = new ArrayList<>();
+            }
+            if (this.otherMobTargetEntityIds == null) {
+                this.otherMobTargetEntityIds = new ArrayList<>();
+            }
+            if (this.everythingTargetEntityIds == null) {
+                this.everythingTargetEntityIds = new ArrayList<>();
             }
             if (this.spawnPoolEntries == null || this.spawnPoolEntries.isEmpty()) {
                 this.spawnPoolEntries = new ArrayList<>(List.of(
