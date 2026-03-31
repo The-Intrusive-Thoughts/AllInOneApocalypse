@@ -64,17 +64,13 @@ final class AioaTextListScreen extends Screen {
     }
 
     @Override
-    public void tick() {
-        this.editor.tick();
-    }
-
-    @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
+        AioaScreenUtil.pushUiLayer(guiGraphics);
         AioaScreenUtil.drawPanel(guiGraphics, this.width / 2 - 196, 24, this.width / 2 + 196, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
         AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal(this.description), this.width / 2, 49, 340, AioaScreenUtil.TEXT_SUB);
         super.render(guiGraphics, mouseX, mouseY, partialTick);
+        AioaScreenUtil.popUiLayer(guiGraphics);
     }
 
     @Override

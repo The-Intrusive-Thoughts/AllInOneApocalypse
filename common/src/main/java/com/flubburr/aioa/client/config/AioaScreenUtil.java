@@ -34,18 +34,19 @@ import java.util.function.DoubleConsumer;
 import java.util.function.DoubleFunction;
 import java.util.stream.Collectors;
 
-final class AioaScreenUtil {
+public final class AioaScreenUtil {
+    private static final float UI_LAYER_Z = 200.0F;
 
     private static final Map<ResourceLocation, LivingEntity> PREVIEW_ENTITY_CACHE = new HashMap<>();
 
     static final int BUTTON_HEIGHT = 24;
-    static final int PANEL_BACKGROUND = 0xE0101010;
+    static final int PANEL_BACKGROUND = 0xFF111714;
     static final int PANEL_BORDER = 0xFF000000;
     static final int PANEL_ACCENT = 0xFF01BF63;
-    static final int PANEL_SOFT = 0xC0121A16;
+    static final int PANEL_SOFT = 0xFF18211D;
     static final int PANEL_SOFT_BORDER = 0xFF000000;
-    static final int PANEL_SELECTED = 0xD001BF63;
-    static final int PANEL_CARD = 0xDD0F1713;
+    static final int PANEL_SELECTED = 0xFF0D5A37;
+    static final int PANEL_CARD = 0xFF0F1713;
     static final int TEXT_MAIN = 0xFFB8FFD9;
     static final int TEXT_SUB = 0xFF75D7A6;
     static final int TEXT_MUTED = 0xFF3E8A64;
@@ -83,6 +84,15 @@ final class AioaScreenUtil {
         guiGraphics.enableScissor(left, top, right, bottom);
         contentRenderer.run();
         guiGraphics.disableScissor();
+    }
+
+    static void pushUiLayer(GuiGraphics guiGraphics) {
+        guiGraphics.pose().pushPose();
+        guiGraphics.pose().translate(0.0F, 0.0F, UI_LAYER_Z);
+    }
+
+    static void popUiLayer(GuiGraphics guiGraphics) {
+        guiGraphics.pose().popPose();
     }
 
     static int drawWrappedCenteredText(GuiGraphics guiGraphics, Font font, Component text, int centerX, int top, int maxWidth, int color) {
@@ -135,7 +145,7 @@ final class AioaScreenUtil {
     static void drawScrollBar(GuiGraphics guiGraphics, int x, int top, int height, int scrollOffset, int maxScroll) {
         drawInsetPanel(guiGraphics, x, top, x + 8, top + height, false);
         if (maxScroll <= 0) {
-            guiGraphics.fill(x + 1, top + 1, x + 7, top + height - 1, 0x6601BF63);
+            guiGraphics.fill(x + 1, top + 1, x + 7, top + height - 1, 0xFF294437);
             return;
         }
 
@@ -363,10 +373,19 @@ final class AioaScreenUtil {
         drawInsetPanel(guiGraphics, modelLeft, modelTop, left + width - padding, modelBottom, false);
         LivingEntity previewEntity = previewEntity(id);
         if (previewEntity != null) {
-            int modelCenterX = modelLeft + ((left + width - padding - modelLeft) / 2);
-            int modelAnchorY = modelBottom - 10;
             int scale = Math.max(24, Math.min(42, (modelBottom - modelTop) / 2));
-            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, modelCenterX, modelAnchorY, scale, 0.0F, 0.0F, previewEntity);
+            InventoryScreen.renderEntityInInventoryFollowsMouse(
+                    guiGraphics,
+                    modelLeft,
+                    modelTop,
+                    left + width - padding,
+                    modelBottom,
+                    scale,
+                    0.0F,
+                    0.0F,
+                    0.0F,
+                    previewEntity
+            );
         } else {
             int itemX = modelLeft + (((left + width - padding) - modelLeft) / 2) - 8;
             int itemY = modelTop + ((modelBottom - modelTop) / 2) - 8;
@@ -575,7 +594,7 @@ final class AioaScreenUtil {
             boolean hovered = this.isHoveredOrFocused();
 
             drawInsetPanel(guiGraphics, left, top, right, bottom, hovered);
-            guiGraphics.fill(left + 2, top + 2, right - 2, top + 4, hovered ? 0x88000000 : 0x55000000);
+            guiGraphics.fill(left + 2, top + 2, right - 2, top + 4, hovered ? 0xFF08110D : 0xFF0D1712);
 
             int trackLeft = left + 12;
             int trackRight = right - 12;
@@ -649,7 +668,7 @@ final class AioaScreenUtil {
             int bottom = top + this.height;
             boolean hovered = this.isHoveredOrFocused();
             boolean sectionButton = this.getMessage().getString().startsWith("[+") || this.getMessage().getString().startsWith("[-]");
-            int fill = !this.active ? 0xAA0B0B0B : hovered ? 0xFF03D772 : 0xE001BF63;
+            int fill = !this.active ? 0xFF0B0B0B : hovered ? 0xFF03D772 : 0xFF01BF63;
             int text = !this.active ? TEXT_MUTED : sectionButton ? 0xFF7F0000 : 0xFF1C5427;
 
             guiGraphics.fill(left, top, right, bottom, fill);
@@ -657,7 +676,7 @@ final class AioaScreenUtil {
             guiGraphics.fill(left, bottom - 1, right, bottom, PANEL_BORDER);
             guiGraphics.fill(left, top, left + 1, bottom, PANEL_BORDER);
             guiGraphics.fill(right - 1, top, right, bottom, PANEL_BORDER);
-            guiGraphics.fill(left + 2, top + 2, right - 2, top + 4, hovered ? 0x88000000 : 0x55000000);
+            guiGraphics.fill(left + 2, top + 2, right - 2, top + 4, hovered ? 0xFF08110D : 0xFF0D1712);
 
             guiGraphics.drawCenteredString(Minecraft.getInstance().font, this.getMessage(), left + this.width / 2, top + (this.height - 8) / 2, text);
         }
@@ -680,11 +699,8 @@ final class AioaScreenUtil {
             int right = left + this.getWidth();
             int bottom = top + this.getHeight();
             drawInsetPanel(guiGraphics, left, top, right, bottom, this.isFocused());
-            guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, 0x55000000);
-            guiGraphics.pose().pushPose();
-            guiGraphics.pose().translate(6.0F, 2.0F, 0.0F);
+            guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, 0xFF0D1712);
             super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
-            guiGraphics.pose().popPose();
         }
     }
 }

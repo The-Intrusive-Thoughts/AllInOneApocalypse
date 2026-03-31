@@ -28,24 +28,21 @@ import net.minecraft.world.phys.Vec3;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class AioaZombieBehaviour {
 
-    private static final UUID FOLLOW_RANGE_MODIFIER_ID = UUID.fromString("7dc8f5fb-15a5-4a64-a228-cb62398f2d9f");
-    private static final UUID CHASE_SPEED_MODIFIER_ID = UUID.fromString("80a5998f-26f7-4a83-986e-1577145f0ed0");
+    private static final ResourceLocation FOLLOW_RANGE_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("aioa", "refined_zombie_follow_range");
+    private static final ResourceLocation CHASE_SPEED_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("aioa", "refined_zombie_chase_speed");
     private static final AttributeModifier FOLLOW_RANGE_MODIFIER = new AttributeModifier(
             FOLLOW_RANGE_MODIFIER_ID,
-            "aioa_refined_zombie_follow_range",
             10.0D,
-            AttributeModifier.Operation.ADDITION
+            AttributeModifier.Operation.ADD_VALUE
     );
     private static final AttributeModifier CHASE_SPEED_MODIFIER = new AttributeModifier(
             CHASE_SPEED_MODIFIER_ID,
-            "aioa_refined_zombie_chase_speed",
             0.08D,
-            AttributeModifier.Operation.MULTIPLY_TOTAL
+            AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
     );
     private static final ConcurrentHashMap<Class<?>, Optional<Method>> SET_BABY_METHOD_CACHE = new ConcurrentHashMap<>();
 
@@ -197,11 +194,11 @@ public final class AioaZombieBehaviour {
         }
 
         if (refinedAiEnabled) {
-            if (!followRange.hasModifier(FOLLOW_RANGE_MODIFIER)) {
+            if (!followRange.hasModifier(FOLLOW_RANGE_MODIFIER_ID)) {
                 followRange.addTransientModifier(FOLLOW_RANGE_MODIFIER);
             }
             if (mob.getTarget() != null) {
-                if (!movementSpeed.hasModifier(CHASE_SPEED_MODIFIER)) {
+                if (!movementSpeed.hasModifier(CHASE_SPEED_MODIFIER_ID)) {
                     movementSpeed.addTransientModifier(CHASE_SPEED_MODIFIER);
                 }
                 if (mob instanceof PathfinderMob pathfinderMob) {
@@ -213,17 +210,17 @@ public final class AioaZombieBehaviour {
                         pathfinderMob.getNavigation().moveTo(mob.getTarget(), 1.15D);
                     }
                 }
-            } else if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER)) {
-                movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
+            } else if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER_ID)) {
+                movementSpeed.removeModifier(CHASE_SPEED_MODIFIER_ID);
             }
             return;
         }
 
-        if (followRange.hasModifier(FOLLOW_RANGE_MODIFIER)) {
-            followRange.removeModifier(FOLLOW_RANGE_MODIFIER);
+        if (followRange.hasModifier(FOLLOW_RANGE_MODIFIER_ID)) {
+            followRange.removeModifier(FOLLOW_RANGE_MODIFIER_ID);
         }
-        if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER)) {
-            movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
+        if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER_ID)) {
+            movementSpeed.removeModifier(CHASE_SPEED_MODIFIER_ID);
         }
         if (mob instanceof PathfinderMob pathfinderMob
                 && pathfinderMob.getNavigation() instanceof GroundPathNavigation groundNavigation) {

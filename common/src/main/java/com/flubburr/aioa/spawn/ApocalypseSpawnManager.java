@@ -228,7 +228,7 @@ public final class ApocalypseSpawnManager {
             return false;
         }
 
-        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), MobSpawnType.EVENT, null, null);
+        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), MobSpawnType.EVENT, null);
         if (!AioaZombieBehaviour.applyVariantMode(mob, settings)) {
             return false;
         }
@@ -241,8 +241,7 @@ public final class ApocalypseSpawnManager {
     }
 
     private static boolean isPotentialSpawnPosition(ServerLevel level, BlockPos spawnPosition, EntityType<?> entityType) {
-        SpawnPlacements.Type placementType = SpawnPlacements.getPlacementType(entityType);
-        if (!NaturalSpawner.isSpawnPositionOk(placementType, level, spawnPosition, entityType)) {
+        if (!SpawnPlacements.checkSpawnRules(entityType, level, MobSpawnType.EVENT, spawnPosition, level.getRandom())) {
             return false;
         }
 

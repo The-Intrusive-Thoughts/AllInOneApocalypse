@@ -143,31 +143,32 @@ final class AioaSpawnEntryEditorScreen extends AioaScrollableScreen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
+        AioaScreenUtil.pushUiLayer(guiGraphics);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
         AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal(AioaScreenUtil.entityLine(this.entityId)), this.width / 2, 49, this.panelWidth - 48, AioaScreenUtil.TEXT_SUB);
-        AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom,
-                () -> AioaSpawnEntryEditorScreen.super.render(guiGraphics, mouseX, mouseY, partialTick));
         if (this.height >= 280) {
-            AioaScreenUtil.drawMobPreview(
-                    guiGraphics,
-                    this.font,
-                    this.width / 2 - 110,
-                    this.height - 166,
-                    220,
-                    118,
-                    this.entityId,
-                    this.enabled,
-                    List.of(
-                            Component.literal("Weight: " + this.cachedWeight),
-                            Component.literal("Chance: " + Math.round(this.cachedChance * 100.0D) + "%"),
-                            Component.literal("Group: " + this.cachedMin + " - " + this.cachedMax),
-                            Component.literal(this.enabled ? "Status: entry enabled" : "Status: entry disabled")
-                    )
-            );
+            AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom, () ->
+                    AioaScreenUtil.drawMobPreview(
+                            guiGraphics,
+                            this.font,
+                            this.width / 2 - 110,
+                            this.height - 166,
+                            220,
+                            118,
+                            this.entityId,
+                            this.enabled,
+                            List.of(
+                                    Component.literal("Weight: " + this.cachedWeight),
+                                    Component.literal("Chance: " + Math.round(this.cachedChance * 100.0D) + "%"),
+                                    Component.literal("Group: " + this.cachedMin + " - " + this.cachedMax),
+                                    Component.literal(this.enabled ? "Status: entry enabled" : "Status: entry disabled")
+                            )
+                    ));
         }
+        AioaSpawnEntryEditorScreen.super.render(guiGraphics, mouseX, mouseY, partialTick);
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
+        AioaScreenUtil.popUiLayer(guiGraphics);
     }
 
     @Override

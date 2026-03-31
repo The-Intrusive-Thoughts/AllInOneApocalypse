@@ -9,7 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public final class AioaConfigScreen extends AioaScrollableScreen {
 
-    private static final ResourceLocation LOGO = new ResourceLocation("aioa", "textures/gui/aioa-logo2.png");
+    private static final ResourceLocation LOGO = logoTexture();
     private static final int LOGO_TEXTURE_WIDTH = 1024;
     private static final int LOGO_TEXTURE_HEIGHT = 230;
 
@@ -24,6 +24,10 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
 
     public static Screen create(Screen parent) {
         return new AioaConfigScreen(parent, AioaConfigManager.getConfigCopy());
+    }
+
+    private static ResourceLocation logoTexture() {
+        return ResourceLocation.fromNamespaceAndPath("aioa", "textures/gui/aioa-logo2.png");
     }
 
     @Override
@@ -83,7 +87,7 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
+        AioaScreenUtil.pushUiLayer(guiGraphics);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         int headerBottom = this.contentTop - 12;
         boolean compactHeader = this.height < 300;
@@ -118,8 +122,8 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
                     AioaScreenUtil.TEXT_SUB
             );
         }
-        AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom,
-                () -> AioaConfigScreen.super.render(guiGraphics, mouseX, mouseY, partialTick));
+        AioaConfigScreen.super.render(guiGraphics, mouseX, mouseY, partialTick);
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
+        AioaScreenUtil.popUiLayer(guiGraphics);
     }
 }
