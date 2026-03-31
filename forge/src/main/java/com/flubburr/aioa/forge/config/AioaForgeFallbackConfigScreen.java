@@ -16,6 +16,9 @@ import java.util.stream.Collectors;
 
 public final class AioaForgeFallbackConfigScreen extends Screen {
 
+    private static final int UI_TEXT_COLOR = 0x9AD6AE;
+    private static final int BUTTON_TEXT_COLOR = 0x6EFFBA;
+
     private final Screen parent;
     private AioaConfig editableConfig;
 
@@ -101,6 +104,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
         this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.cancel"), button -> this.onClose())
                 .bounds(centerX + 2, bottomY, 140, 20)
                 .build());
+        applyButtonTextColor(this);
     }
 
     @Override
@@ -111,13 +115,13 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(guiGraphics);
-        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, UI_TEXT_COLOR);
         guiGraphics.drawCenteredString(
                 this.font,
                 tr("aioa.forge.fallback.subtitle"),
                 this.width / 2,
                 28,
-                0xA0A0A0
+                UI_TEXT_COLOR
         );
         super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
@@ -132,6 +136,14 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
 
     private static Component tr(String key) {
         return Component.translatable(key);
+    }
+
+    private static void applyButtonTextColor(Screen screen) {
+        for (var child : screen.children()) {
+            if (child instanceof Button button) {
+                button.setFGColor(BUTTON_TEXT_COLOR);
+            }
+        }
     }
 
     private static final class HostileSettingsScreen extends Screen {
@@ -218,6 +230,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
             this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.cancel"), button -> this.minecraft.setScreen(this.parent))
                     .bounds(centerX + 2, bottomY, 140, 20)
                     .build());
+            applyButtonTextColor(this);
         }
 
         @Override
@@ -228,7 +241,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
         @Override
         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             this.renderBackground(guiGraphics);
-            guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+            guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, UI_TEXT_COLOR);
             super.render(guiGraphics, mouseX, mouseY, partialTick);
         }
     }
@@ -380,6 +393,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
                     .build());
 
             this.setInitialFocus(this.spawnIntervalTicks);
+            applyButtonTextColor(this);
         }
 
         @Override
@@ -399,12 +413,12 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
         @Override
         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             this.renderBackground(guiGraphics);
-            guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+            guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, UI_TEXT_COLOR);
 
             int labelX = this.width / 2 - 150;
             int y = 162;
             int step = 20;
-            int color = 0xA0A0A0;
+            int color = UI_TEXT_COLOR;
             guiGraphics.drawString(this.font, tr("aioa.forge.fallback.day.label.spawn_interval_ticks"), labelX, y + 6, color);
             guiGraphics.drawString(this.font, tr("aioa.forge.fallback.day.label.spawn_attempts_per_player"), labelX, y + step + 6, color);
             guiGraphics.drawString(this.font, tr("aioa.forge.fallback.day.label.min_spawn_distance"), labelX, y + (step * 2) + 6, color);
@@ -499,6 +513,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
                     .build());
 
             this.setInitialFocus(this.editor);
+            applyButtonTextColor(this);
         }
 
         @Override
@@ -514,8 +529,8 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
         @Override
         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             this.renderBackground(guiGraphics);
-            guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
-            guiGraphics.drawCenteredString(this.font, this.description, this.width / 2, 30, 0xA0A0A0);
+            guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, UI_TEXT_COLOR);
+            guiGraphics.drawCenteredString(this.font, this.description, this.width / 2, 30, UI_TEXT_COLOR);
             super.render(guiGraphics, mouseX, mouseY, partialTick);
         }
     }

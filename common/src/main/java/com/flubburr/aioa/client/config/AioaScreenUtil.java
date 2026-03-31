@@ -46,9 +46,10 @@ final class AioaScreenUtil {
     static final int PANEL_SOFT_BORDER = 0xFF000000;
     static final int PANEL_SELECTED = 0xD001BF63;
     static final int PANEL_CARD = 0xDD0F1713;
-    static final int TEXT_MAIN = 0xFFB8FFD9;
-    static final int TEXT_SUB = 0xFF75D7A6;
-    static final int TEXT_MUTED = 0xFF3E8A64;
+    static final int TEXT_MAIN = 0x6BF250;
+    static final int TEXT_SUB = 0xFF9AD6AE;
+    static final int TEXT_MUTED = 0xFF9AD6AE;
+    static final int BUTTON_TEXT = 0xFF6EFFBA;
     static final int ROWS_PER_PAGE = 7;
 
     private AioaScreenUtil() {
@@ -600,7 +601,7 @@ final class AioaScreenUtil {
             }
 
             int knobRadius = hovered ? 6 : 5;
-            guiGraphics.fill(knobCenterX - knobRadius, trackTop - 4, knobCenterX + knobRadius, trackBottom + 4, this.active ? 0xFFB8FFD9 : TEXT_MUTED);
+            guiGraphics.fill(knobCenterX - knobRadius, trackTop - 4, knobCenterX + knobRadius, trackBottom + 4, this.active ? TEXT_MAIN : TEXT_MUTED);
             guiGraphics.fill(knobCenterX - 2, trackTop - 1, knobCenterX + 2, trackBottom + 1, 0xFF0C1711);
 
             String valueText = this.valueText();
@@ -648,9 +649,8 @@ final class AioaScreenUtil {
             int right = left + this.width;
             int bottom = top + this.height;
             boolean hovered = this.isHoveredOrFocused();
-            boolean sectionButton = this.getMessage().getString().startsWith("[+") || this.getMessage().getString().startsWith("[-]");
             int fill = !this.active ? 0xAA0B0B0B : hovered ? 0xFF03D772 : 0xE001BF63;
-            int text = !this.active ? TEXT_MUTED : sectionButton ? 0xFF7F0000 : 0xFF1C5427;
+            int text = !this.active ? TEXT_MUTED : BUTTON_TEXT;
 
             guiGraphics.fill(left, top, right, bottom, fill);
             guiGraphics.fill(left, top, right, top + 1, PANEL_BORDER);
