@@ -3,20 +3,30 @@ package com.flubburr.aioa.fabric.config;
 import com.flubburr.aioa.AioaConstants;
 import com.flubburr.aioa.config.AioaConfig;
 import com.flubburr.aioa.config.AioaConfigManager;
+import eu.midnightdust.lib.config.EntryInfo;
 import eu.midnightdust.lib.config.MidnightConfig;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public final class AioaMidnightConfig extends MidnightConfig {
 
     private static final String HOSTILE_CATEGORY = "hostile_spawn_control";
     private static final String DAY_CATEGORY = "day_surface_spawns";
+    private static final String AI_CATEGORY = "mob_behavior";
+    private static final String ENTRY_KEY_PREFIX = AioaConstants.MOD_ID + ":";
 
     private static boolean initialized;
+    private static final Field ENTRY_VALUE_FIELD;
+    private static final Field ENTRY_TEMP_VALUE_FIELD;
+    private static final Field ENTRY_DEFAULT_VALUE_FIELD;
+
+    static {
+        ENTRY_VALUE_FIELD = resolveEntryInfoField("value");
+        ENTRY_TEMP_VALUE_FIELD = resolveEntryInfoField("tempValue");
+        ENTRY_DEFAULT_VALUE_FIELD = resolveEntryInfoField("defaultValue");
+    }
 
     @Comment(category = HOSTILE_CATEGORY)
     public static String hostile_spawn_settings_comment = "";
@@ -58,9 +68,6 @@ public final class AioaMidnightConfig extends MidnightConfig {
     public static boolean prevent_sunlight_burn = true;
 
     @Entry(category = DAY_CATEGORY)
-    public static boolean remove_baby_variants = false;
-
-    @Entry(category = DAY_CATEGORY)
     public static boolean export_mob_catalog = true;
 
     @Entry(category = DAY_CATEGORY, min = 20, max = 24000)
@@ -83,6 +90,42 @@ public final class AioaMidnightConfig extends MidnightConfig {
 
     @Entry(category = DAY_CATEGORY)
     public static List<String> spawn_pool_entries = new ArrayList<>();
+
+    @Comment(category = AI_CATEGORY)
+    public static String mob_behavior_settings_comment = "";
+
+    @Entry(category = AI_CATEGORY)
+    public static AioaConfig.ZombieVariantMode zombie_variant_mode = AioaConfig.ZombieVariantMode.REGULAR_AND_BABY;
+
+    @Entry(category = AI_CATEGORY)
+    public static AioaConfig.ZombieTargetMode zombie_target_mode = AioaConfig.ZombieTargetMode.VANILLA;
+
+    @Entry(category = AI_CATEGORY)
+    public static boolean zombies_can_climb_walls = true;
+
+    @Entry(category = AI_CATEGORY)
+    public static boolean refined_zombie_ai = true;
+
+    @Entry(category = AI_CATEGORY)
+    public static boolean refined_pathfinding_opens_doors = true;
+
+    @Entry(category = AI_CATEGORY)
+    public static List<String> refined_ai_entity_ids = new ArrayList<>();
+
+    @Entry(category = AI_CATEGORY)
+    public static List<String> wall_climbing_entity_ids = new ArrayList<>();
+
+    @Entry(category = AI_CATEGORY)
+    public static List<String> player_only_target_entity_ids = new ArrayList<>();
+
+    @Entry(category = AI_CATEGORY)
+    public static List<String> animal_target_entity_ids = new ArrayList<>();
+
+    @Entry(category = AI_CATEGORY)
+    public static List<String> other_mob_target_entity_ids = new ArrayList<>();
+
+    @Entry(category = AI_CATEGORY)
+    public static List<String> everything_target_entity_ids = new ArrayList<>();
 
     public static void initialize() {
         if (initialized) {
@@ -108,7 +151,6 @@ public final class AioaMidnightConfig extends MidnightConfig {
         require_daytime = config.daySurfaceSpawns.requireDaytime;
         require_clear_sky = config.daySurfaceSpawns.requireClearSky;
         prevent_sunlight_burn = config.daySurfaceSpawns.preventSunlightBurn;
-        remove_baby_variants = config.daySurfaceSpawns.removeBabyVariants;
         export_mob_catalog = config.daySurfaceSpawns.exportMobCatalog;
         spawn_interval_ticks = config.daySurfaceSpawns.spawnIntervalTicks;
         spawn_attempts_per_player = config.daySurfaceSpawns.spawnAttemptsPerPlayer;
@@ -118,13 +160,27 @@ public final class AioaMidnightConfig extends MidnightConfig {
         allowed_biome_ids = safeList(config.daySurfaceSpawns.allowedBiomeIds);
         spawn_pool_entries = safeList(config.daySurfaceSpawns.spawnPoolEntries);
 
+        zombie_variant_mode = config.daySurfaceSpawns.zombieVariantMode;
+        zombie_target_mode = config.daySurfaceSpawns.zombieTargetMode;
+        zombies_can_climb_walls = config.daySurfaceSpawns.zombiesCanClimbWalls;
+        refined_zombie_ai = config.daySurfaceSpawns.refinedZombieAi;
+        refined_pathfinding_opens_doors = config.daySurfaceSpawns.refinedPathfindingOpensDoors;
+        refined_ai_entity_ids = safeList(config.daySurfaceSpawns.refinedAiEntityIds);
+        wall_climbing_entity_ids = safeList(config.daySurfaceSpawns.wallClimbingEntityIds);
+        player_only_target_entity_ids = safeList(config.daySurfaceSpawns.playerOnlyTargetEntityIds);
+        animal_target_entity_ids = safeList(config.daySurfaceSpawns.animalTargetEntityIds);
+        other_mob_target_entity_ids = safeList(config.daySurfaceSpawns.otherMobTargetEntityIds);
+        everything_target_entity_ids = safeList(config.daySurfaceSpawns.everythingTargetEntityIds);
+
         syncMidnightEntryState();
     }
 
+    @Override
     public void loadValuesFromJson() {
         pullFromCommon();
     }
 
+    @Override
     public void writeChanges() {
         AioaConfig config = AioaConfigManager.getConfigCopy();
         config.hostileSpawnControl.enabled = enable_hostile_spawn_nullification;
@@ -139,7 +195,6 @@ public final class AioaMidnightConfig extends MidnightConfig {
         config.daySurfaceSpawns.requireDaytime = require_daytime;
         config.daySurfaceSpawns.requireClearSky = require_clear_sky;
         config.daySurfaceSpawns.preventSunlightBurn = prevent_sunlight_burn;
-        config.daySurfaceSpawns.removeBabyVariants = remove_baby_variants;
         config.daySurfaceSpawns.exportMobCatalog = export_mob_catalog;
         config.daySurfaceSpawns.spawnIntervalTicks = spawn_interval_ticks;
         config.daySurfaceSpawns.spawnAttemptsPerPlayer = spawn_attempts_per_player;
@@ -149,6 +204,18 @@ public final class AioaMidnightConfig extends MidnightConfig {
         config.daySurfaceSpawns.allowedBiomeIds = safeList(allowed_biome_ids);
         config.daySurfaceSpawns.spawnPoolEntries = safeList(spawn_pool_entries);
 
+        config.daySurfaceSpawns.zombieVariantMode = zombie_variant_mode;
+        config.daySurfaceSpawns.zombieTargetMode = zombie_target_mode;
+        config.daySurfaceSpawns.zombiesCanClimbWalls = zombies_can_climb_walls;
+        config.daySurfaceSpawns.refinedZombieAi = refined_zombie_ai;
+        config.daySurfaceSpawns.refinedPathfindingOpensDoors = refined_pathfinding_opens_doors;
+        config.daySurfaceSpawns.refinedAiEntityIds = safeList(refined_ai_entity_ids);
+        config.daySurfaceSpawns.wallClimbingEntityIds = safeList(wall_climbing_entity_ids);
+        config.daySurfaceSpawns.playerOnlyTargetEntityIds = safeList(player_only_target_entity_ids);
+        config.daySurfaceSpawns.animalTargetEntityIds = safeList(animal_target_entity_ids);
+        config.daySurfaceSpawns.otherMobTargetEntityIds = safeList(other_mob_target_entity_ids);
+        config.daySurfaceSpawns.everythingTargetEntityIds = safeList(everything_target_entity_ids);
+
         AioaConfigManager.save(config);
         pullFromCommon();
     }
@@ -157,134 +224,45 @@ public final class AioaMidnightConfig extends MidnightConfig {
         return source == null ? new ArrayList<>() : new ArrayList<>(source);
     }
 
-    private static Field resolveField(Class<?> type, String fieldName) {
-        Class<?> current = type;
-        while (current != null) {
-            try {
-                Field field = current.getDeclaredField(fieldName);
-                field.setAccessible(true);
-                return field;
-            } catch (NoSuchFieldException ignored) {
-                current = current.getSuperclass();
-            } catch (Exception exception) {
-                AioaConstants.LOG.warn("AIOA could not access MidnightLib field '{}' on {}.", fieldName, type.getName(), exception);
-                return null;
-            }
-        }
-        return null;
-    }
-
-    private static Method resolveMethod(Class<?> type, String methodName) {
-        Class<?> current = type;
-        while (current != null) {
-            try {
-                Method method = current.getDeclaredMethod(methodName);
-                method.setAccessible(true);
-                return method;
-            } catch (NoSuchMethodException ignored) {
-                current = current.getSuperclass();
-            } catch (Exception exception) {
-                AioaConstants.LOG.warn("AIOA could not access MidnightLib method '{}' on {}.", methodName, type.getName(), exception);
-                return null;
-            }
-        }
-        return null;
-    }
-
-    private static Field resolveEntriesField() {
+    private static Field resolveEntryInfoField(String fieldName) {
         try {
-            Field field = MidnightConfig.class.getDeclaredField("entries");
+            Field field = EntryInfo.class.getDeclaredField(fieldName);
             field.setAccessible(true);
             return field;
         } catch (Exception exception) {
-            AioaConstants.LOG.warn("AIOA could not access MidnightLib 'entries' field for state sync.", exception);
+            AioaConstants.LOG.warn("AIOA could not access MidnightLib internals for '{}' state sync.", fieldName, exception);
             return null;
         }
     }
 
     private static void syncMidnightEntryState() {
-        Field entriesField = resolveEntriesField();
-        if (entriesField == null) {
+        if (ENTRY_VALUE_FIELD == null || ENTRY_TEMP_VALUE_FIELD == null || ENTRY_DEFAULT_VALUE_FIELD == null) {
             return;
         }
 
-        Object container;
-        try {
-            container = entriesField.get(null);
-        } catch (Exception exception) {
-            AioaConstants.LOG.warn("AIOA could not read MidnightLib entries for state sync.", exception);
-            return;
-        }
-
-        if (container instanceof Map<?, ?> entryMap) {
-            for (Map.Entry<?, ?> entry : entryMap.entrySet()) {
-                syncOneEntry(entry.getValue(), String.valueOf(entry.getKey()));
-            }
-            return;
-        }
-
-        if (container instanceof Iterable<?> iterableEntries) {
-            for (Object entryInfo : iterableEntries) {
-                syncOneEntry(entryInfo, null);
-            }
-        }
-    }
-
-    private static void syncOneEntry(Object entryInfo, String key) {
-        if (entryInfo == null) {
-            return;
-        }
-
-        Class<?> entryType = entryInfo.getClass();
-        Field reflectedFieldHolder = resolveField(entryType, "field");
-        if (reflectedFieldHolder == null) {
-            return;
-        }
-
-        Field configField;
-        try {
-            configField = (Field) reflectedFieldHolder.get(entryInfo);
-        } catch (Exception exception) {
-            return;
-        }
-
-        if (configField == null || configField.getDeclaringClass() != AioaMidnightConfig.class) {
-            return;
-        }
-
-        Field valueField = resolveField(entryType, "value");
-        Field tempValueField = resolveField(entryType, "tempValue");
-        Field defaultValueField = resolveField(entryType, "defaultValue");
-        Method toTemporaryValueMethod = resolveMethod(entryType, "toTemporaryValue");
-        Method updateConditionsMethod = resolveMethod(entryType, "updateConditions");
-        if (valueField == null) {
-            return;
-        }
-
-        try {
-            Object fieldValue = configField.get(null);
-            if (fieldValue == null && defaultValueField != null) {
-                fieldValue = defaultValueField.get(entryInfo);
-            }
-            if (fieldValue == null) {
+        entries.forEach((key, entryInfo) -> {
+            if (!key.startsWith(ENTRY_KEY_PREFIX) || entryInfo.field == null || entryInfo.entry == null) {
                 return;
             }
 
-            valueField.set(entryInfo, fieldValue);
+            try {
+                Object fieldValue = entryInfo.field.get(null);
+                if (fieldValue == null) {
+                    fieldValue = ENTRY_DEFAULT_VALUE_FIELD.get(entryInfo);
+                }
+                if (fieldValue == null) {
+                    return;
+                }
 
-            if (tempValueField != null && toTemporaryValueMethod != null) {
-                tempValueField.set(entryInfo, toTemporaryValueMethod.invoke(entryInfo));
+                ENTRY_VALUE_FIELD.set(entryInfo, fieldValue);
+                ENTRY_TEMP_VALUE_FIELD.set(entryInfo, entryInfo.toTemporaryValue());
+                entryInfo.updateConditions();
+            } catch (Exception exception) {
+                AioaConfigManager.warnOnce(
+                        "midnight-sync-" + key,
+                        "AIOA could not sync MidnightLib state for '" + key + "'. Config UI may be partially degraded."
+                );
             }
-
-            if (updateConditionsMethod != null) {
-                updateConditionsMethod.invoke(entryInfo);
-            }
-        } catch (Exception exception) {
-            String keySuffix = key == null ? configField.getName() : key;
-            AioaConfigManager.warnOnce(
-                    "midnight-sync-" + keySuffix,
-                    "AIOA could not sync MidnightLib state for '" + keySuffix + "'. Config UI may be partially degraded."
-            );
-        }
+        });
     }
 }
