@@ -9,3 +9,4 @@
 - Enhanced zombie wall-climbing pursuit so configured zombies climb more reliably while chasing targets, and stop doing so when the option is disabled.
 - Restricted the `F6` config hotkey to creative mode so it no longer opens the config in survival.
 - Updated the README so screenshots and linked images render correctly on Modrinth by using absolute image URLs.
+- Fixed runtime-safe resource id parsing so the shared config and spawn code works cleanly on the target Minecraft runtime.

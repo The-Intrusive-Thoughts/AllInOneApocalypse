@@ -1,5 +1,6 @@
 package com.flubburr.aioa.client.config;
 
+import com.flubburr.aioa.compat.AioaEntityHelper;
 import com.flubburr.aioa.config.AioaSpawnEntry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -338,7 +339,7 @@ public final class AioaScreenUtil {
     }
 
     static ItemStack entityPreviewItem(ResourceLocation id) {
-        ResourceLocation eggId = ResourceLocation.tryParse(id.getNamespace() + ":" + id.getPath() + "_spawn_egg");
+        ResourceLocation eggId = AioaEntityHelper.parseResourceLocation(id.getNamespace() + ":" + id.getPath() + "_spawn_egg");
         if (eggId == null) {
             return new ItemStack(Items.BARRIER);
         }
