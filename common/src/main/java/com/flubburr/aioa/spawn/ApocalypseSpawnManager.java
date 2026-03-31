@@ -241,7 +241,7 @@ public final class ApocalypseSpawnManager {
     }
 
     private static boolean isPotentialSpawnPosition(ServerLevel level, BlockPos spawnPosition, EntityType<?> entityType) {
-        if (!SpawnPlacements.checkSpawnRules(entityType, level, MobSpawnType.EVENT, spawnPosition, level.getRandom())) {
+        if (!SpawnPlacements.isSpawnPositionOk(entityType, level, spawnPosition)) {
             return false;
         }
 
@@ -263,7 +263,7 @@ public final class ApocalypseSpawnManager {
         }
 
         for (String rawBiomeId : settings.allowedBiomeIds) {
-            ResourceLocation configuredBiomeId = ResourceLocation.tryParse(rawBiomeId == null ? "" : rawBiomeId.trim());
+            ResourceLocation configuredBiomeId = AioaEntityHelper.parseResourceLocation(rawBiomeId == null ? "" : rawBiomeId.trim());
             if (configuredBiomeId == null) {
                 AioaConfigManager.warnOnce(
                         "invalid-biome:" + rawBiomeId,

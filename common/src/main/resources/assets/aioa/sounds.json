@@ -1,0 +1,17 @@
+{
+  "ui.click": {
+    "sounds": [
+      "aioa:aioa_ui_click"
+    ]
+  },
+  "ui.hover": {
+    "sounds": [
+      "aioa:aioa_ui_hover"
+    ]
+  },
+  "ui.slider": {
+    "sounds": [
+      "aioa:aioa_ui_slider"
+    ]
+  }
+}

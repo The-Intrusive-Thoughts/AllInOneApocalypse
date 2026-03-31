@@ -83,7 +83,7 @@ abstract class AioaScrollableScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        return this.handleScroll(verticalAmount, 28) || super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        return this.handleScroll(scrollY, 28) || super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 }
