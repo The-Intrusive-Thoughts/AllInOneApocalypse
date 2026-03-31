@@ -177,6 +177,7 @@ tasks.named('jar', Jar).configure {
     if (tasks.names.contains('reobfJar')) {
         finalizedBy('reobfJar')
     }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest.attributes([
             'MixinConfigs': "${mod_id}.mixins.json"
     ])

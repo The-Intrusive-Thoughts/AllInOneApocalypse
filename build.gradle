@@ -27,3 +27,11 @@ tasks.register('publishModrinth') {
     dependsOn(':fabric:modrinth')
     dependsOn(':forge:modrinth')
 }
+
+gradle.projectsEvaluated {
+    allprojects.each { project ->
+        project.tasks.matching { it.name == 'publish' }.configureEach {
+            dependsOn(rootProject.tasks.named('publishModrinth'))
+        }
+    }
+}

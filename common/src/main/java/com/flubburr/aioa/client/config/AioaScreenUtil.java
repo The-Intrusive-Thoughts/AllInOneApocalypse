@@ -8,11 +8,15 @@ import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.util.RandomSource;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -37,6 +41,10 @@ import java.util.stream.Collectors;
 public final class AioaScreenUtil {
 
     private static final Map<ResourceLocation, LivingEntity> PREVIEW_ENTITY_CACHE = new HashMap<>();
+    private static final RandomSource UI_SOUND_RANDOM = RandomSource.create();
+    private static final ResourceLocation UI_CLICK_SOUND = new ResourceLocation("aioa", "ui.click");
+    private static final ResourceLocation UI_HOVER_SOUND = new ResourceLocation("aioa", "ui.hover");
+    private static final ResourceLocation UI_SLIDER_SOUND = new ResourceLocation("aioa", "ui.slider");
 
     static final int BUTTON_HEIGHT = 24;
     static final int PANEL_BACKGROUND = 0xE0101010;
@@ -527,6 +535,28 @@ public final class AioaScreenUtil {
         return biomeDisplayName(id).toLowerCase(Locale.ROOT);
     }
 
+    private static void playUiSound(ResourceLocation soundId, float volume, float pitch) {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.getSoundManager().play(new SimpleSoundInstance(
+                soundId,
+                SoundSource.MASTER,
+                volume,
+                pitch,
+                UI_SOUND_RANDOM,
+                false,
+                0,
+                SoundInstance.Attenuation.NONE,
+                0.0D,
+                0.0D,
+                0.0D,
+                true
+        ));
+    }
+
+    private static float randomPitch(float min, float max) {
+        return min + (UI_SOUND_RANDOM.nextFloat() * (max - min));
+    }
+
     static final class AioaSlider extends AbstractSliderButton {
 
         private final double min;
@@ -534,6 +564,8 @@ public final class AioaScreenUtil {
         private final double step;
         private final DoubleFunction<String> labelFactory;
         private final DoubleConsumer consumer;
+        private boolean wasHovered;
+        private double lastSoundValue = Double.NaN;
 
         AioaSlider(
                 int x,
@@ -582,12 +614,34 @@ public final class AioaScreenUtil {
         }
 
         @Override
+        public void playDownSound(net.minecraft.client.sounds.SoundManager soundManager) {
+            playUiSound(UI_SLIDER_SOUND, 0.55F, randomPitch(0.82F, 0.96F));
+            this.lastSoundValue = this.actualValue();
+        }
+
+        @Override
+        protected void onDrag(double mouseX, double mouseY, double dragX, double dragY) {
+            super.onDrag(mouseX, mouseY, dragX, dragY);
+            this.playSliderStepIfChanged();
+        }
+
+        @Override
+        public void onRelease(double mouseX, double mouseY) {
+            super.onRelease(mouseX, mouseY);
+            this.lastSoundValue = Double.NaN;
+        }
+
+        @Override
         public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             int left = this.getX();
             int top = this.getY();
             int right = left + this.width;
             int bottom = top + this.height;
             boolean hovered = this.isHoveredOrFocused();
+            if (hovered && !this.wasHovered && this.active) {
+                playUiSound(UI_HOVER_SOUND, 0.45F, randomPitch(1.05F, 1.22F));
+            }
+            this.wasHovered = hovered;
 
             drawInsetPanel(guiGraphics, left, top, right, bottom, hovered);
             guiGraphics.fill(left + 2, top + 2, right - 2, top + 4, hovered ? 0x88000000 : 0x55000000);
@@ -648,12 +702,29 @@ public final class AioaScreenUtil {
             String raw = String.format(Locale.ROOT, "%.3f", actual);
             return raw.indexOf('.') >= 0 ? raw.replaceAll("0+$", "").replaceAll("\\.$", "") : raw;
         }
+
+        private void playSliderStepIfChanged() {
+            double currentValue = this.actualValue();
+            if (!Double.isNaN(this.lastSoundValue) && Math.abs(currentValue - this.lastSoundValue) < 1.0E-6D) {
+                return;
+            }
+
+            this.lastSoundValue = currentValue;
+            playUiSound(UI_SLIDER_SOUND, 0.5F, randomPitch(0.9F, 1.15F));
+        }
     }
 
     static final class AioaButton extends Button {
 
+        private boolean wasHovered;
+
         AioaButton(int x, int y, int width, int height, Component message, OnPress onPress) {
             super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
+        }
+
+        @Override
+        public void playDownSound(net.minecraft.client.sounds.SoundManager soundManager) {
+            playUiSound(UI_CLICK_SOUND, 0.65F, randomPitch(0.75F, 1.08F));
         }
 
         @Override
@@ -663,6 +734,10 @@ public final class AioaScreenUtil {
             int right = left + this.width;
             int bottom = top + this.height;
             boolean hovered = this.isHoveredOrFocused();
+            if (hovered && !this.wasHovered && this.active) {
+                playUiSound(UI_HOVER_SOUND, 0.45F, randomPitch(1.05F, 1.22F));
+            }
+            this.wasHovered = hovered;
             boolean sectionButton = this.getMessage().getString().startsWith("[+") || this.getMessage().getString().startsWith("[-]");
             int fill = !this.active ? 0xAA0B0B0B : hovered ? 0xFF03D772 : 0xE001BF63;
             int text = !this.active ? TEXT_MUTED : sectionButton ? 0xFF7F0000 : 0xFF1C5427;
