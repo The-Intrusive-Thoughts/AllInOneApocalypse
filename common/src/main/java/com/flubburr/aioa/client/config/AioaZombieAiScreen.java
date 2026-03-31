@@ -133,7 +133,7 @@ final class AioaZombieAiScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
+        AioaScreenUtil.pushUiLayer(guiGraphics);
         int panelWidth = AioaScreenUtil.panelWidth(this.width, 700);
         int panelLeft = AioaScreenUtil.panelLeft(this.width, panelWidth);
         AioaScreenUtil.drawPanel(guiGraphics, panelLeft, 24, panelLeft + panelWidth, this.height - 40);
@@ -143,14 +143,15 @@ final class AioaZombieAiScreen extends Screen {
         super.render(guiGraphics, mouseX, mouseY, partialTick);
         guiGraphics.disableScissor();
         AioaScreenUtil.drawScrollBar(guiGraphics, panelLeft + panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
+        AioaScreenUtil.popUiLayer(guiGraphics);
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         if (this.maxScroll <= 0) {
-            return super.mouseScrolled(mouseX, mouseY, delta);
+            return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         }
-        this.scrollOffset = Math.max(0, Math.min(this.maxScroll, this.scrollOffset - ((int) delta * 24)));
+        this.scrollOffset = Math.max(0, Math.min(this.maxScroll, this.scrollOffset - ((int) verticalAmount * 24)));
         this.updateScrollLayout();
         return true;
     }

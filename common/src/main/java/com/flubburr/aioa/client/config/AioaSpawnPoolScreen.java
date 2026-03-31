@@ -148,7 +148,7 @@ final class AioaSpawnPoolScreen extends AioaScrollableScreen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
+        AioaScreenUtil.pushUiLayer(guiGraphics);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
         AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal("Manage the mobs, weights, chances, and group sizes used for day surface spawns."), this.width / 2, 49, this.panelWidth - 72, AioaScreenUtil.TEXT_SUB);
@@ -183,10 +183,10 @@ final class AioaSpawnPoolScreen extends AioaScrollableScreen {
                 AioaScreenUtil.drawInsetPanel(guiGraphics, this.panelLeft + 20, previewTop, this.panelLeft + this.panelWidth - 20, previewTop + 96, false);
                 guiGraphics.drawCenteredString(this.font, Component.literal("Select a spawn entry to preview it here"), this.width / 2, previewTop + 40, AioaScreenUtil.TEXT_SUB);
             }
-            AioaSpawnPoolScreen.super.render(guiGraphics, mouseX, mouseY, partialTick);
         });
-
+        AioaSpawnPoolScreen.super.render(guiGraphics, mouseX, mouseY, partialTick);
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
+        AioaScreenUtil.popUiLayer(guiGraphics);
     }
 
     @Override
