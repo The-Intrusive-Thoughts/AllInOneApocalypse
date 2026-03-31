@@ -26,7 +26,7 @@ You can also adjust how frequently those mobs spawn, making it easy to balance m
 
 [![YetAnotherConfigLib](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/YACL-TEXTURE.png)](https://modrinth.com/mod/yacl)
 [![MidnightLib](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/ML-TEXTURE.png)](https://modrinth.com/mod/midnightlib)
-- [Mod Menu](https://modrinth.com/mod/modmenu)
-- [Cloth Config](https://modrinth.com/mod/cloth-config)
-- [Configured](https://www.curseforge.com/minecraft/mc-mods/configured)
-- [Catalogue](https://www.curseforge.com/minecraft/mc-mods/catalogue)
+[![Mod Menu](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/MM-TEXTURE.png)](https://modrinth.com/mod/modmenu)
+[![Catalogue](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/C-TEXTURE.png)](https://www.curseforge.com/minecraft/mc-mods/catalogue)
+[![Cloth Config Lib](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/CCL-TEXTURE.png)](https://modrinth.com/mod/cloth-config)
+[![Configured](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/CONF-TEXTURE.png)](https://modrinth.com/mod/project/HlpEBg3R)
