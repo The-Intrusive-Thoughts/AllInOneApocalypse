@@ -1,6 +1,8 @@
 {
   "aioa.common.on": "ON",
   "aioa.common.off": "OFF",
+  "key.categories.aioa": "All In One Apocalypse",
+  "key.aioa.open_config": "Open AIOA Config",
 
   "aioa.midnightconfig.title": "AIOA Configuration",
   "aioa.midnightconfig.category.hostile_spawn_control": "Hostile Spawn Control",

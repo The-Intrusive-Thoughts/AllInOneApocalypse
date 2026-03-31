@@ -13,12 +13,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-final class AioaSpawnPoolScreen extends Screen {
+final class AioaSpawnPoolScreen extends AioaScrollableScreen {
 
     private final Screen parent;
     private final AioaConfig editableConfig;
     private final List<Button> entryButtons = new ArrayList<>();
-    private int page;
+    private Button addButton;
+    private Button editButton;
+    private Button removeButton;
+    private Button defaultsButton;
+    private Button doneButton;
+    private Button cancelButton;
     private int selectedIndex = -1;
 
     AioaSpawnPoolScreen(Screen parent, AioaConfig editableConfig) {
@@ -29,53 +34,52 @@ final class AioaSpawnPoolScreen extends Screen {
 
     @Override
     protected void init() {
-        int centerX = this.width / 2;
-        int y = 58;
-        for (int i = 0; i < AioaScreenUtil.ROWS_PER_PAGE; i++) {
-            int localIndex = i;
-            Button button = AioaScreenUtil.button(centerX - 200, y + (i * 22), 400, "-", b -> this.selectEntry((this.page * AioaScreenUtil.ROWS_PER_PAGE) + localIndex));
+        int contentTop = AioaScreenUtil.adaptiveContentTop(this.height, 76, 68, 120);
+        int contentBottom = AioaScreenUtil.adaptiveContentBottom(this.height, this.height - 68, 40, contentTop, 120);
+        this.resetScrollLayout(660, contentTop, contentBottom);
+        this.entryButtons.clear();
+        int width = this.panelWidth - 40;
+        int left = this.panelLeft + 20;
+        int y = 0;
+
+        for (String ignored : this.editableConfig.daySurfaceSpawns.spawnPoolEntries) {
+            Button button = this.addScrollable(AioaScreenUtil.button(left, 0, width, "-", b -> this.selectEntry((Button) b)), y);
+            button.visible = false;
             this.entryButtons.add(button);
-            this.addRenderableWidget(button);
         }
 
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - 200, this.height - 82, 126, "Add Mob", b ->
-                this.minecraft.setScreen(new AioaEntityPickerScreen(this, "Add Day Spawn Mob", AioaScreenUtil.allEntityIds(), this::addEntryFor))));
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - 66, this.height - 82, 126, "Edit Entry", b -> this.editSelected()));
-        this.addRenderableWidget(AioaScreenUtil.button(centerX + 68, this.height - 82, 126, "Remove Entry", b -> this.removeSelected()));
-
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - 200, this.height - 58, 126, "Previous Page", b -> {
-            if (this.page > 0) {
-                this.page--;
-                this.refreshEntries();
-            }
-        }));
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - 66, this.height - 58, 126, "Next Page", b -> {
-            if ((this.page + 1) * AioaScreenUtil.ROWS_PER_PAGE < this.editableConfig.daySurfaceSpawns.spawnPoolEntries.size()) {
-                this.page++;
-                this.refreshEntries();
-            }
-        }));
-        this.addRenderableWidget(AioaScreenUtil.button(centerX + 68, this.height - 58, 126, "Copy Defaults", b -> {
+        this.addButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Add Mob To Pool", b ->
+                this.minecraft.setScreen(new AioaEntityPickerScreen(this, "Add Day Spawn Mob", AioaScreenUtil.allEntityIds(), this::addEntryFor))), y);
+        y += AioaScreenUtil.BUTTON_HEIGHT + 8;
+        this.editButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Edit Selected Entry", b -> this.editSelected()), y);
+        y += AioaScreenUtil.BUTTON_HEIGHT + 8;
+        this.removeButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Remove Selected Entry", b -> this.removeSelected()), y);
+        y += AioaScreenUtil.BUTTON_HEIGHT + 8;
+        this.defaultsButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Reset Pool To Defaults", b -> {
             this.editableConfig.daySurfaceSpawns.spawnPoolEntries = new ArrayList<>(AioaConfig.createDefault().daySurfaceSpawns.spawnPoolEntries);
             this.selectedIndex = -1;
-            this.page = 0;
-            this.refreshEntries();
-        }));
+            this.minecraft.setScreen(new AioaSpawnPoolScreen(this.parent, this.editableConfig));
+        }), y);
+        y += AioaScreenUtil.BUTTON_HEIGHT + 8;
+        this.doneButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Done", b -> this.minecraft.setScreen(this.parent)), y);
+        y += AioaScreenUtil.BUTTON_HEIGHT + 8;
+        this.cancelButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Cancel", b -> this.minecraft.setScreen(this.parent)), y);
 
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - 154, this.height - 30, 150, "Done", b -> this.minecraft.setScreen(this.parent)));
-        this.addRenderableWidget(AioaScreenUtil.button(centerX + 4, this.height - 30, 150, "Cancel", b -> this.minecraft.setScreen(this.parent)));
         this.refreshEntries();
     }
 
     private void addEntryFor(ResourceLocation id) {
         this.editableConfig.daySurfaceSpawns.spawnPoolEntries.add(id + ";enabled=true;weight=10;chance=1.0;min=1;max=3");
         this.selectedIndex = this.editableConfig.daySurfaceSpawns.spawnPoolEntries.size() - 1;
-        this.page = this.selectedIndex / AioaScreenUtil.ROWS_PER_PAGE;
-        this.refreshEntries();
+        this.minecraft.setScreen(new AioaSpawnPoolScreen(this.parent, this.editableConfig));
     }
 
-    private void selectEntry(int index) {
-        this.selectedIndex = index >= 0 && index < this.editableConfig.daySurfaceSpawns.spawnPoolEntries.size() ? index : -1;
+    private void selectEntry(Button clicked) {
+        int index = this.entryButtons.indexOf(clicked);
+        if (index < 0 || index >= this.editableConfig.daySurfaceSpawns.spawnPoolEntries.size()) {
+            return;
+        }
+        this.selectedIndex = index;
         this.refreshEntries();
     }
 
@@ -90,14 +94,14 @@ final class AioaSpawnPoolScreen extends Screen {
         if (parsed.isEmpty()) {
             this.minecraft.setScreen(new AioaRawEntryEditorScreen(this, rawEntry, updated -> {
                 this.editableConfig.daySurfaceSpawns.spawnPoolEntries.set(this.selectedIndex, updated);
-                this.refreshEntries();
+                this.minecraft.setScreen(new AioaSpawnPoolScreen(this.parent, this.editableConfig));
             }));
             return;
         }
 
         this.minecraft.setScreen(new AioaSpawnEntryEditorScreen(this, parsed.get(), updated -> {
             this.editableConfig.daySurfaceSpawns.spawnPoolEntries.set(this.selectedIndex, updated.toConfigLine());
-            this.refreshEntries();
+            this.minecraft.setScreen(new AioaSpawnPoolScreen(this.parent, this.editableConfig));
         }));
     }
 
@@ -107,41 +111,77 @@ final class AioaSpawnPoolScreen extends Screen {
         }
         this.editableConfig.daySurfaceSpawns.spawnPoolEntries.remove(this.selectedIndex);
         this.selectedIndex = -1;
-        this.refreshEntries();
+        this.minecraft.setScreen(new AioaSpawnPoolScreen(this.parent, this.editableConfig));
     }
 
     private void refreshEntries() {
         List<String> entries = this.editableConfig.daySurfaceSpawns.spawnPoolEntries;
-        int start = this.page * AioaScreenUtil.ROWS_PER_PAGE;
-        if (start >= entries.size() && this.page > 0) {
-            this.page = Math.max(0, (entries.size() - 1) / AioaScreenUtil.ROWS_PER_PAGE);
-            start = this.page * AioaScreenUtil.ROWS_PER_PAGE;
-        }
-
+        int y = this.height < 260 ? 86 : 136;
         for (int i = 0; i < this.entryButtons.size(); i++) {
             Button button = this.entryButtons.get(i);
-            int index = start + i;
-            if (index >= entries.size()) {
-                button.visible = false;
+            if (i >= entries.size()) {
+                this.setScrollableShown(button, false);
                 continue;
             }
 
-            String label = (index == this.selectedIndex ? "> " : "  ") + AioaScreenUtil.clip(AioaScreenUtil.summarizeEntry(entries.get(index)), 60);
-            button.visible = true;
-            button.setMessage(Component.literal(label));
+            boolean selected = i == this.selectedIndex;
+            this.setScrollableRelativeY(button, y);
+            this.setScrollableShown(button, true);
             button.active = true;
-            button.setTooltip(Tooltip.create(Component.literal(entries.get(index))));
+            button.setMessage(Component.literal((selected ? "> " : "") + AioaScreenUtil.clip(AioaScreenUtil.summarizeEntry(entries.get(i)), 46)));
+            button.setTooltip(Tooltip.create(Component.literal(entries.get(i))));
+            y += AioaScreenUtil.BUTTON_HEIGHT + 6;
         }
+
+        this.setScrollableRelativeY(this.addButton, y + 6);
+        this.setScrollableRelativeY(this.editButton, y + 38);
+        this.setScrollableRelativeY(this.removeButton, y + 70);
+        this.setScrollableRelativeY(this.defaultsButton, y + 102);
+        this.setScrollableRelativeY(this.doneButton, y + 134);
+        this.setScrollableRelativeY(this.cancelButton, y + 166);
+        this.editButton.active = this.selectedIndex >= 0 && this.selectedIndex < entries.size();
+        this.removeButton.active = this.editButton.active;
+        this.finishScrollLayout(y + 198);
     }
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(guiGraphics);
-        AioaScreenUtil.drawPanel(guiGraphics, this.width / 2 - 216, 24, this.width / 2 + 216, this.height - 40);
+        AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
-        guiGraphics.drawCenteredString(this.font, Component.literal("Pick mobs by name, then edit weight, chance, and group sizes without hand-writing ids."), this.width / 2, 49, AioaScreenUtil.TEXT_SUB);
-        guiGraphics.drawCenteredString(this.font, Component.literal("Entries: " + this.editableConfig.daySurfaceSpawns.spawnPoolEntries.size() + " | Page " + (this.page + 1)), this.width / 2, this.height - 96, AioaScreenUtil.TEXT_SUB);
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
+        AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal("Manage the mobs, weights, chances, and group sizes used for day surface spawns."), this.width / 2, 49, this.panelWidth - 72, AioaScreenUtil.TEXT_SUB);
+
+        AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom, () -> {
+            int previewTop = this.contentTop + 4 - this.scrollOffset;
+            boolean compact = this.height < 260;
+            List<String> entries = this.editableConfig.daySurfaceSpawns.spawnPoolEntries;
+            if (this.selectedIndex >= 0 && this.selectedIndex < entries.size()) {
+                Optional<AioaSpawnEntry> parsed = AioaSpawnEntry.parse(entries.get(this.selectedIndex), warning -> { });
+                if (parsed.isPresent()) {
+                    AioaSpawnEntry entry = parsed.get();
+                    AioaScreenUtil.drawMobPreview(
+                            guiGraphics,
+                            this.font,
+                            this.panelLeft + 20,
+                            previewTop,
+                            this.panelWidth - 40,
+                            entry.entityId(),
+                            entry.enabled(),
+                            "Weight " + entry.weight() + " | " + Math.round(entry.chance() * 100.0D) + "%"
+                    );
+                    if (!compact) {
+                        guiGraphics.drawString(this.font, Component.literal("Group size: " + entry.minGroupSize() + " - " + entry.maxGroupSize()), this.panelLeft + 20, previewTop + 106, AioaScreenUtil.TEXT_MAIN);
+                        guiGraphics.drawString(this.font, Component.literal(entry.enabled() ? "This entry is active." : "This entry is disabled."), this.panelLeft + 20, previewTop + 120, AioaScreenUtil.TEXT_SUB);
+                    }
+                }
+            } else {
+                AioaScreenUtil.drawInsetPanel(guiGraphics, this.panelLeft + 20, previewTop, this.panelLeft + this.panelWidth - 20, previewTop + 96, false);
+                guiGraphics.drawCenteredString(this.font, Component.literal("Select a spawn entry to preview it here"), this.width / 2, previewTop + 40, AioaScreenUtil.TEXT_SUB);
+            }
+            AioaSpawnPoolScreen.super.render(guiGraphics, mouseX, mouseY, partialTick);
+        });
+
+        AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
     }
 
     @Override

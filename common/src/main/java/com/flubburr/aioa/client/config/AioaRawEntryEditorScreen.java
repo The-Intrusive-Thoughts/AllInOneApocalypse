@@ -46,8 +46,8 @@ final class AioaRawEntryEditorScreen extends Screen {
         this.renderBackground(guiGraphics);
         AioaScreenUtil.drawPanel(guiGraphics, this.width / 2 - 196, 24, this.width / 2 + 196, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
-        guiGraphics.drawCenteredString(this.font, Component.literal("This entry could not be parsed, so it is exposed as raw text."), this.width / 2, 58, AioaScreenUtil.TEXT_SUB);
-        guiGraphics.drawCenteredString(this.font, Component.literal("Expected: entity_id;enabled=true;weight=10;chance=1.0;min=1;max=3"), this.width / 2, 72, AioaScreenUtil.TEXT_SUB);
+        AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal("This entry could not be parsed, so it is exposed as raw text."), this.width / 2, 58, 340, AioaScreenUtil.TEXT_SUB);
+        AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal("Expected: entity_id;enabled=true;weight=10;chance=1.0;min=1;max=3"), this.width / 2, 80, 340, AioaScreenUtil.TEXT_SUB);
         super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 

@@ -2,11 +2,14 @@ package com.flubburr.aioa.client.config;
 
 import com.flubburr.aioa.config.AioaConfig;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-final class AioaDaySettingsScreen extends Screen {
+import java.util.ArrayList;
+import java.util.List;
+
+final class AioaDaySettingsScreen extends AioaScrollableScreen {
 
     private final Screen parent;
     private final AioaConfig editableConfig;
@@ -18,12 +21,21 @@ final class AioaDaySettingsScreen extends Screen {
     private boolean preventSunlightBurn;
     private boolean exportMobCatalog;
     private AioaConfig.ZombieVariantMode zombieVariantMode;
-
-    private EditBox spawnIntervalTicks;
-    private EditBox spawnAttemptsPerPlayer;
-    private EditBox minSpawnDistance;
-    private EditBox maxSpawnDistance;
-    private EditBox maxNearbyManagedMobs;
+    private int spawnIntervalTicksValue;
+    private int spawnAttemptsPerPlayerValue;
+    private int minSpawnDistanceValue;
+    private int maxSpawnDistanceValue;
+    private int maxNearbyManagedMobsValue;
+    private boolean rulesExpanded = false;
+    private boolean tuningExpanded = false;
+    private final List<Button> ruleButtons = new ArrayList<>();
+    private Button rulesHeader;
+    private Button tuningHeader;
+    private AioaScreenUtil.AioaSlider spawnIntervalTicks;
+    private AioaScreenUtil.AioaSlider spawnAttemptsPerPlayer;
+    private AioaScreenUtil.AioaSlider minSpawnDistance;
+    private AioaScreenUtil.AioaSlider maxSpawnDistance;
+    private AioaScreenUtil.AioaSlider maxNearbyManagedMobs;
 
     AioaDaySettingsScreen(Screen parent, AioaConfig editableConfig) {
         super(Component.literal("Day Spawn Rules"));
@@ -33,6 +45,9 @@ final class AioaDaySettingsScreen extends Screen {
 
     @Override
     protected void init() {
+        int contentTop = AioaScreenUtil.adaptiveContentTop(this.height, 76, 68, 110);
+        int contentBottom = AioaScreenUtil.adaptiveContentBottom(this.height, this.height - 68, 40, contentTop, 110);
+        this.resetScrollLayout(640, contentTop, contentBottom);
         AioaConfig.DaySurfaceSpawns config = this.editableConfig.daySurfaceSpawns;
         this.enabled = config.enabled;
         this.overworldOnly = config.overworldOnly;
@@ -41,65 +56,101 @@ final class AioaDaySettingsScreen extends Screen {
         this.preventSunlightBurn = config.preventSunlightBurn;
         this.exportMobCatalog = config.exportMobCatalog;
         this.zombieVariantMode = config.zombieVariantMode;
+        this.spawnIntervalTicksValue = config.spawnIntervalTicks;
+        this.spawnAttemptsPerPlayerValue = config.spawnAttemptsPerPlayer;
+        this.minSpawnDistanceValue = config.minSpawnDistance;
+        this.maxSpawnDistanceValue = config.maxSpawnDistance;
+        this.maxNearbyManagedMobsValue = config.maxNearbyManagedMobs;
 
         int centerX = this.width / 2;
-        int width = 320;
-        int y = 42;
-        int step = 22;
+        int width = this.panelWidth - 40;
+        int y = 0;
+        int step = AioaScreenUtil.BUTTON_HEIGHT + 6;
 
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - width / 2, y, width, AioaScreenUtil.boolLabel("Enable day surface spawns", this.enabled), b -> {
+        this.ruleButtons.clear();
+        this.rulesHeader = this.addScrollable(AioaScreenUtil.button(centerX - width / 2, 0, width, AioaScreenUtil.sectionLabel("Rules and filters", this.rulesExpanded), b -> {
+            this.rulesExpanded = !this.rulesExpanded;
+            this.init();
+        }), y);
+        y += step;
+        this.ruleButtons.add(this.addScrollable(AioaScreenUtil.button(centerX - width / 2, 0, width, AioaScreenUtil.boolLabel("Enable day surface spawns", this.enabled), b -> {
             this.enabled = !this.enabled;
             b.setMessage(Component.literal(AioaScreenUtil.boolLabel("Enable day surface spawns", this.enabled)));
-        }));
-        y += step;
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - width / 2, y, width, AioaScreenUtil.boolLabel("Overworld only", this.overworldOnly), b -> {
+        }), y));
+        if (this.rulesExpanded) {
+            y += step;
+        }
+        this.ruleButtons.add(this.addScrollable(AioaScreenUtil.button(centerX - width / 2, 0, width, AioaScreenUtil.boolLabel("Overworld only", this.overworldOnly), b -> {
             this.overworldOnly = !this.overworldOnly;
             b.setMessage(Component.literal(AioaScreenUtil.boolLabel("Overworld only", this.overworldOnly)));
-        }));
-        y += step;
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - width / 2, y, width, AioaScreenUtil.boolLabel("Require daytime", this.requireDaytime), b -> {
+        }), y));
+        if (this.rulesExpanded) {
+            y += step;
+        }
+        this.ruleButtons.add(this.addScrollable(AioaScreenUtil.button(centerX - width / 2, 0, width, AioaScreenUtil.boolLabel("Require daytime", this.requireDaytime), b -> {
             this.requireDaytime = !this.requireDaytime;
             b.setMessage(Component.literal(AioaScreenUtil.boolLabel("Require daytime", this.requireDaytime)));
-        }));
-        y += step;
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - width / 2, y, width, AioaScreenUtil.boolLabel("Require open sky", this.requireClearSky), b -> {
+        }), y));
+        if (this.rulesExpanded) {
+            y += step;
+        }
+        this.ruleButtons.add(this.addScrollable(AioaScreenUtil.button(centerX - width / 2, 0, width, AioaScreenUtil.boolLabel("Require open sky", this.requireClearSky), b -> {
             this.requireClearSky = !this.requireClearSky;
             b.setMessage(Component.literal(AioaScreenUtil.boolLabel("Require open sky", this.requireClearSky)));
-        }));
-        y += step;
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - width / 2, y, width, AioaScreenUtil.boolLabel("Prevent sunlight burn", this.preventSunlightBurn), b -> {
+        }), y));
+        if (this.rulesExpanded) {
+            y += step;
+        }
+        this.ruleButtons.add(this.addScrollable(AioaScreenUtil.button(centerX - width / 2, 0, width, AioaScreenUtil.boolLabel("Prevent sunlight burn", this.preventSunlightBurn), b -> {
             this.preventSunlightBurn = !this.preventSunlightBurn;
             b.setMessage(Component.literal(AioaScreenUtil.boolLabel("Prevent sunlight burn", this.preventSunlightBurn)));
-        }));
-        y += step;
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - width / 2, y, width, AioaScreenUtil.cycleLabel("Zombie age mode", this.zombieVariantMode), b -> {
+        }), y));
+        if (this.rulesExpanded) {
+            y += step;
+        }
+        this.ruleButtons.add(this.addScrollable(AioaScreenUtil.button(centerX - width / 2, 0, width, AioaScreenUtil.cycleLabel("Zombie age mode", this.zombieVariantMode), b -> {
             this.zombieVariantMode = AioaScreenUtil.next(this.zombieVariantMode, AioaConfig.ZombieVariantMode.values());
             b.setMessage(Component.literal(AioaScreenUtil.cycleLabel("Zombie age mode", this.zombieVariantMode)));
-        }));
-        y += step;
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - width / 2, y, width, AioaScreenUtil.boolLabel("Export mob catalog file", this.exportMobCatalog), b -> {
+        }), y));
+        if (this.rulesExpanded) {
+            y += step;
+        }
+        this.ruleButtons.add(this.addScrollable(AioaScreenUtil.button(centerX - width / 2, 0, width, AioaScreenUtil.boolLabel("Export mob catalog file", this.exportMobCatalog), b -> {
             this.exportMobCatalog = !this.exportMobCatalog;
             b.setMessage(Component.literal(AioaScreenUtil.boolLabel("Export mob catalog file", this.exportMobCatalog)));
-        }));
+        }), y));
+        if (this.rulesExpanded) {
+            y += step;
+        }
 
-        int inputX = centerX + 54;
-        int inputWidth = 106;
-        int fieldY = y + 30;
+        y += 6;
+        this.tuningHeader = this.addScrollable(AioaScreenUtil.button(centerX - width / 2, 0, width, AioaScreenUtil.sectionLabel("Spawn pacing sliders", this.tuningExpanded), b -> {
+            this.tuningExpanded = !this.tuningExpanded;
+            this.init();
+        }), y);
+        y += step;
 
-        this.spawnIntervalTicks = AioaScreenUtil.numberBox(inputX, fieldY, inputWidth, config.spawnIntervalTicks);
-        this.spawnAttemptsPerPlayer = AioaScreenUtil.numberBox(inputX, fieldY + step, inputWidth, config.spawnAttemptsPerPlayer);
-        this.minSpawnDistance = AioaScreenUtil.numberBox(inputX, fieldY + (step * 2), inputWidth, config.minSpawnDistance);
-        this.maxSpawnDistance = AioaScreenUtil.numberBox(inputX, fieldY + (step * 3), inputWidth, config.maxSpawnDistance);
-        this.maxNearbyManagedMobs = AioaScreenUtil.numberBox(inputX, fieldY + (step * 4), inputWidth, config.maxNearbyManagedMobs);
+        int sliderWidth = width - 28;
+        int sliderX = centerX - (sliderWidth / 2);
+        this.spawnIntervalTicks = this.addScrollable(AioaScreenUtil.intSlider(sliderX, 0, sliderWidth, "Spawn interval", 20, 24000, 20, this.spawnIntervalTicksValue, value -> this.spawnIntervalTicksValue = value), y);
+        y += this.tuningExpanded ? 30 : 0;
+        this.spawnAttemptsPerPlayer = this.addScrollable(AioaScreenUtil.intSlider(sliderX, 0, sliderWidth, "Attempts per player", 1, 16, 1, this.spawnAttemptsPerPlayerValue, value -> this.spawnAttemptsPerPlayerValue = value), y);
+        y += this.tuningExpanded ? 30 : 0;
+        this.minSpawnDistance = this.addScrollable(AioaScreenUtil.intSlider(sliderX, 0, sliderWidth, "Minimum distance", 8, 128, 1, this.minSpawnDistanceValue, value -> {
+            this.minSpawnDistanceValue = value;
+            if (this.maxSpawnDistanceValue < value && this.maxSpawnDistance != null) {
+                this.maxSpawnDistance.setSliderValue(value + 8);
+            }
+        }), y);
+        y += this.tuningExpanded ? 30 : 0;
+        this.maxSpawnDistance = this.addScrollable(AioaScreenUtil.intSlider(sliderX, 0, sliderWidth, "Maximum distance", 16, 256, 1, this.maxSpawnDistanceValue, value -> this.maxSpawnDistanceValue = value), y);
+        y += this.tuningExpanded ? 30 : 0;
+        this.maxNearbyManagedMobs = this.addScrollable(AioaScreenUtil.intSlider(sliderX, 0, sliderWidth, "Nearby mob cap", 1, 256, 1, this.maxNearbyManagedMobsValue, value -> this.maxNearbyManagedMobsValue = value), y);
+        y += this.tuningExpanded ? 36 : 0;
 
-        this.addRenderableWidget(this.spawnIntervalTicks);
-        this.addRenderableWidget(this.spawnAttemptsPerPlayer);
-        this.addRenderableWidget(this.minSpawnDistance);
-        this.addRenderableWidget(this.maxSpawnDistance);
-        this.addRenderableWidget(this.maxNearbyManagedMobs);
+        this.refreshVisibility();
 
-        int bottomY = this.height - 30;
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - 154, bottomY, 150, "Done", b -> {
+        this.addScrollable(AioaScreenUtil.button(centerX - 172, 0, 164, "Done", b -> {
             AioaConfig.DaySurfaceSpawns target = this.editableConfig.daySurfaceSpawns;
             target.enabled = this.enabled;
             target.overworldOnly = this.overworldOnly;
@@ -109,41 +160,41 @@ final class AioaDaySettingsScreen extends Screen {
             target.zombieVariantMode = this.zombieVariantMode;
             target.removeBabyVariants = this.zombieVariantMode == AioaConfig.ZombieVariantMode.REGULAR_ONLY;
             target.exportMobCatalog = this.exportMobCatalog;
-            target.spawnIntervalTicks = Math.max(20, AioaScreenUtil.readNumber(this.spawnIntervalTicks, target.spawnIntervalTicks));
-            target.spawnAttemptsPerPlayer = AioaScreenUtil.clamp(AioaScreenUtil.readNumber(this.spawnAttemptsPerPlayer, target.spawnAttemptsPerPlayer), 1, 16);
-            target.minSpawnDistance = Math.max(8, AioaScreenUtil.readNumber(this.minSpawnDistance, target.minSpawnDistance));
-            target.maxSpawnDistance = Math.max(target.minSpawnDistance + 8, AioaScreenUtil.readNumber(this.maxSpawnDistance, target.maxSpawnDistance));
-            target.maxNearbyManagedMobs = Math.max(1, AioaScreenUtil.readNumber(this.maxNearbyManagedMobs, target.maxNearbyManagedMobs));
+            target.spawnIntervalTicks = Math.max(20, this.spawnIntervalTicksValue);
+            target.spawnAttemptsPerPlayer = AioaScreenUtil.clamp(this.spawnAttemptsPerPlayerValue, 1, 16);
+            target.minSpawnDistance = Math.max(8, this.minSpawnDistanceValue);
+            target.maxSpawnDistance = Math.max(target.minSpawnDistance + 8, this.maxSpawnDistanceValue);
+            target.maxNearbyManagedMobs = Math.max(1, this.maxNearbyManagedMobsValue);
             this.editableConfig.sanitize();
             this.minecraft.setScreen(this.parent);
-        }));
-        this.addRenderableWidget(AioaScreenUtil.button(centerX + 4, bottomY, 150, "Cancel", b -> this.minecraft.setScreen(this.parent)));
+        }), y);
+        this.addScrollable(AioaScreenUtil.button(centerX + 8, 0, 164, "Cancel", b -> this.minecraft.setScreen(this.parent)), y);
+        this.finishScrollLayout(y + AioaScreenUtil.BUTTON_HEIGHT);
     }
 
-    @Override
-    public void tick() {
-        this.spawnIntervalTicks.tick();
-        this.spawnAttemptsPerPlayer.tick();
-        this.minSpawnDistance.tick();
-        this.maxSpawnDistance.tick();
-        this.maxNearbyManagedMobs.tick();
+    private void refreshVisibility() {
+        this.rulesHeader.setMessage(Component.literal(AioaScreenUtil.sectionLabel("Rules and filters", this.rulesExpanded)));
+        for (Button button : this.ruleButtons) {
+            this.setScrollableShown(button, this.rulesExpanded);
+        }
+        this.tuningHeader.setMessage(Component.literal(AioaScreenUtil.sectionLabel("Spawn pacing sliders", this.tuningExpanded)));
+        this.setScrollableShown(this.spawnIntervalTicks, this.tuningExpanded);
+        this.setScrollableShown(this.spawnAttemptsPerPlayer, this.tuningExpanded);
+        this.setScrollableShown(this.minSpawnDistance, this.tuningExpanded);
+        this.setScrollableShown(this.maxSpawnDistance, this.tuningExpanded);
+        this.setScrollableShown(this.maxNearbyManagedMobs, this.tuningExpanded);
+        this.updateScrollLayout();
     }
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(guiGraphics);
-        AioaScreenUtil.drawPanel(guiGraphics, this.width / 2 - 190, 24, this.width / 2 + 190, this.height - 40);
+        AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
-        guiGraphics.drawCenteredString(this.font, Component.literal("Tune spawn pacing and choose regular, mixed, or baby-only zombies."), this.width / 2, 49, AioaScreenUtil.TEXT_SUB);
-
-        int labelX = this.width / 2 - 160;
-        int y = 226;
-        guiGraphics.drawString(this.font, Component.literal("Spawn interval (ticks)"), labelX, y + 6, AioaScreenUtil.TEXT_SUB);
-        guiGraphics.drawString(this.font, Component.literal("Spawn attempts per player"), labelX, y + 28, AioaScreenUtil.TEXT_SUB);
-        guiGraphics.drawString(this.font, Component.literal("Minimum spawn distance"), labelX, y + 50, AioaScreenUtil.TEXT_SUB);
-        guiGraphics.drawString(this.font, Component.literal("Maximum spawn distance"), labelX, y + 72, AioaScreenUtil.TEXT_SUB);
-        guiGraphics.drawString(this.font, Component.literal("Max nearby managed mobs"), labelX, y + 94, AioaScreenUtil.TEXT_SUB);
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
+        AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal("Set when day surface spawns can happen and how often they try to appear."), this.width / 2, 49, this.panelWidth - 72, AioaScreenUtil.TEXT_SUB);
+        AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom,
+                () -> AioaDaySettingsScreen.super.render(guiGraphics, mouseX, mouseY, partialTick));
+        AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
     }
 
     @Override

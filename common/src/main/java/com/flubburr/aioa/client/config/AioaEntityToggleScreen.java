@@ -10,24 +10,40 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
-final class AioaEntityToggleScreen extends Screen {
+final class AioaEntityToggleScreen extends AioaScrollableScreen {
 
     private final Screen parent;
     private final String description;
     private final List<ResourceLocation> allOptions;
     private final Set<String> selectedIds;
     private final java.util.function.Consumer<List<String>> saveConsumer;
+    private final boolean groupedByDimension;
 
     private final List<Button> optionButtons = new ArrayList<>();
-    private final List<ResourceLocation> visibleOptions = new ArrayList<>();
+    private final List<ResourceLocation> visibleButtonOptions = new ArrayList<>();
     private EditBox searchBox;
-    private int page;
+    private Button selectAllButton;
+    private Button clearButton;
+    private Button doneButton;
+    private Button cancelButton;
+    private Button overworldHeader;
+    private Button netherHeader;
+    private Button endHeader;
+    private Button moddedHeader;
+    private ResourceLocation focusedOption;
+    private String searchQuery = "";
     private List<ResourceLocation> filteredOptions = List.of();
+    private boolean overworldExpanded;
+    private boolean netherExpanded;
+    private boolean endExpanded;
+    private boolean moddedExpanded;
 
     private AioaEntityToggleScreen(
             Screen parent,
@@ -35,7 +51,8 @@ final class AioaEntityToggleScreen extends Screen {
             String description,
             List<ResourceLocation> allOptions,
             Set<String> selectedIds,
-            java.util.function.Consumer<List<String>> saveConsumer
+            java.util.function.Consumer<List<String>> saveConsumer,
+            boolean groupedByDimension
     ) {
         super(Component.literal(title));
         this.parent = parent;
@@ -43,60 +60,108 @@ final class AioaEntityToggleScreen extends Screen {
         this.allOptions = new ArrayList<>(allOptions);
         this.selectedIds = new LinkedHashSet<>(selectedIds);
         this.saveConsumer = saveConsumer;
+        this.groupedByDimension = groupedByDimension;
     }
 
     static Screen forHostiles(Screen parent, AioaConfig editableConfig) {
         return new AioaEntityToggleScreen(
                 parent,
                 "Allowed Hostiles",
-                "Search by mob name, then click to toggle it in the hostile allow-list.",
+                "Choose which hostile mobs stay allowed after the hostile spawn rules run.",
                 AioaScreenUtil.hostileEntityIds(),
                 new LinkedHashSet<>(editableConfig.hostileSpawnControl.whitelistEntityIds),
-                values -> editableConfig.hostileSpawnControl.whitelistEntityIds = new ArrayList<>(values)
+                values -> editableConfig.hostileSpawnControl.whitelistEntityIds = new ArrayList<>(values),
+                true
+        );
+    }
+
+    static Screen forAllEntities(
+            Screen parent,
+            String title,
+            String description,
+            List<String> selectedIds,
+            java.util.function.Consumer<List<String>> saveConsumer
+    ) {
+        return new AioaEntityToggleScreen(
+                parent,
+                title,
+                description,
+                AioaScreenUtil.allEntityIds(),
+                new LinkedHashSet<>(selectedIds),
+                saveConsumer,
+                false
         );
     }
 
     @Override
     protected void init() {
-        int centerX = this.width / 2;
-        this.searchBox = new EditBox(this.font, centerX - 170, 52, 340, 20, Component.literal("Search mobs"));
+        int contentTop = AioaScreenUtil.adaptiveContentTop(this.height, 76, 68, 120);
+        int contentBottom = AioaScreenUtil.adaptiveContentBottom(this.height, this.height - 68, 40, contentTop, 120);
+        this.resetScrollLayout(680, contentTop, contentBottom);
+        this.optionButtons.clear();
+        this.visibleButtonOptions.clear();
+        int width = this.panelWidth - 40;
+        int left = this.panelLeft + 20;
+        int y = 0;
+
+        this.searchBox = this.addScrollable(AioaScreenUtil.searchBox(left, 0, width, "Search mobs"), y);
+        this.searchBox.setValue(this.searchQuery);
         this.searchBox.setResponder(value -> {
-            this.page = 0;
+            this.searchQuery = value;
             this.refreshList();
         });
-        this.addRenderableWidget(this.searchBox);
+        y += AioaScreenUtil.BUTTON_HEIGHT + 10;
 
-        int y = 84;
-        for (int i = 0; i < AioaScreenUtil.ROWS_PER_PAGE; i++) {
-            int slot = i;
-            this.visibleOptions.add(null);
-            Button button = AioaScreenUtil.button(centerX - 190, y + (i * 22), 380, "-", b -> this.toggleSlot(slot));
-            this.optionButtons.add(button);
-            this.addRenderableWidget(button);
+        if (this.groupedByDimension) {
+            this.overworldHeader = this.addScrollable(AioaScreenUtil.button(left, 0, width, AioaScreenUtil.sectionLabel("Overworld hostiles", this.overworldExpanded), b -> {
+                this.overworldExpanded = !this.overworldExpanded;
+                this.refreshList();
+            }), y);
+            this.netherHeader = this.addScrollable(AioaScreenUtil.button(left, 0, width, AioaScreenUtil.sectionLabel("Nether hostiles", this.netherExpanded), b -> {
+                this.netherExpanded = !this.netherExpanded;
+                this.refreshList();
+            }), y);
+            this.endHeader = this.addScrollable(AioaScreenUtil.button(left, 0, width, AioaScreenUtil.sectionLabel("End hostiles", this.endExpanded), b -> {
+                this.endExpanded = !this.endExpanded;
+                this.refreshList();
+            }), y);
+            this.moddedHeader = this.addScrollable(AioaScreenUtil.button(left, 0, width, AioaScreenUtil.sectionLabel("Modded hostiles", this.moddedExpanded), b -> {
+                this.moddedExpanded = !this.moddedExpanded;
+                this.refreshList();
+            }), y);
         }
 
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - 190, this.height - 58, 120, "Previous Page", b -> {
-            if (this.page > 0) {
-                this.page--;
-                this.refreshList();
-            }
-        }));
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - 60, this.height - 58, 120, "Clear All", b -> {
-            this.selectedIds.clear();
-            this.refreshList();
-        }));
-        this.addRenderableWidget(AioaScreenUtil.button(centerX + 70, this.height - 58, 120, "Next Page", b -> {
-            if ((this.page + 1) * AioaScreenUtil.ROWS_PER_PAGE < this.filteredOptions.size()) {
-                this.page++;
-                this.refreshList();
-            }
-        }));
+        for (ResourceLocation ignored : this.allOptions) {
+            Button button = this.addScrollable(AioaScreenUtil.button(left, 0, width, "-", b -> this.toggleButton((Button) b)), y);
+            button.visible = false;
+            this.optionButtons.add(button);
+            this.visibleButtonOptions.add(null);
+        }
 
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - 154, this.height - 30, 150, "Done", b -> {
+        this.selectAllButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Select All Visible", b -> {
+            for (ResourceLocation option : this.visibleButtonOptions) {
+                if (option != null) {
+                    this.selectedIds.add(option.toString());
+                }
+            }
+            this.refreshList();
+        }), y);
+        y += AioaScreenUtil.BUTTON_HEIGHT + 8;
+        this.clearButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Clear Visible", b -> {
+            for (ResourceLocation option : this.visibleButtonOptions) {
+                if (option != null) {
+                    this.selectedIds.remove(option.toString());
+                }
+            }
+            this.refreshList();
+        }), y);
+        y += AioaScreenUtil.BUTTON_HEIGHT + 8;
+        this.doneButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Done", b -> {
             this.saveConsumer.accept(new ArrayList<>(this.selectedIds));
             this.minecraft.setScreen(this.parent);
-        }));
-        this.addRenderableWidget(AioaScreenUtil.button(centerX + 4, this.height - 30, 150, "Cancel", b -> this.minecraft.setScreen(this.parent)));
+        }), y);
+        y += AioaScreenUtil.BUTTON_HEIGHT + 8;
+        this.cancelButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Cancel", b -> this.minecraft.setScreen(this.parent)), y);
 
         this.refreshList();
         this.setInitialFocus(this.searchBox);
@@ -104,50 +169,107 @@ final class AioaEntityToggleScreen extends Screen {
 
     @Override
     public void tick() {
-        this.searchBox.tick();
+        if (this.searchBox != null) {
+            this.searchBox.tick();
+        }
     }
 
     private void refreshList() {
-        String query = this.searchBox == null ? "" : this.searchBox.getValue().trim().toLowerCase(Locale.ROOT);
+        String query = this.searchQuery.trim().toLowerCase(Locale.ROOT);
         this.filteredOptions = this.allOptions.stream()
                 .filter(id -> query.isBlank() || AioaScreenUtil.entityLine(id).toLowerCase(Locale.ROOT).contains(query))
                 .toList();
 
-        int start = this.page * AioaScreenUtil.ROWS_PER_PAGE;
-        if (start >= this.filteredOptions.size() && this.page > 0) {
-            this.page = Math.max(0, (this.filteredOptions.size() - 1) / AioaScreenUtil.ROWS_PER_PAGE);
-            start = this.page * AioaScreenUtil.ROWS_PER_PAGE;
+        if (this.focusedOption == null || !this.filteredOptions.contains(this.focusedOption)) {
+            this.focusedOption = this.filteredOptions.isEmpty() ? null : this.filteredOptions.get(0);
         }
 
-        for (int i = 0; i < this.optionButtons.size(); i++) {
-            Button button = this.optionButtons.get(i);
-            int index = start + i;
-            if (index >= this.filteredOptions.size()) {
-                button.visible = false;
-                this.visibleOptions.set(i, null);
-                continue;
+        int y = this.height < 260 ? 110 : 178;
+        int slot = 0;
+        if (this.groupedByDimension) {
+            Map<String, List<ResourceLocation>> groups = new HashMap<>();
+            groups.put("Overworld", new ArrayList<>());
+            groups.put("Nether", new ArrayList<>());
+            groups.put("End", new ArrayList<>());
+            groups.put("Modded", new ArrayList<>());
+            for (ResourceLocation id : this.filteredOptions) {
+                groups.computeIfAbsent(AioaScreenUtil.dimensionCategory(id), key -> new ArrayList<>()).add(id);
             }
-
-            ResourceLocation id = this.filteredOptions.get(index);
-            this.visibleOptions.set(i, id);
-            String text = (this.selectedIds.contains(id.toString()) ? "[x] " : "[ ] ") + AioaScreenUtil.clip(AioaScreenUtil.entityLine(id), 54);
-            button.visible = true;
-            button.setMessage(Component.literal(text));
-            button.active = true;
-            button.setTooltip(Tooltip.create(Component.literal(AioaScreenUtil.entityLine(id))));
+            y = this.layoutGroup(this.overworldHeader, "Overworld hostiles", this.overworldExpanded, groups.get("Overworld"), y, slot);
+            slot += this.overworldExpanded ? groups.get("Overworld").size() : 0;
+            y = this.layoutGroup(this.netherHeader, "Nether hostiles", this.netherExpanded, groups.get("Nether"), y, slot);
+            slot += this.netherExpanded ? groups.get("Nether").size() : 0;
+            y = this.layoutGroup(this.endHeader, "End hostiles", this.endExpanded, groups.get("End"), y, slot);
+            slot += this.endExpanded ? groups.get("End").size() : 0;
+            y = this.layoutGroup(this.moddedHeader, "Modded hostiles", this.moddedExpanded, groups.get("Modded"), y, slot);
+            slot += this.moddedExpanded ? groups.get("Modded").size() : 0;
+        } else {
+            for (ResourceLocation id : this.filteredOptions) {
+                y = this.layoutOptionButton(this.optionButtons.get(slot), slot, id, y);
+                slot++;
+            }
         }
+
+        for (int i = slot; i < this.optionButtons.size(); i++) {
+            this.visibleButtonOptions.set(i, null);
+            this.setScrollableShown(this.optionButtons.get(i), false);
+        }
+
+        this.setScrollableRelativeY(this.selectAllButton, y + 6);
+        this.setScrollableRelativeY(this.clearButton, y + 38);
+        this.setScrollableRelativeY(this.doneButton, y + 70);
+        this.setScrollableRelativeY(this.cancelButton, y + 102);
+        boolean hasVisibleOptions = this.visibleButtonOptions.stream().anyMatch(option -> option != null);
+        this.selectAllButton.active = hasVisibleOptions;
+        this.clearButton.active = hasVisibleOptions;
+        this.finishScrollLayout(y + 134);
     }
 
-    private void toggleSlot(int slot) {
-        if (slot < 0 || slot >= this.visibleOptions.size()) {
+    private int layoutGroup(Button header, String label, boolean expanded, List<ResourceLocation> entries, int y, int slotStart) {
+        if (header == null) {
+            return y;
+        }
+        this.setScrollableRelativeY(header, y);
+        this.setScrollableShown(header, true);
+        header.setMessage(Component.literal(AioaScreenUtil.sectionLabel(label + " (" + entries.size() + ")", expanded)));
+        y += AioaScreenUtil.BUTTON_HEIGHT + 8;
+        if (!expanded) {
+            return y;
+        }
+        int slot = slotStart;
+        for (ResourceLocation id : entries) {
+            y = this.layoutOptionButton(this.optionButtons.get(slot), slot, id, y);
+            slot++;
+        }
+        return y + 4;
+    }
+
+    private int layoutOptionButton(Button button, int slot, ResourceLocation id, int y) {
+        boolean selected = this.selectedIds.contains(id.toString());
+        boolean focused = id.equals(this.focusedOption);
+        this.visibleButtonOptions.set(slot, id);
+        this.setScrollableRelativeY(button, y);
+        this.setScrollableShown(button, true);
+        button.active = true;
+        button.setMessage(Component.literal((selected ? "Included: " : "Available: ") + AioaScreenUtil.clip(AioaScreenUtil.entityDisplayName(id), 22)));
+        button.setTooltip(Tooltip.create(Component.literal(AioaScreenUtil.entityLine(id) + " | " + AioaScreenUtil.dimensionCategory(id))));
+        if (focused) {
+            button.setTooltip(Tooltip.create(Component.literal(AioaScreenUtil.entityLine(id) + " | focused")));
+        }
+        return y + AioaScreenUtil.BUTTON_HEIGHT + 10;
+    }
+
+    private void toggleButton(Button clicked) {
+        int index = this.optionButtons.indexOf(clicked);
+        if (index < 0 || index >= this.visibleButtonOptions.size()) {
             return;
         }
 
-        ResourceLocation id = this.visibleOptions.get(slot);
+        ResourceLocation id = this.visibleButtonOptions.get(index);
         if (id == null) {
             return;
         }
-
+        this.focusedOption = id;
         String rawId = id.toString();
         if (this.selectedIds.contains(rawId)) {
             this.selectedIds.remove(rawId);
@@ -160,11 +282,35 @@ final class AioaEntityToggleScreen extends Screen {
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(guiGraphics);
-        AioaScreenUtil.drawPanel(guiGraphics, this.width / 2 - 206, 24, this.width / 2 + 206, this.height - 40);
+        AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
-        guiGraphics.drawCenteredString(this.font, Component.literal(this.description), this.width / 2, 68, AioaScreenUtil.TEXT_SUB);
-        guiGraphics.drawCenteredString(this.font, Component.literal("Selected: " + this.selectedIds.size() + " | Page " + (this.page + 1)), this.width / 2, this.height - 72, AioaScreenUtil.TEXT_SUB);
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
+        AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal(this.description), this.width / 2, 49, this.panelWidth - 72, AioaScreenUtil.TEXT_SUB);
+
+        AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom, () -> {
+            if (this.focusedOption != null) {
+                int previewTop = this.contentTop + 10 - this.scrollOffset;
+                boolean compact = this.height < 260;
+                boolean selected = this.selectedIds.contains(this.focusedOption.toString());
+                AioaScreenUtil.drawMobPreview(
+                        guiGraphics,
+                        this.font,
+                        this.panelLeft + 20,
+                        previewTop,
+                        this.panelWidth - 40,
+                        this.focusedOption,
+                        selected,
+                        selected ? "Allowed in this list" : "Not currently selected"
+                );
+                if (!compact) {
+                    guiGraphics.drawString(this.font, Component.literal("Selected: " + this.selectedIds.size()), this.panelLeft + 20, previewTop + 106, AioaScreenUtil.TEXT_MAIN);
+                    guiGraphics.drawString(this.font, Component.literal("Type: " + AioaScreenUtil.categoryLabel(this.focusedOption)), this.panelLeft + 20, previewTop + 120, AioaScreenUtil.TEXT_SUB);
+                    guiGraphics.drawString(this.font, Component.literal(selected ? "Status: included in the hostile allow-list" : "Status: currently excluded"), this.panelLeft + 20, previewTop + 132, AioaScreenUtil.TEXT_SUB);
+                }
+            }
+            AioaEntityToggleScreen.super.render(guiGraphics, mouseX, mouseY, partialTick);
+        });
+
+        AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
     }
 
     @Override

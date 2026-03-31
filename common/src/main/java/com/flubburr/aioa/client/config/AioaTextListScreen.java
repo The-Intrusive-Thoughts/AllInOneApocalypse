@@ -73,7 +73,7 @@ final class AioaTextListScreen extends Screen {
         this.renderBackground(guiGraphics);
         AioaScreenUtil.drawPanel(guiGraphics, this.width / 2 - 196, 24, this.width / 2 + 196, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
-        guiGraphics.drawCenteredString(this.font, Component.literal(this.description), this.width / 2, 49, AioaScreenUtil.TEXT_SUB);
+        AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal(this.description), this.width / 2, 49, 340, AioaScreenUtil.TEXT_SUB);
         super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 

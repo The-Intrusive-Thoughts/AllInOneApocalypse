@@ -4,6 +4,8 @@ plugins {
     id 'com.modrinth.minotaur'
 }
 
+def forgeDevJavaVersion = 21
+
 def modrinthProjectId = providers.gradleProperty('modrinth_project_id').orElse('')
 def modrinthToken = providers.environmentVariable('MODRINTH_TOKEN').orElse('')
 def modrinthVersionType = providers.gradleProperty('modrinth_version_type').orElse('release')
@@ -195,4 +197,10 @@ tasks.named('modrinth').configure {
     doFirst {
         requireModrinthPublishConfig()
     }
+}
+
+tasks.withType(JavaExec).configureEach {
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(forgeDevJavaVersion)
+    })
 }
