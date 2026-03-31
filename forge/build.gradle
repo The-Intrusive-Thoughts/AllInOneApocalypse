@@ -168,6 +168,7 @@ if (!enableOptionalConfigModsRuntime) {
 jar {
     dependsOn(embeddedYaclJarTask)
     finalizedBy('reobfJar')
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest.attributes([
             "MixinConfigs": "${mod_id}.mixins.json"
     ])
