@@ -95,6 +95,20 @@ if (yaclJar == null || !yaclJar.exists()) {
     sourceSets.main.java.exclude 'com/flubburr/aioa/forge/config/AioaYaclConfigScreen.java'
 }
 
+// Forge's dev runtime is currently discovering build/resources/main as the mod root
+// for this project. Mirror compiled classes there so mods.toml and @Mod classes stay together.
+tasks.named('classes').configure {
+    dependsOn tasks.named('compileJava')
+    dependsOn tasks.named('processResources')
+
+    doLast {
+        copy {
+            from sourceSets.main.output.classesDirs
+            into sourceSets.main.output.resourcesDir
+        }
+    }
+}
+
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 

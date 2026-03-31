@@ -214,16 +214,16 @@ public final class AioaZombieBehaviour {
                     }
                 }
             } else if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER)) {
-                movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
+                movementSpeed.removeModifier(CHASE_SPEED_MODIFIER_ID);
             }
             return;
         }
 
         if (followRange.hasModifier(FOLLOW_RANGE_MODIFIER)) {
-            followRange.removeModifier(FOLLOW_RANGE_MODIFIER);
+            followRange.removeModifier(FOLLOW_RANGE_MODIFIER_ID);
         }
         if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER)) {
-            movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
+            movementSpeed.removeModifier(CHASE_SPEED_MODIFIER_ID);
         }
         if (mob instanceof PathfinderMob pathfinderMob
                 && pathfinderMob.getNavigation() instanceof GroundPathNavigation groundNavigation) {

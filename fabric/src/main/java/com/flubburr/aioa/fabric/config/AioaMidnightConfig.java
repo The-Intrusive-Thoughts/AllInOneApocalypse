@@ -3,12 +3,13 @@ package com.flubburr.aioa.fabric.config;
 import com.flubburr.aioa.AioaConstants;
 import com.flubburr.aioa.config.AioaConfig;
 import com.flubburr.aioa.config.AioaConfigManager;
-import eu.midnightdust.lib.config.EntryInfo;
 import eu.midnightdust.lib.config.MidnightConfig;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public final class AioaMidnightConfig extends MidnightConfig {
 
@@ -175,12 +176,10 @@ public final class AioaMidnightConfig extends MidnightConfig {
         syncMidnightEntryState();
     }
 
-    @Override
     public void loadValuesFromJson() {
         pullFromCommon();
     }
 
-    @Override
     public void writeChanges() {
         AioaConfig config = AioaConfigManager.getConfigCopy();
         config.hostileSpawnControl.enabled = enable_hostile_spawn_nullification;
@@ -226,7 +225,8 @@ public final class AioaMidnightConfig extends MidnightConfig {
 
     private static Field resolveEntryInfoField(String fieldName) {
         try {
-            Field field = EntryInfo.class.getDeclaredField(fieldName);
+            Class<?> entryInfoClass = Class.forName("eu.midnightdust.lib.config.EntryInfo");
+            Field field = entryInfoClass.getDeclaredField(fieldName);
             field.setAccessible(true);
             return field;
         } catch (Exception exception) {
@@ -240,13 +240,27 @@ public final class AioaMidnightConfig extends MidnightConfig {
             return;
         }
 
-        entries.forEach((key, entryInfo) -> {
-            if (!key.startsWith(ENTRY_KEY_PREFIX) || entryInfo.field == null || entryInfo.entry == null) {
+        Map<?, ?> entries = resolveMidnightEntries();
+        if (entries == null) {
+            return;
+        }
+
+        entries.forEach((rawKey, entryInfo) -> {
+            String key = String.valueOf(rawKey);
+            if (!key.startsWith(ENTRY_KEY_PREFIX) || entryInfo == null) {
                 return;
             }
 
             try {
-                Object fieldValue = entryInfo.field.get(null);
+                Field fieldField = entryInfo.getClass().getField("field");
+                Field entryField = entryInfo.getClass().getField("entry");
+                Field configField = (Field) fieldField.get(entryInfo);
+                Object entryAnnotation = entryField.get(entryInfo);
+                if (configField == null || entryAnnotation == null) {
+                    return;
+                }
+
+                Object fieldValue = configField.get(null);
                 if (fieldValue == null) {
                     fieldValue = ENTRY_DEFAULT_VALUE_FIELD.get(entryInfo);
                 }
@@ -255,8 +269,10 @@ public final class AioaMidnightConfig extends MidnightConfig {
                 }
 
                 ENTRY_VALUE_FIELD.set(entryInfo, fieldValue);
-                ENTRY_TEMP_VALUE_FIELD.set(entryInfo, entryInfo.toTemporaryValue());
-                entryInfo.updateConditions();
+                Method toTemporaryValue = entryInfo.getClass().getMethod("toTemporaryValue");
+                ENTRY_TEMP_VALUE_FIELD.set(entryInfo, toTemporaryValue.invoke(entryInfo));
+                Method updateConditions = entryInfo.getClass().getMethod("updateConditions");
+                updateConditions.invoke(entryInfo);
             } catch (Exception exception) {
                 AioaConfigManager.warnOnce(
                         "midnight-sync-" + key,
@@ -264,5 +280,17 @@ public final class AioaMidnightConfig extends MidnightConfig {
                 );
             }
         });
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<?, ?> resolveMidnightEntries() {
+        try {
+            Field entriesField = MidnightConfig.class.getDeclaredField("entries");
+            entriesField.setAccessible(true);
+            return (Map<?, ?>) entriesField.get(null);
+        } catch (Exception exception) {
+            AioaConstants.LOG.warn("AIOA could not access MidnightLib entry registry for state sync.", exception);
+            return null;
+        }
     }
 }

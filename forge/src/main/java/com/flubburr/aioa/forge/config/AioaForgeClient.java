@@ -3,6 +3,7 @@ package com.flubburr.aioa.forge.config;
 import com.flubburr.aioa.AioaConstants;
 import com.flubburr.aioa.client.config.AioaConfigScreen;
 import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.KeyMapping;
 import net.minecraftforge.client.ConfigScreenHandler;
@@ -33,6 +34,10 @@ public final class AioaForgeClient {
 
     private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         event.register(OPEN_CONFIG_KEY);
+    }
+
+    public static Screen createScreen(Minecraft minecraft, Screen parent) {
+        return createScreen(parent);
     }
 
     public static Screen createScreen(Screen parent) {
