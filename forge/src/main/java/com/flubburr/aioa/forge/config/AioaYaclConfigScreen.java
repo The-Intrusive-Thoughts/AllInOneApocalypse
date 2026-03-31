@@ -6,7 +6,9 @@ import dev.isxander.yacl3.api.ConfigCategory;
 import dev.isxander.yacl3.api.ListOption;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionDescription;
+import dev.isxander.yacl3.api.OptionGroup;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
+import dev.isxander.yacl3.api.controller.EnumControllerBuilder;
 import dev.isxander.yacl3.api.controller.IntegerFieldControllerBuilder;
 import dev.isxander.yacl3.api.controller.StringControllerBuilder;
 import dev.isxander.yacl3.api.controller.TickBoxControllerBuilder;
@@ -31,6 +33,7 @@ public final class AioaYaclConfigScreen {
                 .title(tr("aioa.config.screen.title"))
                 .category(buildHostileCategory(defaults, editable))
                 .category(buildDaySpawnCategory(defaults, editable))
+                .category(buildBehaviorCategory(defaults, editable))
                 .save(() -> AioaConfigManager.save(editable))
                 .build()
                 .generateScreen(parent);
@@ -124,13 +127,6 @@ public final class AioaYaclConfigScreen {
                         value -> editable.daySurfaceSpawns.preventSunlightBurn = value
                 ))
                 .option(booleanOption(
-                        "aioa.config.option.day.remove_baby_variants",
-                        "aioa.config.option.day.remove_baby_variants.desc",
-                        defaults.daySurfaceSpawns.removeBabyVariants,
-                        () -> editable.daySurfaceSpawns.removeBabyVariants,
-                        value -> editable.daySurfaceSpawns.removeBabyVariants = value
-                ))
-                .option(booleanOption(
                         "aioa.config.option.day.export_mob_catalog",
                         "aioa.config.option.day.export_mob_catalog.desc",
                         defaults.daySurfaceSpawns.exportMobCatalog,
@@ -201,6 +197,95 @@ public final class AioaYaclConfigScreen {
                 .build();
     }
 
+    private static ConfigCategory buildBehaviorCategory(AioaConfig defaults, AioaConfig editable) {
+        return ConfigCategory.createBuilder()
+                .name(tr("aioa.config.category.mob_behavior"))
+                .option(enumOption(
+                        "aioa.config.option.ai.zombie_variant_mode",
+                        "aioa.config.option.ai.zombie_variant_mode.desc",
+                        defaults.daySurfaceSpawns.zombieVariantMode,
+                        () -> editable.daySurfaceSpawns.zombieVariantMode,
+                        value -> editable.daySurfaceSpawns.zombieVariantMode = value
+                ))
+                .option(enumOption(
+                        "aioa.config.option.ai.zombie_target_mode",
+                        "aioa.config.option.ai.zombie_target_mode.desc",
+                        defaults.daySurfaceSpawns.zombieTargetMode,
+                        () -> editable.daySurfaceSpawns.zombieTargetMode,
+                        value -> editable.daySurfaceSpawns.zombieTargetMode = value
+                ))
+                .option(booleanOption(
+                        "aioa.config.option.ai.zombies_can_climb_walls",
+                        "aioa.config.option.ai.zombies_can_climb_walls.desc",
+                        defaults.daySurfaceSpawns.zombiesCanClimbWalls,
+                        () -> editable.daySurfaceSpawns.zombiesCanClimbWalls,
+                        value -> editable.daySurfaceSpawns.zombiesCanClimbWalls = value
+                ))
+                .option(booleanOption(
+                        "aioa.config.option.ai.refined_zombie_ai",
+                        "aioa.config.option.ai.refined_zombie_ai.desc",
+                        defaults.daySurfaceSpawns.refinedZombieAi,
+                        () -> editable.daySurfaceSpawns.refinedZombieAi,
+                        value -> editable.daySurfaceSpawns.refinedZombieAi = value
+                ))
+                .option(booleanOption(
+                        "aioa.config.option.ai.refined_pathfinding_opens_doors",
+                        "aioa.config.option.ai.refined_pathfinding_opens_doors.desc",
+                        defaults.daySurfaceSpawns.refinedPathfindingOpensDoors,
+                        () -> editable.daySurfaceSpawns.refinedPathfindingOpensDoors,
+                        value -> editable.daySurfaceSpawns.refinedPathfindingOpensDoors = value
+                ))
+                .group(stringListGroup(
+                        "aioa.config.option.ai.refined_ai_entity_ids",
+                        "aioa.config.option.ai.refined_ai_entity_ids.desc",
+                        defaults.daySurfaceSpawns.refinedAiEntityIds,
+                        () -> editable.daySurfaceSpawns.refinedAiEntityIds,
+                        value -> editable.daySurfaceSpawns.refinedAiEntityIds = value,
+                        "modid:infected"
+                ))
+                .group(stringListGroup(
+                        "aioa.config.option.ai.wall_climbing_entity_ids",
+                        "aioa.config.option.ai.wall_climbing_entity_ids.desc",
+                        defaults.daySurfaceSpawns.wallClimbingEntityIds,
+                        () -> editable.daySurfaceSpawns.wallClimbingEntityIds,
+                        value -> editable.daySurfaceSpawns.wallClimbingEntityIds = value,
+                        "modid:climber"
+                ))
+                .group(stringListGroup(
+                        "aioa.config.option.ai.player_only_target_entity_ids",
+                        "aioa.config.option.ai.player_only_target_entity_ids.desc",
+                        defaults.daySurfaceSpawns.playerOnlyTargetEntityIds,
+                        () -> editable.daySurfaceSpawns.playerOnlyTargetEntityIds,
+                        value -> editable.daySurfaceSpawns.playerOnlyTargetEntityIds = value,
+                        "modid:hunter"
+                ))
+                .group(stringListGroup(
+                        "aioa.config.option.ai.animal_target_entity_ids",
+                        "aioa.config.option.ai.animal_target_entity_ids.desc",
+                        defaults.daySurfaceSpawns.animalTargetEntityIds,
+                        () -> editable.daySurfaceSpawns.animalTargetEntityIds,
+                        value -> editable.daySurfaceSpawns.animalTargetEntityIds = value,
+                        "modid:predator"
+                ))
+                .group(stringListGroup(
+                        "aioa.config.option.ai.other_mob_target_entity_ids",
+                        "aioa.config.option.ai.other_mob_target_entity_ids.desc",
+                        defaults.daySurfaceSpawns.otherMobTargetEntityIds,
+                        () -> editable.daySurfaceSpawns.otherMobTargetEntityIds,
+                        value -> editable.daySurfaceSpawns.otherMobTargetEntityIds = value,
+                        "modid:berserker"
+                ))
+                .group(stringListGroup(
+                        "aioa.config.option.ai.everything_target_entity_ids",
+                        "aioa.config.option.ai.everything_target_entity_ids.desc",
+                        defaults.daySurfaceSpawns.everythingTargetEntityIds,
+                        () -> editable.daySurfaceSpawns.everythingTargetEntityIds,
+                        value -> editable.daySurfaceSpawns.everythingTargetEntityIds = value,
+                        "modid:abomination"
+                ))
+                .build();
+    }
+
     private static Option<Boolean> booleanOption(
             String nameKey,
             String descriptionKey,
@@ -233,7 +318,22 @@ public final class AioaYaclConfigScreen {
                 .build();
     }
 
-    private static ListOption<String> stringListGroup(
+    private static <T extends Enum<T>> Option<T> enumOption(
+            String nameKey,
+            String descriptionKey,
+            T defaultValue,
+            Supplier<T> getter,
+            Consumer<T> setter
+    ) {
+        return Option.<T>createBuilder()
+                .name(tr(nameKey))
+                .description(OptionDescription.of(tr(descriptionKey)))
+                .binding(defaultValue, getter, setter)
+                .controller(EnumControllerBuilder::create)
+                .build();
+    }
+
+    private static OptionGroup stringListGroup(
             String nameKey,
             String descriptionKey,
             List<String> defaultValue,
@@ -241,13 +341,17 @@ public final class AioaYaclConfigScreen {
             Consumer<List<String>> setter,
             String initialValue
     ) {
-        return ListOption.<String>createBuilder()
+        return OptionGroup.createBuilder()
                 .name(tr(nameKey))
                 .description(OptionDescription.of(tr(descriptionKey)))
-                .binding(new ArrayList<>(defaultValue), () -> new ArrayList<>(getter.get()), value -> setter.accept(new ArrayList<>(value)))
-                .controller(StringControllerBuilder::create)
-                .initial(initialValue)
-                .collapsed(false)
+                .option(ListOption.<String>createBuilder()
+                        .name(tr(nameKey))
+                        .description(OptionDescription.of(tr(descriptionKey)))
+                        .binding(new ArrayList<>(defaultValue), () -> new ArrayList<>(getter.get()), value -> setter.accept(new ArrayList<>(value)))
+                        .controller(StringControllerBuilder::create)
+                        .initial(initialValue)
+                        .collapsed(false)
+                        .build())
                 .build();
     }
 
