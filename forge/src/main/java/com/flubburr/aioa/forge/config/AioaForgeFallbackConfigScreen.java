@@ -1,5 +1,6 @@
 package com.flubburr.aioa.forge.config;
 
+import com.flubburr.aioa.client.config.AioaScreenUtil;
 import com.flubburr.aioa.config.AioaConfig;
 import com.flubburr.aioa.config.AioaConfigManager;
 import net.minecraft.client.gui.GuiGraphics;
@@ -110,7 +111,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+        AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
         guiGraphics.drawCenteredString(
                 this.font,
@@ -227,7 +228,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
 
         @Override
         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+            AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
             super.render(guiGraphics, mouseX, mouseY, partialTick);
         }
@@ -394,7 +395,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
 
         @Override
         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+            AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
 
             int labelX = this.width / 2 - 150;
@@ -509,7 +510,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
 
         @Override
         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+            AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
             guiGraphics.drawCenteredString(this.font, this.description, this.width / 2, 30, 0xA0A0A0);
             super.render(guiGraphics, mouseX, mouseY, partialTick);

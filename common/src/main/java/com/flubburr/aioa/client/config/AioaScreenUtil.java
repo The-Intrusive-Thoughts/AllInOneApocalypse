@@ -34,7 +34,7 @@ import java.util.function.DoubleConsumer;
 import java.util.function.DoubleFunction;
 import java.util.stream.Collectors;
 
-final class AioaScreenUtil {
+public final class AioaScreenUtil {
 
     private static final Map<ResourceLocation, LivingEntity> PREVIEW_ENTITY_CACHE = new HashMap<>();
 
@@ -60,6 +60,10 @@ final class AioaScreenUtil {
 
     static EditBox searchBox(int x, int y, int width, String hint) {
         return new AioaSearchBox(x, y, width, BUTTON_HEIGHT, Component.literal(hint));
+    }
+
+    public static void drawScreenBackground(GuiGraphics guiGraphics, int width, int height) {
+        // Intentionally left blank so only the UI chrome is rendered.
     }
 
     static void drawPanel(GuiGraphics guiGraphics, int left, int top, int right, int bottom) {

@@ -1,6 +1,7 @@
 package com.flubburr.aioa.client.config;
 
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -80,6 +81,11 @@ abstract class AioaScrollableScreen extends Screen {
         this.scrollOffset = Math.max(0, Math.min(this.maxScroll, this.scrollOffset - ((int) delta * step)));
         this.updateScrollLayout();
         return true;
+    }
+
+    @Override
+    public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
     }
 
     @Override

@@ -147,6 +147,7 @@ tasks.matching { it.name in ["runClient", "runServer"] }.configureEach {
     doFirst {
         delete fileTree("run/mods") {
             include "midnightlib*.jar"
+            include "modmenu*.jar"
         }
     }
 }
