@@ -7,10 +7,13 @@ plugins {
 def modrinthProjectId = providers.gradleProperty('modrinth_project_id').orElse('')
 def modrinthToken = providers.environmentVariable('MODRINTH_TOKEN').orElse('')
 def modrinthVersionType = providers.gradleProperty('modrinth_version_type').orElse('release')
+def modrinthGameVersions = providers.gradleProperty('modrinth_game_versions')
+        .orElse(minecraft_version)
+        .map { value -> value.split(',').collect { it.trim() }.findAll { !it.isEmpty() } }
 def modrinthBodyFile = rootProject.file(providers.gradleProperty('modrinth_body_file').orElse('README.md').get())
 def modrinthChangelogFile = rootProject.file(providers.gradleProperty('modrinth_changelog_file').orElse('CHANGELOG.md').get())
-def fabricReleaseName = "${mod_name} ${version} for Minecraft ${minecraft_version} (Fabric)"
-def fabricVersionNumber = "${version}+mc${minecraft_version}-fabric"
+def fabricReleaseName = "${mod_name} ${version} for Minecraft ${modrinthGameVersions.get().join(' / ')} (Fabric)"
+def fabricVersionNumber = "${version}+mc${modrinthGameVersions.get().first()}-fabric"
 
 def requireModrinthPublishConfig = {
     if (!modrinthProjectId.get().trim()) {
@@ -161,7 +164,7 @@ modrinth {
             ? modrinthChangelogFile.getText('UTF-8')
             : "Release ${fabricVersionNumber}"
     uploadFile = tasks.named('remapJar')
-    gameVersions = [minecraft_version]
+    gameVersions = modrinthGameVersions.get()
     loaders = ['fabric']
     syncBodyFrom = modrinthBodyFile.exists()
             ? modrinthBodyFile.getText('UTF-8')
