@@ -337,19 +337,40 @@ final class AioaScreenUtil {
         return new ItemStack(Items.BARRIER);
     }
 
-    static void drawMobPreview(GuiGraphics guiGraphics, Font font, int left, int top, int width, ResourceLocation id, boolean selected, String footer) {
-        drawInsetPanel(guiGraphics, left, top, left + width, top + 96, selected);
+    static void drawMobPreview(GuiGraphics guiGraphics, Font font, int left, int top, int width, int height, ResourceLocation id, boolean selected, List<Component> detailLines) {
+        drawInsetPanel(guiGraphics, left, top, left + width, top + height, selected);
+        int padding = 12;
+        int modelPanelWidth = Math.max(92, Math.min(132, width / 3));
+        int modelLeft = left + width - modelPanelWidth - padding;
+        int modelTop = top + 10;
+        int modelBottom = top + height - 10;
+        int textLeft = left + padding;
+        int textRight = modelLeft - 12;
+        int maxTextWidth = Math.max(96, textRight - textLeft);
+
+        guiGraphics.drawString(font, Component.literal(clip(entityDisplayName(id), Math.max(18, maxTextWidth / 6))), textLeft, top + 12, TEXT_MAIN);
+        guiGraphics.drawString(font, Component.literal(categoryLabel(id)), textLeft, top + 27, TEXT_SUB);
+
+        int lineY = top + 44;
+        for (Component line : detailLines) {
+            if (lineY > top + height - 22) {
+                break;
+            }
+            guiGraphics.drawString(font, Component.literal(clip(line.getString(), Math.max(18, maxTextWidth / 6))), textLeft, lineY, lineY == top + 44 ? TEXT_MAIN : TEXT_SUB);
+            lineY += 14;
+        }
+
+        drawInsetPanel(guiGraphics, modelLeft, modelTop, left + width - padding, modelBottom, false);
         LivingEntity previewEntity = previewEntity(id);
         if (previewEntity != null) {
-            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, left + 25, top + 76, 26, 0.0F, 0.0F, previewEntity);
+            int modelCenterX = modelLeft + ((left + width - padding - modelLeft) / 2);
+            int modelAnchorY = modelBottom - 10;
+            int scale = Math.max(24, Math.min(42, (modelBottom - modelTop) / 2));
+            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, modelCenterX, modelAnchorY, scale, 0.0F, 0.0F, previewEntity);
         } else {
-            guiGraphics.renderItem(entityPreviewItem(id), left + 10, top + 10);
-        }
-        guiGraphics.drawString(font, Component.literal(clip(entityDisplayName(id), 26)), left + 36, top + 12, TEXT_MAIN);
-        guiGraphics.drawString(font, Component.literal(categoryLabel(id)), left + 36, top + 26, TEXT_SUB);
-        guiGraphics.drawString(font, Component.literal(clip(id.toString(), 28)), left + 10, top + 48, TEXT_SUB);
-        if (footer != null && !footer.isBlank()) {
-            guiGraphics.drawString(font, Component.literal(clip(footer, 34)), left + 10, top + 68, TEXT_MAIN);
+            int itemX = modelLeft + (((left + width - padding) - modelLeft) / 2) - 8;
+            int itemY = modelTop + ((modelBottom - modelTop) / 2) - 8;
+            guiGraphics.renderItem(entityPreviewItem(id), itemX, itemY);
         }
     }
 
@@ -545,12 +566,72 @@ final class AioaScreenUtil {
             this.consumer.accept(this.actualValue());
         }
 
+        @Override
+        public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+            int left = this.getX();
+            int top = this.getY();
+            int right = left + this.width;
+            int bottom = top + this.height;
+            boolean hovered = this.isHoveredOrFocused();
+
+            drawInsetPanel(guiGraphics, left, top, right, bottom, hovered);
+            guiGraphics.fill(left + 2, top + 2, right - 2, top + 4, hovered ? 0x88000000 : 0x55000000);
+
+            int trackLeft = left + 12;
+            int trackRight = right - 12;
+            int trackTop = top + 17;
+            int trackBottom = top + 21;
+            int trackWidth = Math.max(1, trackRight - trackLeft);
+            int progressWidth = (int) Math.round(trackWidth * this.value);
+            int knobCenterX = trackLeft + progressWidth;
+            knobCenterX = Math.max(trackLeft, Math.min(trackRight, knobCenterX));
+
+            guiGraphics.drawString(
+                    Minecraft.getInstance().font,
+                    this.getMessage(),
+                    left + 12,
+                    top + 4,
+                    this.active ? TEXT_MAIN : TEXT_MUTED
+            );
+
+            drawInsetPanel(guiGraphics, trackLeft, trackTop, trackRight, trackBottom, false);
+            if (progressWidth > 0) {
+                guiGraphics.fill(trackLeft + 1, trackTop + 1, Math.min(trackLeft + progressWidth, trackRight - 1), trackBottom - 1, PANEL_ACCENT);
+            }
+
+            int knobRadius = hovered ? 6 : 5;
+            guiGraphics.fill(knobCenterX - knobRadius, trackTop - 4, knobCenterX + knobRadius, trackBottom + 4, this.active ? 0xFFB8FFD9 : TEXT_MUTED);
+            guiGraphics.fill(knobCenterX - 2, trackTop - 1, knobCenterX + 2, trackBottom + 1, 0xFF0C1711);
+
+            String valueText = this.valueText();
+            int bubbleWidth = Math.max(26, Minecraft.getInstance().font.width(valueText) + 10);
+            int bubbleLeft = Math.max(left + 8, Math.min(right - bubbleWidth - 8, knobCenterX - (bubbleWidth / 2)));
+            int bubbleTop = top - 16;
+            drawInsetPanel(guiGraphics, bubbleLeft, bubbleTop, bubbleLeft + bubbleWidth, bubbleTop + 12, hovered);
+            guiGraphics.drawCenteredString(
+                    Minecraft.getInstance().font,
+                    Component.literal(valueText),
+                    bubbleLeft + (bubbleWidth / 2),
+                    bubbleTop + 2,
+                    hovered ? TEXT_MAIN : TEXT_SUB
+            );
+        }
+
         private double snap(double raw) {
             if (this.step <= 0.0D) {
                 return raw;
             }
             double snapped = Math.round(raw / this.step) * this.step;
             return Math.max(this.min, Math.min(this.max, snapped));
+        }
+
+        private String valueText() {
+            double actual = this.actualValue();
+            if (this.step >= 1.0D && Math.abs(actual - Math.rint(actual)) < 1.0E-6D) {
+                return Integer.toString((int) Math.round(actual));
+            }
+            String raw = String.format(Locale.ROOT, "%.3f", actual);
+            return raw.indexOf('.') >= 0 ? raw.replaceAll("0+$", "").replaceAll("\\.$", "") : raw;
         }
     }
 
@@ -600,7 +681,10 @@ final class AioaScreenUtil {
             int bottom = top + this.getHeight();
             drawInsetPanel(guiGraphics, left, top, right, bottom, this.isFocused());
             guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, 0x55000000);
+            guiGraphics.pose().pushPose();
+            guiGraphics.pose().translate(6.0F, 2.0F, 0.0F);
             super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
+            guiGraphics.pose().popPose();
         }
     }
 }

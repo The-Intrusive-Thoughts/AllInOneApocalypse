@@ -6,9 +6,13 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 final class AioaSpawnEntryEditorScreen extends AioaScrollableScreen {
+    private static final int HEADER_TO_SLIDER_GAP = 12;
+    private static final int SLIDER_STACK_SPACING = 42;
+    private static final int SLIDER_STACK_END_SPACING = 52;
 
     private final Screen parent;
     private final ResourceLocation entityId;
@@ -62,21 +66,27 @@ final class AioaSpawnEntryEditorScreen extends AioaScrollableScreen {
             this.init();
         }), y);
         y += 32;
+        if (this.spawnRateExpanded) {
+            y += HEADER_TO_SLIDER_GAP;
+        }
         this.weightSlider = this.addScrollable(AioaScreenUtil.intSlider(sliderX, 0, sliderWidth, "Weight", 1, 30, 1, this.cachedWeight, value -> this.cachedWeight = value), y);
         if (this.spawnRateExpanded) {
-            y += 30;
+            y += SLIDER_STACK_SPACING;
         }
         this.chanceSlider = this.addScrollable(AioaScreenUtil.decimalSlider(sliderX, 0, sliderWidth, "Chance", 0.0D, 1.0D, 0.05D, this.cachedChance,
                 value -> "Chance: " + Math.round(value * 100.0D) + "%",
                 value -> this.cachedChance = value), y);
         if (this.spawnRateExpanded) {
-            y += 36;
+            y += SLIDER_STACK_END_SPACING;
         }
         localHeaders.groupSize = this.addScrollable(AioaScreenUtil.button(centerX - width / 2, 0, width, AioaScreenUtil.sectionLabel("Group size", this.groupSizeExpanded), b -> {
             this.groupSizeExpanded = !this.groupSizeExpanded;
             this.init();
         }), y);
         y += 32;
+        if (this.groupSizeExpanded) {
+            y += HEADER_TO_SLIDER_GAP;
+        }
         this.minSlider = this.addScrollable(AioaScreenUtil.intSlider(sliderX, 0, sliderWidth, "Min group", 1, 10, 1, this.cachedMin, value -> {
             this.cachedMin = value;
             if (this.cachedMax < value && this.maxSlider != null) {
@@ -84,7 +94,7 @@ final class AioaSpawnEntryEditorScreen extends AioaScrollableScreen {
             }
         }), y);
         if (this.groupSizeExpanded) {
-            y += 30;
+            y += SLIDER_STACK_SPACING;
         }
         this.maxSlider = this.addScrollable(AioaScreenUtil.intSlider(sliderX, 0, sliderWidth, "Max group", 1, 12, 1, this.cachedMax, value -> {
             if (value < this.cachedMin) {
@@ -94,7 +104,7 @@ final class AioaSpawnEntryEditorScreen extends AioaScrollableScreen {
             this.cachedMax = value;
         }), y);
         if (this.groupSizeExpanded) {
-            y += 36;
+            y += SLIDER_STACK_END_SPACING;
         }
         this.refreshSectionVisibility();
 
@@ -140,7 +150,22 @@ final class AioaSpawnEntryEditorScreen extends AioaScrollableScreen {
         AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom,
                 () -> AioaSpawnEntryEditorScreen.super.render(guiGraphics, mouseX, mouseY, partialTick));
         if (this.height >= 280) {
-            AioaScreenUtil.drawMobPreview(guiGraphics, this.font, this.width / 2 - 84, this.height - 148, 168, this.entityId, this.enabled, this.enabled ? "Entry enabled" : "Entry disabled");
+            AioaScreenUtil.drawMobPreview(
+                    guiGraphics,
+                    this.font,
+                    this.width / 2 - 110,
+                    this.height - 166,
+                    220,
+                    118,
+                    this.entityId,
+                    this.enabled,
+                    List.of(
+                            Component.literal("Weight: " + this.cachedWeight),
+                            Component.literal("Chance: " + Math.round(this.cachedChance * 100.0D) + "%"),
+                            Component.literal("Group: " + this.cachedMin + " - " + this.cachedMax),
+                            Component.literal(this.enabled ? "Status: entry enabled" : "Status: entry disabled")
+                    )
+            );
         }
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
     }

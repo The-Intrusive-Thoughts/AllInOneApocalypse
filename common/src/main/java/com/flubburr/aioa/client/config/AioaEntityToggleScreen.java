@@ -18,6 +18,10 @@ import java.util.Map;
 import java.util.Set;
 
 final class AioaEntityToggleScreen extends AioaScrollableScreen {
+    private static final int PREVIEW_TOP_OFFSET = 36;
+    private static final int COMPACT_PREVIEW_HEIGHT = 112;
+    private static final int FULL_PREVIEW_HEIGHT = 146;
+    private static final int PREVIEW_BOTTOM_GAP = 12;
 
     private final Screen parent;
     private final String description;
@@ -184,7 +188,7 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
             this.focusedOption = this.filteredOptions.isEmpty() ? null : this.filteredOptions.get(0);
         }
 
-        int y = this.height < 260 ? 110 : 178;
+        int y = this.previewReservedHeight();
         int slot = 0;
         if (this.groupedByDimension) {
             Map<String, List<ResourceLocation>> groups = new HashMap<>();
@@ -288,8 +292,7 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
 
         AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom, () -> {
             if (this.focusedOption != null) {
-                int previewTop = this.contentTop + 10 - this.scrollOffset;
-                boolean compact = this.height < 260;
+                int previewTop = this.contentTop + PREVIEW_TOP_OFFSET - this.scrollOffset;
                 boolean selected = this.selectedIds.contains(this.focusedOption.toString());
                 AioaScreenUtil.drawMobPreview(
                         guiGraphics,
@@ -297,15 +300,11 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
                         this.panelLeft + 20,
                         previewTop,
                         this.panelWidth - 40,
+                        this.previewHeight(),
                         this.focusedOption,
                         selected,
-                        selected ? "Allowed in this list" : "Not currently selected"
+                        this.previewDetailLines(selected)
                 );
-                if (!compact) {
-                    guiGraphics.drawString(this.font, Component.literal("Selected: " + this.selectedIds.size()), this.panelLeft + 20, previewTop + 106, AioaScreenUtil.TEXT_MAIN);
-                    guiGraphics.drawString(this.font, Component.literal("Type: " + AioaScreenUtil.categoryLabel(this.focusedOption)), this.panelLeft + 20, previewTop + 120, AioaScreenUtil.TEXT_SUB);
-                    guiGraphics.drawString(this.font, Component.literal(selected ? "Status: included in the hostile allow-list" : "Status: currently excluded"), this.panelLeft + 20, previewTop + 132, AioaScreenUtil.TEXT_SUB);
-                }
             }
             AioaEntityToggleScreen.super.render(guiGraphics, mouseX, mouseY, partialTick);
         });
@@ -316,5 +315,22 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
     @Override
     public void onClose() {
         this.minecraft.setScreen(this.parent);
+    }
+
+    private int previewHeight() {
+        return this.height < 260 ? COMPACT_PREVIEW_HEIGHT : FULL_PREVIEW_HEIGHT;
+    }
+
+    private int previewReservedHeight() {
+        return PREVIEW_TOP_OFFSET + this.previewHeight() + PREVIEW_BOTTOM_GAP;
+    }
+
+    private List<Component> previewDetailLines(boolean selected) {
+        List<Component> lines = new ArrayList<>();
+        lines.add(Component.literal("Selected: " + this.selectedIds.size()));
+        lines.add(Component.literal("Type: " + AioaScreenUtil.categoryLabel(this.focusedOption)));
+        lines.add(Component.literal("ID: " + this.focusedOption));
+        lines.add(Component.literal(selected ? "Status: included in the hostile allow-list" : "Status: currently excluded"));
+        return lines;
     }
 }

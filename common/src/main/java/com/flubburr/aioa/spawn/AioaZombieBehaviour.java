@@ -23,6 +23,7 @@ import net.minecraft.world.entity.animal.WaterAnimal;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -144,15 +145,48 @@ public final class AioaZombieBehaviour {
         };
     }
 
-    public static boolean shouldClimb(Mob mob, boolean enabled) {
+    public static boolean shouldClimb(Mob mob) {
         LivingEntity target = mob.getTarget();
-        if (!enabled || target == null || !target.isAlive()) {
+        if (target == null || !target.isAlive()) {
             return false;
         }
 
         return mob.horizontalCollision
                 && mob.distanceToSqr(target) <= 144.0D
                 && target.getY() >= mob.getY() - 0.5D;
+    }
+
+    public static void tickWallClimbing(Mob mob, boolean enabled, boolean refinedAiEnabled) {
+        if (!enabled || !shouldClimb(mob)) {
+            return;
+        }
+
+        LivingEntity target = mob.getTarget();
+        if (target == null) {
+            return;
+        }
+
+        Vec3 currentVelocity = mob.getDeltaMovement();
+        Vec3 chaseVector = new Vec3(target.getX() - mob.getX(), 0.0D, target.getZ() - mob.getZ());
+        if (chaseVector.lengthSqr() > 1.0E-4D) {
+            chaseVector = chaseVector.normalize().scale(0.08D);
+        } else {
+            chaseVector = Vec3.ZERO;
+        }
+
+        double climbBoost = target.getY() > mob.getEyeY() + 0.75D ? 0.24D : 0.16D;
+        mob.setDeltaMovement(
+                (currentVelocity.x * 0.92D) + chaseVector.x,
+                Math.max(currentVelocity.y, climbBoost),
+                (currentVelocity.z * 0.92D) + chaseVector.z
+        );
+        mob.fallDistance = 0.0F;
+        mob.hasImpulse = true;
+
+        if (mob instanceof PathfinderMob pathfinderMob) {
+            double speed = refinedAiEnabled ? 1.15D : 1.0D;
+            pathfinderMob.getNavigation().moveTo(target, speed);
+        }
     }
 
     public static void applyRefinedAi(Mob mob, boolean refinedAiEnabled, boolean openDoors) {

@@ -17,7 +17,7 @@ public abstract class LivingEntityMixin {
         LivingEntity self = (LivingEntity) (Object) this;
         if (self instanceof Mob mob
                 && AioaZombieBehaviour.usesWallClimbing(mob, AioaConfigManager.getConfig().daySurfaceSpawns)
-                && AioaZombieBehaviour.shouldClimb(mob, true)) {
+                && AioaZombieBehaviour.shouldClimb(mob)) {
             cir.setReturnValue(true);
         }
     }

@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Optional;
 
 final class AioaSpawnPoolScreen extends AioaScrollableScreen {
+    private static final int COMPACT_PREVIEW_HEIGHT = 96;
+    private static final int FULL_PREVIEW_HEIGHT = 124;
 
     private final Screen parent;
     private final AioaConfig editableConfig;
@@ -116,7 +118,7 @@ final class AioaSpawnPoolScreen extends AioaScrollableScreen {
 
     private void refreshEntries() {
         List<String> entries = this.editableConfig.daySurfaceSpawns.spawnPoolEntries;
-        int y = this.height < 260 ? 86 : 136;
+        int y = this.height < 260 ? 112 : 156;
         for (int i = 0; i < this.entryButtons.size(); i++) {
             Button button = this.entryButtons.get(i);
             if (i >= entries.size()) {
@@ -159,20 +161,23 @@ final class AioaSpawnPoolScreen extends AioaScrollableScreen {
                 Optional<AioaSpawnEntry> parsed = AioaSpawnEntry.parse(entries.get(this.selectedIndex), warning -> { });
                 if (parsed.isPresent()) {
                     AioaSpawnEntry entry = parsed.get();
+                    int previewHeight = compact ? COMPACT_PREVIEW_HEIGHT : FULL_PREVIEW_HEIGHT;
                     AioaScreenUtil.drawMobPreview(
                             guiGraphics,
                             this.font,
                             this.panelLeft + 20,
                             previewTop,
                             this.panelWidth - 40,
+                            previewHeight,
                             entry.entityId(),
                             entry.enabled(),
-                            "Weight " + entry.weight() + " | " + Math.round(entry.chance() * 100.0D) + "%"
+                            List.of(
+                                    Component.literal("Weight: " + entry.weight()),
+                                    Component.literal("Chance: " + Math.round(entry.chance() * 100.0D) + "%"),
+                                    Component.literal("Group size: " + entry.minGroupSize() + " - " + entry.maxGroupSize()),
+                                    Component.literal(entry.enabled() ? "Status: this entry is active." : "Status: this entry is disabled.")
+                            )
                     );
-                    if (!compact) {
-                        guiGraphics.drawString(this.font, Component.literal("Group size: " + entry.minGroupSize() + " - " + entry.maxGroupSize()), this.panelLeft + 20, previewTop + 106, AioaScreenUtil.TEXT_MAIN);
-                        guiGraphics.drawString(this.font, Component.literal(entry.enabled() ? "This entry is active." : "This entry is disabled."), this.panelLeft + 20, previewTop + 120, AioaScreenUtil.TEXT_SUB);
-                    }
                 }
             } else {
                 AioaScreenUtil.drawInsetPanel(guiGraphics, this.panelLeft + 20, previewTop, this.panelLeft + this.panelWidth - 20, previewTop + 96, false);

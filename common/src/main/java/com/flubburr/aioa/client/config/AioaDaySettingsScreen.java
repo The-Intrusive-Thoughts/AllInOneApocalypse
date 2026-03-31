@@ -10,6 +10,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 final class AioaDaySettingsScreen extends AioaScrollableScreen {
+    private static final int HEADER_TO_SLIDER_GAP = 12;
+    private static final int SLIDER_STACK_SPACING = 42;
+    private static final int SLIDER_STACK_END_SPACING = 52;
 
     private final Screen parent;
     private final AioaConfig editableConfig;
@@ -129,24 +132,27 @@ final class AioaDaySettingsScreen extends AioaScrollableScreen {
             this.init();
         }), y);
         y += step;
+        if (this.tuningExpanded) {
+            y += HEADER_TO_SLIDER_GAP;
+        }
 
         int sliderWidth = width - 28;
         int sliderX = centerX - (sliderWidth / 2);
         this.spawnIntervalTicks = this.addScrollable(AioaScreenUtil.intSlider(sliderX, 0, sliderWidth, "Spawn interval", 20, 24000, 20, this.spawnIntervalTicksValue, value -> this.spawnIntervalTicksValue = value), y);
-        y += this.tuningExpanded ? 30 : 0;
+        y += this.tuningExpanded ? SLIDER_STACK_SPACING : 0;
         this.spawnAttemptsPerPlayer = this.addScrollable(AioaScreenUtil.intSlider(sliderX, 0, sliderWidth, "Attempts per player", 1, 16, 1, this.spawnAttemptsPerPlayerValue, value -> this.spawnAttemptsPerPlayerValue = value), y);
-        y += this.tuningExpanded ? 30 : 0;
+        y += this.tuningExpanded ? SLIDER_STACK_SPACING : 0;
         this.minSpawnDistance = this.addScrollable(AioaScreenUtil.intSlider(sliderX, 0, sliderWidth, "Minimum distance", 8, 128, 1, this.minSpawnDistanceValue, value -> {
             this.minSpawnDistanceValue = value;
             if (this.maxSpawnDistanceValue < value && this.maxSpawnDistance != null) {
                 this.maxSpawnDistance.setSliderValue(value + 8);
             }
         }), y);
-        y += this.tuningExpanded ? 30 : 0;
+        y += this.tuningExpanded ? SLIDER_STACK_SPACING : 0;
         this.maxSpawnDistance = this.addScrollable(AioaScreenUtil.intSlider(sliderX, 0, sliderWidth, "Maximum distance", 16, 256, 1, this.maxSpawnDistanceValue, value -> this.maxSpawnDistanceValue = value), y);
-        y += this.tuningExpanded ? 30 : 0;
+        y += this.tuningExpanded ? SLIDER_STACK_SPACING : 0;
         this.maxNearbyManagedMobs = this.addScrollable(AioaScreenUtil.intSlider(sliderX, 0, sliderWidth, "Nearby mob cap", 1, 256, 1, this.maxNearbyManagedMobsValue, value -> this.maxNearbyManagedMobsValue = value), y);
-        y += this.tuningExpanded ? 36 : 0;
+        y += this.tuningExpanded ? SLIDER_STACK_END_SPACING : 0;
 
         this.refreshVisibility();
 

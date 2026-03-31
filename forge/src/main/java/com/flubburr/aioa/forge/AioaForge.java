@@ -40,7 +40,9 @@ public final class AioaForge {
 
         Minecraft minecraft = Minecraft.getInstance();
         while (AioaForgeClient.openConfigKey().consumeClick()) {
-            minecraft.setScreen(AioaForgeClient.createScreen(minecraft.screen));
+            if (minecraft.player != null && minecraft.player.isCreative()) {
+                minecraft.setScreen(AioaForgeClient.createScreen(minecraft.screen));
+            }
         }
     }
 }

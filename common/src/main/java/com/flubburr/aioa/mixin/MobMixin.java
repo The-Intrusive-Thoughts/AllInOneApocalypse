@@ -53,5 +53,10 @@ public abstract class MobMixin {
                 AioaZombieBehaviour.usesRefinedAi(self, settings),
                 settings.refinedPathfindingOpensDoors
         );
+        AioaZombieBehaviour.tickWallClimbing(
+                self,
+                AioaZombieBehaviour.usesWallClimbing(self, settings),
+                AioaZombieBehaviour.usesRefinedAi(self, settings)
+        );
     }
 }

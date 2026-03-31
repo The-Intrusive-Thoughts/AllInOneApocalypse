@@ -18,6 +18,10 @@ import java.util.Map;
 import java.util.Set;
 
 final class AioaBiomeToggleScreen extends AioaScrollableScreen {
+    private static final int PREVIEW_TOP_OFFSET = 36;
+    private static final int COMPACT_PREVIEW_HEIGHT = 64;
+    private static final int FULL_PREVIEW_HEIGHT = 108;
+    private static final int PREVIEW_BOTTOM_GAP = 12;
 
     private final Screen parent;
     private final AioaConfig editableConfig;
@@ -153,7 +157,7 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
             groups.computeIfAbsent(AioaScreenUtil.biomeCategory(biome), key -> new ArrayList<>()).add(biome);
         }
 
-        int y = this.height < 260 ? 96 : 146;
+        int y = this.previewReservedHeight();
         int slot = 0;
         y = this.layoutGroup(this.overworldHeader, "Overworld biomes", this.overworldExpanded, groups.get("Overworld"), y, slot);
         slot += this.overworldExpanded ? groups.get("Overworld").size() : 0;
@@ -238,8 +242,8 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
 
         AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom, () -> {
             if (this.focusedBiome != null) {
-                int previewHeight = this.height < 260 ? 64 : 108;
-                int previewTop = this.contentTop + 10 - this.scrollOffset;
+                int previewHeight = this.previewHeight();
+                int previewTop = this.contentTop + PREVIEW_TOP_OFFSET - this.scrollOffset;
                 boolean selected = this.selectedBiomeIds.contains(this.focusedBiome.toString());
                 AioaScreenUtil.drawInsetPanel(guiGraphics, this.panelLeft + 20, previewTop, this.panelLeft + this.panelWidth - 20, previewTop + previewHeight, selected);
                 guiGraphics.drawString(this.font, Component.literal(AioaScreenUtil.biomeDisplayName(this.focusedBiome)), this.panelLeft + 32, previewTop + 14, AioaScreenUtil.TEXT_MAIN);
@@ -259,5 +263,13 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
     @Override
     public void onClose() {
         this.minecraft.setScreen(this.parent);
+    }
+
+    private int previewHeight() {
+        return this.height < 260 ? COMPACT_PREVIEW_HEIGHT : FULL_PREVIEW_HEIGHT;
+    }
+
+    private int previewReservedHeight() {
+        return PREVIEW_TOP_OFFSET + this.previewHeight() + PREVIEW_BOTTOM_GAP;
     }
 }

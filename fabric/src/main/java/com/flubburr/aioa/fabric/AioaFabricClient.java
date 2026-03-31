@@ -24,7 +24,9 @@ public final class AioaFabricClient implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openConfigKey.consumeClick()) {
-                client.setScreen(AioaConfigScreen.create(client.screen));
+                if (client.player != null && client.player.isCreative()) {
+                    client.setScreen(AioaConfigScreen.create(client.screen));
+                }
             }
         });
     }

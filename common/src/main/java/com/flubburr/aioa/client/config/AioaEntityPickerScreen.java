@@ -14,6 +14,7 @@ import java.util.Locale;
 import java.util.function.Consumer;
 
 final class AioaEntityPickerScreen extends AioaScrollableScreen {
+    private static final int PREVIEW_HEIGHT = 126;
 
     private final Screen parent;
     private final List<ResourceLocation> allOptions;
@@ -82,7 +83,7 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
             this.selectedOption = this.filteredOptions.isEmpty() ? null : this.filteredOptions.get(0);
         }
 
-        int y = 150;
+        int y = 164;
         for (int i = 0; i < this.optionButtons.size(); i++) {
             Button button = this.optionButtons.get(i);
             if (i >= this.filteredOptions.size()) {
@@ -139,12 +140,14 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
                         this.panelLeft + 20,
                         previewTop,
                         this.panelWidth - 40,
+                        PREVIEW_HEIGHT,
                         this.selectedOption,
                         true,
-                        "Ready to add to the spawn pool"
+                        List.of(
+                                Component.literal("Status: ready to add to the spawn pool"),
+                                Component.literal("ID: " + this.selectedOption)
+                        )
                 );
-                guiGraphics.drawString(this.font, Component.literal("Registry id"), this.panelLeft + 20, previewTop + 106, AioaScreenUtil.TEXT_SUB);
-                AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal(this.selectedOption.toString()), this.width / 2, previewTop + 118, this.panelWidth - 72, AioaScreenUtil.TEXT_MAIN);
             }
             AioaEntityPickerScreen.super.render(guiGraphics, mouseX, mouseY, partialTick);
         });
