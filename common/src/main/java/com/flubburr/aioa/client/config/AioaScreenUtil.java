@@ -92,6 +92,10 @@ public final class AioaScreenUtil {
         guiGraphics.fill(right - 1, top, right, bottom, selected ? PANEL_ACCENT : PANEL_SOFT_BORDER);
     }
 
+    static void drawPreviewPanel(GuiGraphics guiGraphics, int left, int top, int right, int bottom, boolean selected) {
+        drawInsetPanel(guiGraphics, left, top, right, bottom, selected);
+    }
+
     static void drawClippedContent(GuiGraphics guiGraphics, int left, int top, int right, int bottom, Runnable contentRenderer) {
         guiGraphics.enableScissor(left, top, right, bottom);
         contentRenderer.run();
