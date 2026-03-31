@@ -6,7 +6,7 @@ import com.flubburr.aioa.platform.Services;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 
@@ -38,7 +38,7 @@ public final class AioaConfigManager {
     private static volatile Path configPath;
     private static volatile long lastModified = Long.MIN_VALUE;
     private static volatile long nextFilesystemCheckAt = 0L;
-    private static volatile Set<Identifier> burnSafeDaySpawnEntityIds = Set.of();
+    private static volatile Set<ResourceLocation> burnSafeDaySpawnEntityIds = Set.of();
     private static volatile boolean mobCatalogWritten;
 
     private AioaConfigManager() {
@@ -96,7 +96,7 @@ public final class AioaConfigManager {
 
     public static boolean isBurnSafeDaySpawnEntity(EntityType<?> entityType) {
         bootstrap();
-        Identifier id = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
+        ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
         return id != null && burnSafeDaySpawnEntityIds.contains(id);
     }
 
@@ -118,14 +118,18 @@ public final class AioaConfigManager {
             lines.add("# Generated at: " + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
             lines.add("# This list includes all registered living mobs AIOA can safely configure.");
             lines.add("# Copy the template part into daySurfaceSpawns.spawnPoolEntries in aioa.json.");
+            lines.add("# You can also reuse the ids below inside refinedAiEntityIds, wallClimbingEntityIds, or the per-entity target override lists.");
             lines.add("# Format: entity_id | category=<mob_category> | hostile=<true/false> | template=<spawn_entry_template>");
             lines.add("");
 
             AioaEntityHelper.enumerateConfigurableMobIds(level).forEach(entityId -> {
-                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(entityId);
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(entityId);
                 boolean hostile = AioaEntityHelper.isHostileMob(type, level);
                 String template = entityId + ";enabled=true;rarity=common;chance=1.0;min=1;max=3";
-                lines.add(entityId + " | category=" + type.getCategory().getName() + " | hostile=" + hostile + " | template=" + template);
+                lines.add(AioaEntityHelper.describeEntity(entityId)
+                        + " | category=" + type.getCategory().getName()
+                        + " | hostile=" + hostile
+                        + " | template=" + template);
             });
 
             try {
