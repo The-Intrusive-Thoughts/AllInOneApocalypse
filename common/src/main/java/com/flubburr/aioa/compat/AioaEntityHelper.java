@@ -47,7 +47,7 @@ public final class AioaEntityHelper {
             return Optional.empty();
         }
 
-        ResourceLocation directId = ResourceLocation.tryParse(trimmed);
+        ResourceLocation directId = parseResourceLocation(trimmed);
         if (directId != null && BuiltInRegistries.ENTITY_TYPE.containsKey(directId)) {
             return Optional.of(directId);
         }
@@ -70,6 +70,19 @@ public final class AioaEntityHelper {
             warningConsumer.accept("AIOA found multiple mob matches for '" + rawSelector + "'. Use a full id or 'Name (modid:id)' to disambiguate.");
         }
         return Optional.empty();
+    }
+
+    public static ResourceLocation parseResourceLocation(String rawId) {
+        String trimmed = rawId == null ? "" : rawId.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+
+        try {
+            return new ResourceLocation(trimmed);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     public static String describeEntity(ResourceLocation entityId) {
@@ -134,7 +147,7 @@ public final class AioaEntityHelper {
             return null;
         }
 
-        return ResourceLocation.tryParse(rawSelector.substring(open + 1, close).trim());
+        return parseResourceLocation(rawSelector.substring(open + 1, close).trim());
     }
 
     private static String normalizeSelector(String value) {

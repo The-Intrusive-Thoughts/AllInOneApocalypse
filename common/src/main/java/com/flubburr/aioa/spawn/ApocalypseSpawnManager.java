@@ -264,7 +264,7 @@ public final class ApocalypseSpawnManager {
         }
 
         for (String rawBiomeId : settings.allowedBiomeIds) {
-            ResourceLocation configuredBiomeId = ResourceLocation.tryParse(rawBiomeId == null ? "" : rawBiomeId.trim());
+            ResourceLocation configuredBiomeId = AioaEntityHelper.parseResourceLocation(rawBiomeId == null ? "" : rawBiomeId.trim());
             if (configuredBiomeId == null) {
                 AioaConfigManager.warnOnce(
                         "invalid-biome:" + rawBiomeId,
