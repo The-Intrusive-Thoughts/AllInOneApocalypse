@@ -67,9 +67,7 @@ dependencies {
     //   - cloth-config-...-fabric.jar
     //   - supermartijn642sconfiglib-...-fabric-...jar
     // These are loader-specific UI dependencies only; the shared gameplay logic stays in :common.
-    // MidnightLib is resolved from Maven by minecraft_version profile for safer upgrades.
     // Mod Menu stays optional; enable runtime loading only when desired.
-    modImplementation "maven.modrinth:midnightlib:${midnightlib_version}"
     def modMenuDep = "maven.modrinth:modmenu:${modmenu_version}"
     if (modMenuJar != null && modMenuJar.exists()) {
         modCompileOnly files(modMenuJar)
@@ -139,14 +137,10 @@ loom {
     }
 }
 
-tasks.named("jar", Jar).configure {
-    // MidnightLib is supplied as a normal dependency for dev/runtime and distribution.
-}
-
 tasks.matching { it.name in ["runClient", "runServer"] }.configureEach {
     doFirst {
         delete fileTree("run/mods") {
-            include "midnightlib*.jar"
+            include "modmenu*.jar"
         }
     }
 }
@@ -169,7 +163,6 @@ modrinth {
 
     dependencies {
         required.project 'fabric-api'
-        optional.project 'midnightlib'
         optional.project 'modmenu'
         optional.project 'cloth-config'
     }

@@ -34,18 +34,21 @@ import java.util.function.DoubleConsumer;
 import java.util.function.DoubleFunction;
 import java.util.stream.Collectors;
 
-final class AioaScreenUtil {
+public final class AioaScreenUtil {
 
     private static final Map<ResourceLocation, LivingEntity> PREVIEW_ENTITY_CACHE = new HashMap<>();
 
     static final int BUTTON_HEIGHT = 24;
-    static final int PANEL_BACKGROUND = 0xE0101010;
+    static final int PANEL_BACKGROUND = 0xFF101010;
     static final int PANEL_BORDER = 0xFF000000;
     static final int PANEL_ACCENT = 0xFF01BF63;
-    static final int PANEL_SOFT = 0xC0121A16;
+    static final int PANEL_SOFT = 0xFF121A16;
     static final int PANEL_SOFT_BORDER = 0xFF000000;
-    static final int PANEL_SELECTED = 0xD001BF63;
-    static final int PANEL_CARD = 0xDD0F1713;
+    static final int PANEL_SELECTED = 0xFF01BF63;
+    static final int PANEL_CARD = 0xFF0F1713;
+    static final int PREVIEW_BACKGROUND = 0xFF0A0F0C;
+    static final int PREVIEW_SELECTED_BACKGROUND = 0xFF103E28;
+    static final int PREVIEW_MODEL_BACKGROUND = 0xFF0B120E;
     static final int TEXT_MAIN = 0xFFB8FFD9;
     static final int TEXT_SUB = 0xFF75D7A6;
     static final int TEXT_MUTED = 0xFF3E8A64;
@@ -60,6 +63,10 @@ final class AioaScreenUtil {
 
     static EditBox searchBox(int x, int y, int width, String hint) {
         return new AioaSearchBox(x, y, width, BUTTON_HEIGHT, Component.literal(hint));
+    }
+
+    public static void drawScreenBackground(GuiGraphics guiGraphics, int width, int height) {
+        // Intentionally blank: render only the UI chrome and let the underlying screen/world show through.
     }
 
     static void drawPanel(GuiGraphics guiGraphics, int left, int top, int right, int bottom) {
@@ -77,6 +84,15 @@ final class AioaScreenUtil {
         guiGraphics.fill(left, bottom - 1, right, bottom, selected ? PANEL_ACCENT : PANEL_SOFT_BORDER);
         guiGraphics.fill(left, top, left + 1, bottom, selected ? PANEL_ACCENT : PANEL_SOFT_BORDER);
         guiGraphics.fill(right - 1, top, right, bottom, selected ? PANEL_ACCENT : PANEL_SOFT_BORDER);
+    }
+
+    static void drawPreviewPanel(GuiGraphics guiGraphics, int left, int top, int right, int bottom, boolean selected) {
+        guiGraphics.fill(left, top, right, bottom, selected ? PREVIEW_SELECTED_BACKGROUND : PREVIEW_BACKGROUND);
+        guiGraphics.fill(left, top, right, top + 1, PANEL_BORDER);
+        guiGraphics.fill(left, bottom - 1, right, bottom, PANEL_BORDER);
+        guiGraphics.fill(left, top, left + 1, bottom, PANEL_BORDER);
+        guiGraphics.fill(right - 1, top, right, bottom, PANEL_BORDER);
+        guiGraphics.fill(left + 1, top + 1, right - 1, top + 3, selected ? PANEL_ACCENT : 0xFF1A2A21);
     }
 
     static void drawClippedContent(GuiGraphics guiGraphics, int left, int top, int right, int bottom, Runnable contentRenderer) {
@@ -338,7 +354,7 @@ final class AioaScreenUtil {
     }
 
     static void drawMobPreview(GuiGraphics guiGraphics, Font font, int left, int top, int width, int height, ResourceLocation id, boolean selected, List<Component> detailLines) {
-        drawInsetPanel(guiGraphics, left, top, left + width, top + height, selected);
+        drawPreviewPanel(guiGraphics, left, top, left + width, top + height, selected);
         int padding = 12;
         int modelPanelWidth = Math.max(92, Math.min(132, width / 3));
         int modelLeft = left + width - modelPanelWidth - padding;
@@ -360,13 +376,28 @@ final class AioaScreenUtil {
             lineY += 14;
         }
 
-        drawInsetPanel(guiGraphics, modelLeft, modelTop, left + width - padding, modelBottom, false);
+        guiGraphics.fill(modelLeft, modelTop, left + width - padding, modelBottom, PREVIEW_MODEL_BACKGROUND);
+        guiGraphics.fill(modelLeft, modelTop, left + width - padding, modelTop + 1, PANEL_BORDER);
+        guiGraphics.fill(modelLeft, modelBottom - 1, left + width - padding, modelBottom, PANEL_BORDER);
+        guiGraphics.fill(modelLeft, modelTop, modelLeft + 1, modelBottom, PANEL_BORDER);
+        guiGraphics.fill(left + width - padding - 1, modelTop, left + width - padding, modelBottom, PANEL_BORDER);
         LivingEntity previewEntity = previewEntity(id);
         if (previewEntity != null) {
             int modelCenterX = modelLeft + ((left + width - padding - modelLeft) / 2);
             int modelAnchorY = modelBottom - 10;
             int scale = Math.max(24, Math.min(42, (modelBottom - modelTop) / 2));
-            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, modelCenterX, modelAnchorY, scale, 0.0F, 0.0F, previewEntity);
+            InventoryScreen.renderEntityInInventoryFollowsMouse(
+                    guiGraphics,
+                    modelLeft,
+                    modelTop,
+                    left + width - padding,
+                    modelBottom,
+                    scale,
+                    0.0F,
+                    0.0F,
+                    0.0F,
+                    previewEntity
+            );
         } else {
             int itemX = modelLeft + (((left + width - padding) - modelLeft) / 2) - 8;
             int itemY = modelTop + ((modelBottom - modelTop) / 2) - 8;

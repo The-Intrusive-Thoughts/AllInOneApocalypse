@@ -39,13 +39,13 @@ public final class AioaZombieBehaviour {
             FOLLOW_RANGE_MODIFIER_ID,
             "aioa_refined_zombie_follow_range",
             10.0D,
-            AttributeModifier.Operation.ADDITION
+            resolveOperation("ADD_VALUE", "ADDITION")
     );
     private static final AttributeModifier CHASE_SPEED_MODIFIER = new AttributeModifier(
             CHASE_SPEED_MODIFIER_ID,
             "aioa_refined_zombie_chase_speed",
             0.08D,
-            AttributeModifier.Operation.MULTIPLY_TOTAL
+            resolveOperation("ADD_MULTIPLIED_TOTAL", "MULTIPLY_TOTAL")
     );
     private static final ConcurrentHashMap<Class<?>, Optional<Method>> SET_BABY_METHOD_CACHE = new ConcurrentHashMap<>();
 
@@ -281,5 +281,15 @@ public final class AioaZombieBehaviour {
                 return Optional.empty();
             }
         });
+    }
+
+    private static AttributeModifier.Operation resolveOperation(String... names) {
+        for (String name : names) {
+            try {
+                return AttributeModifier.Operation.valueOf(name);
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        throw new IllegalStateException("AIOA could not resolve any supported AttributeModifier operation name.");
     }
 }

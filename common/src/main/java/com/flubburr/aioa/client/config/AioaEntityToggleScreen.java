@@ -171,13 +171,6 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         this.setInitialFocus(this.searchBox);
     }
 
-    @Override
-    public void tick() {
-        if (this.searchBox != null) {
-            this.searchBox.tick();
-        }
-    }
-
     private void refreshList() {
         String query = this.searchQuery.trim().toLowerCase(Locale.ROOT);
         this.filteredOptions = this.allOptions.stream()
@@ -285,29 +278,29 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
+        AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
         AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal(this.description), this.width / 2, 49, this.panelWidth - 72, AioaScreenUtil.TEXT_SUB);
 
-        AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom, () -> {
-            if (this.focusedOption != null) {
-                int previewTop = this.contentTop + PREVIEW_TOP_OFFSET - this.scrollOffset;
-                boolean selected = this.selectedIds.contains(this.focusedOption.toString());
-                AioaScreenUtil.drawMobPreview(
-                        guiGraphics,
-                        this.font,
-                        this.panelLeft + 20,
-                        previewTop,
-                        this.panelWidth - 40,
-                        this.previewHeight(),
-                        this.focusedOption,
-                        selected,
-                        this.previewDetailLines(selected)
-                );
-            }
-            AioaEntityToggleScreen.super.render(guiGraphics, mouseX, mouseY, partialTick);
-        });
+        if (this.focusedOption != null) {
+            int previewTop = this.contentTop + PREVIEW_TOP_OFFSET;
+            boolean selected = this.selectedIds.contains(this.focusedOption.toString());
+            AioaScreenUtil.drawMobPreview(
+                    guiGraphics,
+                    this.font,
+                    this.panelLeft + 20,
+                    previewTop,
+                    this.panelWidth - 40,
+                    this.previewHeight(),
+                    this.focusedOption,
+                    selected,
+                    this.previewDetailLines(selected)
+            );
+        }
+
+        AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom,
+                () -> AioaEntityToggleScreen.super.render(guiGraphics, mouseX, mouseY, partialTick));
 
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
     }

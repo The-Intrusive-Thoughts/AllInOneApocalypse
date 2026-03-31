@@ -131,13 +131,6 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
         this.setInitialFocus(this.searchBox);
     }
 
-    @Override
-    public void tick() {
-        if (this.searchBox != null) {
-            this.searchBox.tick();
-        }
-    }
-
     private void refreshList() {
         String query = this.searchQuery.trim().toLowerCase(Locale.ROOT);
         this.filteredBiomes = this.allBiomes.stream()
@@ -235,27 +228,27 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
+        AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
         AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal("Choose which biomes can use day surface spawns. If none are selected, all biomes are allowed."), this.width / 2, 49, this.panelWidth - 72, AioaScreenUtil.TEXT_SUB);
 
-        AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom, () -> {
-            if (this.focusedBiome != null) {
-                int previewHeight = this.previewHeight();
-                int previewTop = this.contentTop + PREVIEW_TOP_OFFSET - this.scrollOffset;
-                boolean selected = this.selectedBiomeIds.contains(this.focusedBiome.toString());
-                AioaScreenUtil.drawInsetPanel(guiGraphics, this.panelLeft + 20, previewTop, this.panelLeft + this.panelWidth - 20, previewTop + previewHeight, selected);
-                guiGraphics.drawString(this.font, Component.literal(AioaScreenUtil.biomeDisplayName(this.focusedBiome)), this.panelLeft + 32, previewTop + 14, AioaScreenUtil.TEXT_MAIN);
-                guiGraphics.drawString(this.font, Component.literal("Category: " + AioaScreenUtil.biomeCategory(this.focusedBiome)), this.panelLeft + 32, previewTop + 30, AioaScreenUtil.TEXT_SUB);
-                if (previewHeight > 80) {
-                    guiGraphics.drawString(this.font, Component.literal(selected ? "Status: allowed for day surface spawns" : "Status: not currently allowed"), this.panelLeft + 32, previewTop + 50, AioaScreenUtil.TEXT_MAIN);
-                    guiGraphics.drawString(this.font, Component.literal("Biome id"), this.panelLeft + 32, previewTop + 70, AioaScreenUtil.TEXT_SUB);
-                    guiGraphics.drawString(this.font, Component.literal(AioaScreenUtil.clip(this.focusedBiome.toString(), 56)), this.panelLeft + 32, previewTop + 84, AioaScreenUtil.TEXT_MAIN);
-                }
+        if (this.focusedBiome != null) {
+            int previewHeight = this.previewHeight();
+            int previewTop = this.contentTop + PREVIEW_TOP_OFFSET;
+            boolean selected = this.selectedBiomeIds.contains(this.focusedBiome.toString());
+            AioaScreenUtil.drawPreviewPanel(guiGraphics, this.panelLeft + 20, previewTop, this.panelLeft + this.panelWidth - 20, previewTop + previewHeight, selected);
+            guiGraphics.drawString(this.font, Component.literal(AioaScreenUtil.biomeDisplayName(this.focusedBiome)), this.panelLeft + 32, previewTop + 14, AioaScreenUtil.TEXT_MAIN);
+            guiGraphics.drawString(this.font, Component.literal("Category: " + AioaScreenUtil.biomeCategory(this.focusedBiome)), this.panelLeft + 32, previewTop + 30, AioaScreenUtil.TEXT_SUB);
+            if (previewHeight > 80) {
+                guiGraphics.drawString(this.font, Component.literal(selected ? "Status: allowed for day surface spawns" : "Status: not currently allowed"), this.panelLeft + 32, previewTop + 50, AioaScreenUtil.TEXT_MAIN);
+                guiGraphics.drawString(this.font, Component.literal("Biome id"), this.panelLeft + 32, previewTop + 70, AioaScreenUtil.TEXT_SUB);
+                guiGraphics.drawString(this.font, Component.literal(AioaScreenUtil.clip(this.focusedBiome.toString(), 56)), this.panelLeft + 32, previewTop + 84, AioaScreenUtil.TEXT_MAIN);
             }
-            AioaBiomeToggleScreen.super.render(guiGraphics, mouseX, mouseY, partialTick);
-        });
+        }
+
+        AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom,
+                () -> AioaBiomeToggleScreen.super.render(guiGraphics, mouseX, mouseY, partialTick));
 
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
     }

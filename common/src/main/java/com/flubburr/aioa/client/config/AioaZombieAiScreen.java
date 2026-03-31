@@ -133,7 +133,7 @@ final class AioaZombieAiScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
+        AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
         int panelWidth = AioaScreenUtil.panelWidth(this.width, 700);
         int panelLeft = AioaScreenUtil.panelLeft(this.width, panelWidth);
         AioaScreenUtil.drawPanel(guiGraphics, panelLeft, 24, panelLeft + panelWidth, this.height - 40);
@@ -146,11 +146,11 @@ final class AioaZombieAiScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         if (this.maxScroll <= 0) {
-            return super.mouseScrolled(mouseX, mouseY, delta);
+            return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         }
-        this.scrollOffset = Math.max(0, Math.min(this.maxScroll, this.scrollOffset - ((int) delta * 24)));
+        this.scrollOffset = Math.max(0, Math.min(this.maxScroll, this.scrollOffset - ((int) verticalAmount * 24)));
         this.updateScrollLayout();
         return true;
     }

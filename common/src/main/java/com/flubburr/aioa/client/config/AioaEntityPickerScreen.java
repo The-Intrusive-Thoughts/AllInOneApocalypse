@@ -66,13 +66,6 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
         this.setInitialFocus(this.searchBox);
     }
 
-    @Override
-    public void tick() {
-        if (this.searchBox != null) {
-            this.searchBox.tick();
-        }
-    }
-
     private void refreshList() {
         String query = this.searchQuery.trim().toLowerCase(Locale.ROOT);
         this.filteredOptions = this.allOptions.stream()
@@ -126,31 +119,31 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
+        AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
         AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal("Search the mob list and add a creature to the day spawn pool."), this.width / 2, 49, this.panelWidth - 72, AioaScreenUtil.TEXT_SUB);
 
-        AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom, () -> {
-            if (this.selectedOption != null) {
-                int previewTop = this.contentTop + 34 - this.scrollOffset;
-                AioaScreenUtil.drawMobPreview(
-                        guiGraphics,
-                        this.font,
-                        this.panelLeft + 20,
-                        previewTop,
-                        this.panelWidth - 40,
-                        PREVIEW_HEIGHT,
-                        this.selectedOption,
-                        true,
-                        List.of(
-                                Component.literal("Status: ready to add to the spawn pool"),
-                                Component.literal("ID: " + this.selectedOption)
-                        )
-                );
-            }
-            AioaEntityPickerScreen.super.render(guiGraphics, mouseX, mouseY, partialTick);
-        });
+        if (this.selectedOption != null) {
+            int previewTop = this.contentTop + 34;
+            AioaScreenUtil.drawMobPreview(
+                    guiGraphics,
+                    this.font,
+                    this.panelLeft + 20,
+                    previewTop,
+                    this.panelWidth - 40,
+                    PREVIEW_HEIGHT,
+                    this.selectedOption,
+                    true,
+                    List.of(
+                            Component.literal("Status: ready to add to the spawn pool"),
+                            Component.literal("ID: " + this.selectedOption)
+                    )
+            );
+        }
+
+        AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom,
+                () -> AioaEntityPickerScreen.super.render(guiGraphics, mouseX, mouseY, partialTick));
 
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
     }
