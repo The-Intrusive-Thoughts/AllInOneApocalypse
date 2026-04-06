@@ -110,7 +110,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
+        guiGraphics.fillGradient(0, 0, this.width, this.height, 0xE0101010, 0xF0050706);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
         guiGraphics.drawCenteredString(
                 this.font,
@@ -227,7 +227,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
 
         @Override
         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-            this.renderBackground(guiGraphics);
+            guiGraphics.fillGradient(0, 0, this.width, this.height, 0xE0101010, 0xF0050706);
             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
             super.render(guiGraphics, mouseX, mouseY, partialTick);
         }
@@ -398,7 +398,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
 
         @Override
         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-            this.renderBackground(guiGraphics);
+            guiGraphics.fillGradient(0, 0, this.width, this.height, 0xE0101010, 0xF0050706);
             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
 
             int labelX = this.width / 2 - 150;
@@ -468,15 +468,13 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
             int editorWidth = 340;
             int editorHeight = Math.max(90, this.height - 110);
 
-            this.editor = new MultiLineEditBox(
-                    this.font,
-                    editorX,
-                    editorY,
-                    editorWidth,
-                    editorHeight,
-                    tr("aioa.forge.fallback.list.entries"),
-                    tr("aioa.forge.fallback.list.entries_hint")
-            );
+            this.editor = MultiLineEditBox.builder()
+                    .setX(editorX)
+                    .setY(editorY)
+                    .setPlaceholder(tr("aioa.forge.fallback.list.entries_hint"))
+                    .setShowBackground(false)
+                    .setShowDecorations(false)
+                    .build(this.font, editorWidth, editorHeight, tr("aioa.forge.fallback.list.entries"));
             this.editor.setCharacterLimit(32767);
             this.editor.setValue(String.join("\n", this.initialValues));
             this.addRenderableWidget(this.editor);
@@ -513,7 +511,7 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
 
         @Override
         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-            this.renderBackground(guiGraphics);
+            guiGraphics.fillGradient(0, 0, this.width, this.height, 0xE0101010, 0xF0050706);
             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
             guiGraphics.drawCenteredString(this.font, this.description, this.width / 2, 30, 0xA0A0A0);
             super.render(guiGraphics, mouseX, mouseY, partialTick);

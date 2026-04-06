@@ -37,7 +37,7 @@ public final class AioaEntityHelper {
 
     public static Optional<EntityType<?>> resolveEntityType(ResourceLocation entityId) {
         return BuiltInRegistries.ENTITY_TYPE.containsKey(entityId)
-                ? Optional.of(BuiltInRegistries.ENTITY_TYPE.get(entityId))
+                ? Optional.ofNullable(BuiltInRegistries.ENTITY_TYPE.getValue(entityId))
                 : Optional.empty();
     }
 
@@ -72,6 +72,19 @@ public final class AioaEntityHelper {
         return Optional.empty();
     }
 
+    private static ResourceLocation parseResourceLocation(String rawId) {
+        ResourceLocation parsed = ResourceLocation.tryParse(rawId);
+        if (parsed != null) {
+            return parsed;
+        }
+
+        int separator = rawId.indexOf(':');
+        if (separator > 0 && separator < rawId.length() - 1) {
+            return ResourceLocation.fromNamespaceAndPath(rawId.substring(0, separator), rawId.substring(separator + 1));
+        }
+        return ResourceLocation.withDefaultNamespace(rawId);
+    }
+
     public static String describeEntity(ResourceLocation entityId) {
         return toFriendlyName(entityId) + " (" + entityId + ")";
     }
@@ -103,7 +116,7 @@ public final class AioaEntityHelper {
 
     private static MobClassification inspectEntityType(EntityType<?> entityType, ServerLevel level, ResourceLocation id) {
         try {
-            Entity entity = entityType.create(level);
+            Entity entity = entityType.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
             if (!(entity instanceof Mob mob)) {
                 return MobClassification.NONE;
             }
@@ -134,7 +147,15 @@ public final class AioaEntityHelper {
             return null;
         }
 
-        return ResourceLocation.tryParse(rawSelector.substring(open + 1, close).trim());
+        String embeddedId = rawSelector.substring(open + 1, close).trim();
+        if (embeddedId.isEmpty()) {
+            return null;
+        }
+        try {
+            return parseResourceLocation(embeddedId);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     private static String normalizeSelector(String value) {

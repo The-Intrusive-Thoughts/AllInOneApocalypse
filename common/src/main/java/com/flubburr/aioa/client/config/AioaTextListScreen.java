@@ -38,15 +38,15 @@ final class AioaTextListScreen extends Screen {
 
     @Override
     protected void init() {
-        this.editor = new MultiLineEditBox(
-                this.font,
-                this.width / 2 - 180,
-                62,
-                360,
-                Math.max(100, this.height - 116),
-                Component.literal("Entries"),
-                Component.literal("One value per line")
-        );
+        this.editor = MultiLineEditBox.builder()
+                .setX(this.width / 2 - 180)
+                .setY(62)
+                .setPlaceholder(Component.literal("One value per line"))
+                .setTextColor(AioaScreenUtil.TEXT_MAIN)
+                .setCursorColor(AioaScreenUtil.TEXT_MAIN)
+                .setShowBackground(false)
+                .setShowDecorations(false)
+                .build(this.font, 360, Math.max(100, this.height - 116), Component.literal("Entries"));
         this.editor.setCharacterLimit(32767);
         this.editor.setValue(String.join("\n", this.initialValues));
         this.addRenderableWidget(this.editor);
@@ -70,7 +70,7 @@ final class AioaTextListScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
+        AioaScreenUtil.drawBackdrop(guiGraphics, this.width, this.height);
         AioaScreenUtil.drawPanel(guiGraphics, this.width / 2 - 196, 24, this.width / 2 + 196, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
         AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal(this.description), this.width / 2, 49, 340, AioaScreenUtil.TEXT_SUB);
