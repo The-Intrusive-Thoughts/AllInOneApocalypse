@@ -38,12 +38,11 @@ final class AioaRawEntryEditorScreen extends Screen {
 
     @Override
     public void tick() {
-        this.rawEntryBox.tick();
     }
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
+        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
         AioaScreenUtil.drawPanel(guiGraphics, this.width / 2 - 196, 24, this.width / 2 + 196, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
         AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal("This entry could not be parsed, so it is exposed as raw text."), this.width / 2, 58, 340, AioaScreenUtil.TEXT_SUB);

@@ -5,7 +5,7 @@ plugins {
 }
 
 def modrinthProjectId = providers.gradleProperty('modrinth_project_id').orElse('')
-def modrinthToken = providers.environmentVariable('MODRINTH_TOKEN').orElse('mrp_qwskt8JZZHG2TBvisfZrjoLxeDrWaoY6989YDQayaOxDPqzujSCa3yu0ZjJC')
+def modrinthToken = providers.environmentVariable('MODRINTH_TOKEN').orElse('')
 def modrinthVersionType = providers.gradleProperty('modrinth_version_type').orElse('release')
 def modrinthBodyFile = rootProject.file(providers.gradleProperty('modrinth_body_file').orElse('README.md').get())
 def modrinthChangelogFile = rootProject.file(providers.gradleProperty('modrinth_changelog_file').orElse('CHANGELOG.md').get())
@@ -139,9 +139,7 @@ loom {
     }
 }
 
-tasks.named("jar", Jar).configure {
-    // MidnightLib is supplied as a normal dependency for dev/runtime and distribution.
-}
+sourceSets.main.java.exclude 'com/flubburr/aioa/fabric/config/AioaMidnightConfig.java'
 
 tasks.matching { it.name in ["runClient", "runServer"] }.configureEach {
     doFirst {
