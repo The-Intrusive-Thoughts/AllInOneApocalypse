@@ -5,7 +5,7 @@ import com.flubburr.aioa.compat.AioaEntityHelper;
 import com.flubburr.aioa.config.AioaConfig;
 import com.flubburr.aioa.config.AioaConfigManager;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -17,11 +17,11 @@ import net.minecraft.world.entity.ai.goal.GoalSelector;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.entity.animal.IronGolem;
-import net.minecraft.world.entity.animal.Turtle;
-import net.minecraft.world.entity.animal.WaterAnimal;
-import net.minecraft.world.entity.monster.Zombie;
-import net.minecraft.world.entity.npc.AbstractVillager;
+import net.minecraft.world.entity.animal.fish.WaterAnimal;
+import net.minecraft.world.entity.animal.golem.IronGolem;
+import net.minecraft.world.entity.animal.turtle.Turtle;
+import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.entity.npc.villager.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
@@ -32,8 +32,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class AioaZombieBehaviour {
 
-    private static final ResourceLocation FOLLOW_RANGE_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("aioa", "refined_zombie_follow_range");
-    private static final ResourceLocation CHASE_SPEED_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("aioa", "refined_zombie_chase_speed");
+    private static final Identifier FOLLOW_RANGE_MODIFIER_ID = Identifier.of("aioa", "refined_zombie_follow_range");
+    private static final Identifier CHASE_SPEED_MODIFIER_ID = Identifier.of("aioa", "refined_zombie_chase_speed");
     private static final AttributeModifier FOLLOW_RANGE_MODIFIER = new AttributeModifier(
             FOLLOW_RANGE_MODIFIER_ID,
             10.0D,
@@ -228,9 +228,9 @@ public final class AioaZombieBehaviour {
     }
 
     private static boolean isConfiguredMob(Mob mob, List<String> rawEntityIds) {
-        ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+        Identifier entityId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
         for (String rawEntityId : rawEntityIds) {
-            Optional<ResourceLocation> configuredId = AioaEntityHelper.resolveEntityId(
+            Optional<Identifier> configuredId = AioaEntityHelper.resolveEntityId(
                     rawEntityId,
                     warning -> AioaConfigManager.warnOnce("invalid-ai-selector:" + rawEntityId, warning)
             );

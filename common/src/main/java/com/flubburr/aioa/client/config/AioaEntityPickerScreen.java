@@ -6,7 +6,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,17 +17,17 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
     private static final int PREVIEW_HEIGHT = 126;
 
     private final Screen parent;
-    private final List<ResourceLocation> allOptions;
-    private final Consumer<ResourceLocation> selectionConsumer;
+    private final List<Identifier> allOptions;
+    private final Consumer<Identifier> selectionConsumer;
     private final List<Button> optionButtons = new ArrayList<>();
     private EditBox searchBox;
     private Button addButton;
     private Button backButton;
-    private ResourceLocation selectedOption;
+    private Identifier selectedOption;
     private String searchQuery = "";
-    private List<ResourceLocation> filteredOptions = List.of();
+    private List<Identifier> filteredOptions = List.of();
 
-    AioaEntityPickerScreen(Screen parent, String title, List<ResourceLocation> allOptions, Consumer<ResourceLocation> selectionConsumer) {
+    AioaEntityPickerScreen(Screen parent, String title, List<Identifier> allOptions, Consumer<Identifier> selectionConsumer) {
         super(Component.literal(title));
         this.parent = parent;
         this.allOptions = new ArrayList<>(allOptions);
@@ -52,7 +52,7 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
         });
         y += 30;
 
-        for (ResourceLocation ignored : this.allOptions) {
+        for (Identifier ignored : this.allOptions) {
             Button button = this.addScrollable(AioaScreenUtil.button(left, 0, width, "-", b -> this.selectButton((Button) b)), y);
             button.visible = false;
             this.optionButtons.add(button);
@@ -84,7 +84,7 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
                 continue;
             }
 
-            ResourceLocation id = this.filteredOptions.get(i);
+            Identifier id = this.filteredOptions.get(i);
             boolean selected = id.equals(this.selectedOption);
             this.setScrollableRelativeY(button, y);
             this.setScrollableShown(button, true);

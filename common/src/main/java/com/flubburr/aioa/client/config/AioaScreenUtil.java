@@ -12,7 +12,7 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 
 final class AioaScreenUtil {
 
-    private static final Map<ResourceLocation, LivingEntity> PREVIEW_ENTITY_CACHE = new HashMap<>();
+    private static final Map<Identifier, LivingEntity> PREVIEW_ENTITY_CACHE = new HashMap<>();
 
     static final int BUTTON_HEIGHT = 24;
     static final int PANEL_BACKGROUND = 0xE0101010;
@@ -145,36 +145,36 @@ final class AioaScreenUtil {
         guiGraphics.fill(x + 1, thumbTop, x + 7, thumbTop + thumbHeight, PANEL_ACCENT);
     }
 
-    static List<ResourceLocation> allEntityIds() {
+    static List<Identifier> allEntityIds() {
         return new ArrayList<>(BuiltInRegistries.ENTITY_TYPE.keySet().stream()
-                .sorted(Comparator.comparing(AioaScreenUtil::entitySortKey).thenComparing(ResourceLocation::toString))
+                .sorted(Comparator.comparing(AioaScreenUtil::entitySortKey).thenComparing(Identifier::toString))
                 .toList());
     }
 
-    static List<ResourceLocation> hostileEntityIds() {
+    static List<Identifier> hostileEntityIds() {
         return new ArrayList<>(BuiltInRegistries.ENTITY_TYPE.stream()
                 .filter(type -> type.getCategory() == MobCategory.MONSTER)
                 .map(BuiltInRegistries.ENTITY_TYPE::getKey)
-                .sorted(Comparator.comparing(AioaScreenUtil::entitySortKey).thenComparing(ResourceLocation::toString))
+                .sorted(Comparator.comparing(AioaScreenUtil::entitySortKey).thenComparing(Identifier::toString))
                 .toList());
     }
 
-    static List<ResourceLocation> allBiomeIds() {
+    static List<Identifier> allBiomeIds() {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level != null) {
             return new ArrayList<>(minecraft.level.registryAccess().registryOrThrow(Registries.BIOME).keySet().stream()
-                    .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString))
+                    .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(Identifier::toString))
                     .toList());
         }
         if (minecraft.getConnection() != null) {
             return new ArrayList<>(minecraft.getConnection().registryAccess().registryOrThrow(Registries.BIOME).keySet().stream()
-                    .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString))
+                    .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(Identifier::toString))
                     .toList());
         }
         return defaultBiomeIds();
     }
 
-    private static ArrayList<ResourceLocation> defaultBiomeIds() {
+    private static ArrayList<Identifier> defaultBiomeIds() {
         List<String> vanillaBiomes = List.of(
                 "minecraft:badlands",
                 "minecraft:bamboo_jungle",
@@ -242,13 +242,13 @@ final class AioaScreenUtil {
                 "minecraft:wooded_badlands"
         );
         return new ArrayList<>(vanillaBiomes.stream()
-                .map(ResourceLocation::tryParse)
+                .map(Identifier::tryParse)
                 .filter(Objects::nonNull)
-                .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString))
+                .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(Identifier::toString))
                 .toList());
     }
 
-    static String entityDisplayName(ResourceLocation id) {
+    static String entityDisplayName(Identifier id) {
         EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
         if (type == null) {
             return id.toString();
@@ -257,29 +257,29 @@ final class AioaScreenUtil {
         return description == null || description.isBlank() ? id.toString() : description;
     }
 
-    static String entityLine(ResourceLocation id) {
+    static String entityLine(Identifier id) {
         EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
         String category = type == null ? "unknown" : type.getCategory().getName();
         return entityDisplayName(id) + " [" + category + "] - " + id;
     }
 
-    static String categoryLabel(ResourceLocation id) {
+    static String categoryLabel(Identifier id) {
         EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
         return type == null ? "unknown" : humanizeEnum(type.getCategory().getName());
     }
 
-    static String biomeDisplayName(ResourceLocation id) {
+    static String biomeDisplayName(Identifier id) {
         return Arrays.stream(id.getPath().split("[_/]"))
                 .filter(part -> !part.isBlank())
                 .map(part -> Character.toUpperCase(part.charAt(0)) + part.substring(1))
                 .collect(Collectors.joining(" "));
     }
 
-    static String biomeLine(ResourceLocation id) {
+    static String biomeLine(Identifier id) {
         return biomeDisplayName(id) + " - " + id;
     }
 
-    static String biomeCategory(ResourceLocation id) {
+    static String biomeCategory(Identifier id) {
         if (!"minecraft".equals(id.getNamespace())) {
             return "Modded";
         }
@@ -301,7 +301,7 @@ final class AioaScreenUtil {
         return "Overworld";
     }
 
-    static String dimensionCategory(ResourceLocation id) {
+    static String dimensionCategory(Identifier id) {
         if (!"minecraft".equals(id.getNamespace())) {
             return "Modded";
         }
@@ -325,8 +325,8 @@ final class AioaScreenUtil {
         return "Overworld";
     }
 
-    static ItemStack entityPreviewItem(ResourceLocation id) {
-        ResourceLocation eggId = ResourceLocation.tryParse(id.getNamespace() + ":" + id.getPath() + "_spawn_egg");
+    static ItemStack entityPreviewItem(Identifier id) {
+        Identifier eggId = Identifier.tryParse(id.getNamespace() + ":" + id.getPath() + "_spawn_egg");
         if (eggId == null) {
             return new ItemStack(Items.BARRIER);
         }
@@ -337,7 +337,7 @@ final class AioaScreenUtil {
         return new ItemStack(Items.BARRIER);
     }
 
-    static void drawMobPreview(GuiGraphics guiGraphics, Font font, int left, int top, int width, int height, ResourceLocation id, boolean selected, List<Component> detailLines) {
+    static void drawMobPreview(GuiGraphics guiGraphics, Font font, int left, int top, int width, int height, Identifier id, boolean selected, List<Component> detailLines) {
         drawInsetPanel(guiGraphics, left, top, left + width, top + height, selected);
         int padding = 12;
         int modelPanelWidth = Math.max(92, Math.min(132, width / 3));
@@ -439,7 +439,7 @@ final class AioaScreenUtil {
         return Math.max(0.0D, Math.min(1.0D, value));
     }
 
-    static LivingEntity previewEntity(ResourceLocation id) {
+    static LivingEntity previewEntity(Identifier id) {
         LivingEntity cached = PREVIEW_ENTITY_CACHE.get(id);
         if (cached != null && cached.isAlive()) {
             return cached;
@@ -504,11 +504,11 @@ final class AioaScreenUtil {
         );
     }
 
-    private static String entitySortKey(ResourceLocation id) {
+    private static String entitySortKey(Identifier id) {
         return entityDisplayName(id).toLowerCase(Locale.ROOT);
     }
 
-    private static String biomeSortKey(ResourceLocation id) {
+    private static String biomeSortKey(Identifier id) {
         return biomeDisplayName(id).toLowerCase(Locale.ROOT);
     }
 

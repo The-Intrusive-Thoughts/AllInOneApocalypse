@@ -7,7 +7,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -70,7 +70,7 @@ final class AioaSpawnPoolScreen extends AioaScrollableScreen {
         this.refreshEntries();
     }
 
-    private void addEntryFor(ResourceLocation id) {
+    private void addEntryFor(Identifier id) {
         this.editableConfig.daySurfaceSpawns.spawnPoolEntries.add(id + ";enabled=true;weight=10;chance=1.0;min=1;max=3");
         this.selectedIndex = this.editableConfig.daySurfaceSpawns.spawnPoolEntries.size() - 1;
         this.minecraft.setScreen(new AioaSpawnPoolScreen(this.parent, this.editableConfig));

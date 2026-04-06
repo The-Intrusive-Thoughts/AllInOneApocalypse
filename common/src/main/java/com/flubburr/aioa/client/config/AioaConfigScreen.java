@@ -5,11 +5,11 @@ import com.flubburr.aioa.config.AioaConfigManager;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public final class AioaConfigScreen extends AioaScrollableScreen {
 
-    private static final ResourceLocation LOGO = ResourceLocation.fromNamespaceAndPath("aioa", "textures/gui/aioa-logo2.png");
+    private static final Identifier LOGO = Identifier.of("aioa", "textures/gui/aioa-logo2.png");
     private static final int LOGO_TEXTURE_WIDTH = 1024;
     private static final int LOGO_TEXTURE_HEIGHT = 230;
 

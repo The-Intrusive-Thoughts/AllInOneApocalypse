@@ -7,7 +7,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,13 +25,13 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
 
     private final Screen parent;
     private final String description;
-    private final List<ResourceLocation> allOptions;
+    private final List<Identifier> allOptions;
     private final Set<String> selectedIds;
     private final java.util.function.Consumer<List<String>> saveConsumer;
     private final boolean groupedByDimension;
 
     private final List<Button> optionButtons = new ArrayList<>();
-    private final List<ResourceLocation> visibleButtonOptions = new ArrayList<>();
+    private final List<Identifier> visibleButtonOptions = new ArrayList<>();
     private EditBox searchBox;
     private Button selectAllButton;
     private Button clearButton;
@@ -41,9 +41,9 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
     private Button netherHeader;
     private Button endHeader;
     private Button moddedHeader;
-    private ResourceLocation focusedOption;
+    private Identifier focusedOption;
     private String searchQuery = "";
-    private List<ResourceLocation> filteredOptions = List.of();
+    private List<Identifier> filteredOptions = List.of();
     private boolean overworldExpanded;
     private boolean netherExpanded;
     private boolean endExpanded;
@@ -53,7 +53,7 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
             Screen parent,
             String title,
             String description,
-            List<ResourceLocation> allOptions,
+            List<Identifier> allOptions,
             Set<String> selectedIds,
             java.util.function.Consumer<List<String>> saveConsumer,
             boolean groupedByDimension
@@ -135,7 +135,7 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
             }), y);
         }
 
-        for (ResourceLocation ignored : this.allOptions) {
+        for (Identifier ignored : this.allOptions) {
             Button button = this.addScrollable(AioaScreenUtil.button(left, 0, width, "-", b -> this.toggleButton((Button) b)), y);
             button.visible = false;
             this.optionButtons.add(button);
@@ -143,7 +143,7 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         }
 
         this.selectAllButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Select All Visible", b -> {
-            for (ResourceLocation option : this.visibleButtonOptions) {
+            for (Identifier option : this.visibleButtonOptions) {
                 if (option != null) {
                     this.selectedIds.add(option.toString());
                 }
@@ -152,7 +152,7 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         }), y);
         y += AioaScreenUtil.BUTTON_HEIGHT + 8;
         this.clearButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Clear Visible", b -> {
-            for (ResourceLocation option : this.visibleButtonOptions) {
+            for (Identifier option : this.visibleButtonOptions) {
                 if (option != null) {
                     this.selectedIds.remove(option.toString());
                 }
@@ -184,12 +184,12 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         int y = this.previewReservedHeight();
         int slot = 0;
         if (this.groupedByDimension) {
-            Map<String, List<ResourceLocation>> groups = new HashMap<>();
+            Map<String, List<Identifier>> groups = new HashMap<>();
             groups.put("Overworld", new ArrayList<>());
             groups.put("Nether", new ArrayList<>());
             groups.put("End", new ArrayList<>());
             groups.put("Modded", new ArrayList<>());
-            for (ResourceLocation id : this.filteredOptions) {
+            for (Identifier id : this.filteredOptions) {
                 groups.computeIfAbsent(AioaScreenUtil.dimensionCategory(id), key -> new ArrayList<>()).add(id);
             }
             y = this.layoutGroup(this.overworldHeader, "Overworld hostiles", this.overworldExpanded, groups.get("Overworld"), y, slot);
@@ -201,7 +201,7 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
             y = this.layoutGroup(this.moddedHeader, "Modded hostiles", this.moddedExpanded, groups.get("Modded"), y, slot);
             slot += this.moddedExpanded ? groups.get("Modded").size() : 0;
         } else {
-            for (ResourceLocation id : this.filteredOptions) {
+            for (Identifier id : this.filteredOptions) {
                 y = this.layoutOptionButton(this.optionButtons.get(slot), slot, id, y);
                 slot++;
             }
@@ -222,7 +222,7 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         this.finishScrollLayout(y + 134);
     }
 
-    private int layoutGroup(Button header, String label, boolean expanded, List<ResourceLocation> entries, int y, int slotStart) {
+    private int layoutGroup(Button header, String label, boolean expanded, List<Identifier> entries, int y, int slotStart) {
         if (header == null) {
             return y;
         }
@@ -234,14 +234,14 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
             return y;
         }
         int slot = slotStart;
-        for (ResourceLocation id : entries) {
+        for (Identifier id : entries) {
             y = this.layoutOptionButton(this.optionButtons.get(slot), slot, id, y);
             slot++;
         }
         return y + 4;
     }
 
-    private int layoutOptionButton(Button button, int slot, ResourceLocation id, int y) {
+    private int layoutOptionButton(Button button, int slot, Identifier id, int y) {
         boolean selected = this.selectedIds.contains(id.toString());
         boolean focused = id.equals(this.focusedOption);
         this.visibleButtonOptions.set(slot, id);
@@ -262,7 +262,7 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
             return;
         }
 
-        ResourceLocation id = this.visibleButtonOptions.get(index);
+        Identifier id = this.visibleButtonOptions.get(index);
         if (id == null) {
             return;
         }

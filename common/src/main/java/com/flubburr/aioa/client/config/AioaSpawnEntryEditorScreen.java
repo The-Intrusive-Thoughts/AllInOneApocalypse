@@ -4,7 +4,7 @@ import com.flubburr.aioa.config.AioaSpawnEntry;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -15,7 +15,7 @@ final class AioaSpawnEntryEditorScreen extends AioaScrollableScreen {
     private static final int SLIDER_STACK_END_SPACING = 52;
 
     private final Screen parent;
-    private final ResourceLocation entityId;
+    private final Identifier entityId;
     private final Consumer<AioaSpawnEntry> saveConsumer;
 
     private boolean enabled;

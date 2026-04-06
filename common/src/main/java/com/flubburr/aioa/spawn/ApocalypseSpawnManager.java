@@ -7,7 +7,7 @@ import com.flubburr.aioa.config.AioaConfigManager;
 import com.flubburr.aioa.config.AioaSpawnEntry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -15,7 +15,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.NaturalSpawner;
@@ -228,7 +228,7 @@ public final class ApocalypseSpawnManager {
             return false;
         }
 
-        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), MobSpawnType.EVENT, null, null);
+        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), EntitySpawnReason.EVENT, null, null);
         if (!AioaZombieBehaviour.applyVariantMode(mob, settings)) {
             return false;
         }
@@ -255,7 +255,7 @@ public final class ApocalypseSpawnManager {
             return true;
         }
 
-        ResourceLocation biomeId = level.registryAccess()
+        Identifier biomeId = level.registryAccess()
                 .registryOrThrow(Registries.BIOME)
                 .getKey(level.getBiome(pos).value());
 
@@ -264,7 +264,7 @@ public final class ApocalypseSpawnManager {
         }
 
         for (String rawBiomeId : settings.allowedBiomeIds) {
-            ResourceLocation configuredBiomeId = ResourceLocation.tryParse(rawBiomeId == null ? "" : rawBiomeId.trim());
+            Identifier configuredBiomeId = Identifier.tryParse(rawBiomeId == null ? "" : rawBiomeId.trim());
             if (configuredBiomeId == null) {
                 AioaConfigManager.warnOnce(
                         "invalid-biome:" + rawBiomeId,
