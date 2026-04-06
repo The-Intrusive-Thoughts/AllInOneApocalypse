@@ -7,8 +7,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 
@@ -17,25 +17,25 @@ import java.util.List;
 
 public final class HostileSpawnFilter {
 
-    private static final EnumSet<EntitySpawnReason> SPECIAL_SPAWN_TYPES = EnumSet.of(
-            EntitySpawnReason.BREEDING,
-            EntitySpawnReason.BUCKET,
-            EntitySpawnReason.COMMAND,
-            EntitySpawnReason.CONVERSION,
-            EntitySpawnReason.DISPENSER,
-            EntitySpawnReason.EVENT,
-            EntitySpawnReason.JOCKEY,
-            EntitySpawnReason.MOB_SUMMONED,
-            EntitySpawnReason.PATROL,
-            EntitySpawnReason.REINFORCEMENT,
-            EntitySpawnReason.SPAWN_ITEM_USE,
-            EntitySpawnReason.TRIGGERED
+    private static final EnumSet<MobSpawnType> SPECIAL_SPAWN_TYPES = EnumSet.of(
+            MobSpawnType.BREEDING,
+            MobSpawnType.BUCKET,
+            MobSpawnType.COMMAND,
+            MobSpawnType.CONVERSION,
+            MobSpawnType.DISPENSER,
+            MobSpawnType.EVENT,
+            MobSpawnType.JOCKEY,
+            MobSpawnType.MOB_SUMMONED,
+            MobSpawnType.PATROL,
+            MobSpawnType.REINFORCEMENT,
+            MobSpawnType.SPAWN_EGG,
+            MobSpawnType.TRIGGERED
     );
 
     private HostileSpawnFilter() {
     }
 
-    public static boolean shouldCancelSpawn(EntityType<?> entityType, ServerLevelAccessor levelAccessor, EntitySpawnReason spawnType, BlockPos pos) {
+    public static boolean shouldCancelSpawn(EntityType<?> entityType, ServerLevelAccessor levelAccessor, MobSpawnType spawnType, BlockPos pos) {
         AioaConfig.HostileSpawnControl settings = AioaConfigManager.getConfig().hostileSpawnControl;
         if (!settings.enabled) {
             return false;
@@ -45,10 +45,10 @@ public final class HostileSpawnFilter {
         if (settings.overworldOnly && !level.dimension().equals(Level.OVERWORLD)) {
             return false;
         }
-        if (spawnType == EntitySpawnReason.STRUCTURE && settings.ignoreStructureSpawns) {
+        if (spawnType == MobSpawnType.STRUCTURE && settings.ignoreStructureSpawns) {
             return false;
         }
-        if (spawnType == EntitySpawnReason.SPAWNER && settings.ignoreSpawnerSpawns) {
+        if (spawnType == MobSpawnType.SPAWNER && settings.ignoreSpawnerSpawns) {
             return false;
         }
         if (settings.ignoreSpecialSpawns && SPECIAL_SPAWN_TYPES.contains(spawnType)) {

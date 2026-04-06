@@ -14,7 +14,6 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.SpawnEggItem;
@@ -163,14 +162,12 @@ final class AioaScreenUtil {
     static List<ResourceLocation> allBiomeIds() {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level != null) {
-            return new ArrayList<>(minecraft.level.registryAccess().lookupOrThrow(Registries.BIOME).listElementIds()
-                    .map(resourceKey -> resourceKey.location())
+            return new ArrayList<>(minecraft.level.registryAccess().registryOrThrow(Registries.BIOME).keySet().stream()
                     .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString))
                     .toList());
         }
         if (minecraft.getConnection() != null) {
-            return new ArrayList<>(minecraft.getConnection().registryAccess().lookupOrThrow(Registries.BIOME).listElementIds()
-                    .map(resourceKey -> resourceKey.location())
+            return new ArrayList<>(minecraft.getConnection().registryAccess().registryOrThrow(Registries.BIOME).keySet().stream()
                     .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString))
                     .toList());
         }
@@ -252,7 +249,7 @@ final class AioaScreenUtil {
     }
 
     static String entityDisplayName(ResourceLocation id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
         if (type == null) {
             return id.toString();
         }
@@ -261,13 +258,13 @@ final class AioaScreenUtil {
     }
 
     static String entityLine(ResourceLocation id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
         String category = type == null ? "unknown" : type.getCategory().getName();
         return entityDisplayName(id) + " [" + category + "] - " + id;
     }
 
     static String categoryLabel(ResourceLocation id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
         return type == null ? "unknown" : humanizeEnum(type.getCategory().getName());
     }
 
@@ -333,7 +330,7 @@ final class AioaScreenUtil {
         if (eggId == null) {
             return new ItemStack(Items.BARRIER);
         }
-        var item = BuiltInRegistries.ITEM.getValue(eggId);
+        var item = BuiltInRegistries.ITEM.get(eggId);
         if (item instanceof SpawnEggItem) {
             return new ItemStack(item);
         }
@@ -453,14 +450,14 @@ final class AioaScreenUtil {
             return null;
         }
 
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
         if (type == null) {
             return null;
         }
 
         Entity entity;
         try {
-            entity = type.create(minecraft.level, EntitySpawnReason.COMMAND);
+            entity = type.create(minecraft.level);
         } catch (Exception ignored) {
             return null;
         }
