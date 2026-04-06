@@ -3,7 +3,6 @@ package com.flubburr.aioa.fabric.config;
 import com.flubburr.aioa.AioaConstants;
 import com.flubburr.aioa.config.AioaConfig;
 import com.flubburr.aioa.config.AioaConfigManager;
-import eu.midnightdust.lib.config.EntryInfo;
 import eu.midnightdust.lib.config.MidnightConfig;
 
 import java.lang.reflect.Field;
@@ -226,7 +225,8 @@ public final class AioaMidnightConfig extends MidnightConfig {
 
     private static Field resolveEntryInfoField(String fieldName) {
         try {
-            Field field = EntryInfo.class.getDeclaredField(fieldName);
+            Class<?> entryInfoClass = Class.forName("eu.midnightdust.lib.config.EntryInfo");
+            Field field = entryInfoClass.getDeclaredField(fieldName);
             field.setAccessible(true);
             return field;
         } catch (Exception exception) {

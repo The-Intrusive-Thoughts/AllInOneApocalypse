@@ -10,7 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public final class AioaConfigScreen extends AioaScrollableScreen {
 
-    private static final ResourceLocation LOGO = new ResourceLocation("aioa", "textures/gui/aioa-logo2.png");
+    private static final ResourceLocation LOGO = ResourceLocation.fromNamespaceAndPath("aioa", "textures/gui/aioa-logo2.png");
     private static final int LOGO_TEXTURE_WIDTH = 1024;
     private static final int LOGO_TEXTURE_HEIGHT = 230;
 
@@ -84,7 +84,7 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
+        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         int headerBottom = this.contentTop - 12;
         boolean compactHeader = this.height < 300;
