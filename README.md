@@ -26,7 +26,23 @@ You can also adjust how frequently those mobs spawn, making it easy to balance m
 
 [![YetAnotherConfigLib](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/YACL-TEXTURE.png)](https://modrinth.com/mod/yacl)
 [![MidnightLib](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/ML-TEXTURE.png)](https://modrinth.com/mod/midnightlib)
-- [Mod Menu](https://modrinth.com/mod/modmenu)
-- [Cloth Config](https://modrinth.com/mod/cloth-config)
-- [Configured](https://www.curseforge.com/minecraft/mc-mods/configured)
-- [Catalogue](https://www.curseforge.com/minecraft/mc-mods/catalogue)
+[![Mod Menu](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/MM-TEXTURE.png)](https://modrinth.com/mod/modmenu)
+[![Catalogue](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/C-TEXTURE.png)](https://www.curseforge.com/minecraft/mc-mods/catalogue)
+[![Cloth Config Lib](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/CCL-TEXTURE.png)](https://modrinth.com/mod/cloth-config)
+[![Configured](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/CONF-TEXTURE.png)](https://modrinth.com/mod/project/HlpEBg3R)
+
+## Release Workflow
+
+- `.\gradlew.bat verifyAll`
+  Builds both Fabric and Forge to catch loader-specific breakages before release.
+
+- `.\gradlew.bat publishModrinth`
+  Publishes the current checked-in version to Modrinth without changing the Modrinth project page body.
+
+- `.\gradlew.bat syncModrinthBody`
+  Updates the Modrinth project page body separately when you actually want the public description changed.
+
+- `.\gradlew.bat releaseModrinth -PreleaseVersion=0.1.2d -PreleaseChangelog="First note||Second note"`
+  Updates `gradle.properties`, prepends a matching `CHANGELOG.md` entry, builds both loaders, and publishes both artifacts to Modrinth.
+
+This still does not remove the need for separate Minecraft branches when Mojang changes APIs, but it does keep each branch much easier to maintain and publish consistently.
