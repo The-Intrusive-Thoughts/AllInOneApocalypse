@@ -116,11 +116,11 @@ public final class AioaZombieBehaviour {
             }
             case OTHER_MOBS_ONLY -> targetSelector.addGoal(
                     2,
-                    new NearestAttackableTargetGoal<>(mob, PathfinderMob.class, 10, true, false, target -> canTarget(mob, target, mode))
+                    new NearestAttackableTargetGoal<PathfinderMob>(mob, PathfinderMob.class, 10, true, false, (target, level) -> canTarget(mob, target, mode))
             );
             case EVERYTHING -> targetSelector.addGoal(
                     2,
-                    new NearestAttackableTargetGoal<>(mob, LivingEntity.class, 10, true, false, target -> canTarget(mob, target, mode))
+                    new NearestAttackableTargetGoal<LivingEntity>(mob, LivingEntity.class, 10, true, false, (target, level) -> canTarget(mob, target, mode))
             );
         }
     }

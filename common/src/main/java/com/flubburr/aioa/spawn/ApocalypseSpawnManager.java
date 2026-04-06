@@ -13,9 +13,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.NaturalSpawner;
@@ -41,7 +41,7 @@ public final class ApocalypseSpawnManager {
         if (settings.overworldOnly && !level.dimension().equals(Level.OVERWORLD)) {
             return;
         }
-        if (settings.requireDaytime && !level.isDay()) {
+        if (settings.requireDaytime && (level.getDayTime() % 24000L) >= 12000L) {
             return;
         }
         if (level.getGameTime() % settings.spawnIntervalTicks != 0L) {
@@ -211,12 +211,12 @@ public final class ApocalypseSpawnManager {
             return false;
         }
 
-        Entity entity = entityType.create(level);
+        Entity entity = entityType.create(level, EntitySpawnReason.EVENT);
         if (!(entity instanceof Mob mob)) {
             return false;
         }
 
-        mob.moveTo(
+        mob.snapTo(
                 spawnPosition.getX() + 0.5D,
                 spawnPosition.getY(),
                 spawnPosition.getZ() + 0.5D,
@@ -228,7 +228,7 @@ public final class ApocalypseSpawnManager {
             return false;
         }
 
-        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), MobSpawnType.EVENT, null, null);
+        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), EntitySpawnReason.EVENT, null);
         if (!AioaZombieBehaviour.applyVariantMode(mob, settings)) {
             return false;
         }
@@ -241,8 +241,7 @@ public final class ApocalypseSpawnManager {
     }
 
     private static boolean isPotentialSpawnPosition(ServerLevel level, BlockPos spawnPosition, EntityType<?> entityType) {
-        SpawnPlacements.Type placementType = SpawnPlacements.getPlacementType(entityType);
-        if (!NaturalSpawner.isSpawnPositionOk(placementType, level, spawnPosition, entityType)) {
+        if (!SpawnPlacements.isSpawnPositionOk(entityType, level, spawnPosition)) {
             return false;
         }
 
@@ -256,7 +255,7 @@ public final class ApocalypseSpawnManager {
         }
 
         ResourceLocation biomeId = level.registryAccess()
-                .registryOrThrow(Registries.BIOME)
+                .lookupOrThrow(Registries.BIOME)
                 .getKey(level.getBiome(pos).value());
 
         if (biomeId == null) {
