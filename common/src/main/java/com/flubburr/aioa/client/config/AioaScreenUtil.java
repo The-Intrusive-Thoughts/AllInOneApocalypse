@@ -71,6 +71,10 @@ final class AioaScreenUtil {
         guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, PANEL_ACCENT);
     }
 
+    static void drawBackdrop(GuiGraphics guiGraphics, int width, int height) {
+        guiGraphics.fillGradient(0, 0, width, height, 0xE0101010, 0xF0050706);
+    }
+
     static void drawInsetPanel(GuiGraphics guiGraphics, int left, int top, int right, int bottom, boolean selected) {
         guiGraphics.fill(left, top, right, bottom, selected ? PANEL_SELECTED : PANEL_SOFT);
         guiGraphics.fill(left, top, right, top + 1, selected ? PANEL_ACCENT : PANEL_SOFT_BORDER);
@@ -162,12 +166,14 @@ final class AioaScreenUtil {
     static List<ResourceLocation> allBiomeIds() {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level != null) {
-            return new ArrayList<>(minecraft.level.registryAccess().registryOrThrow(Registries.BIOME).keySet().stream()
+            return new ArrayList<>(minecraft.level.registryAccess().lookupOrThrow(Registries.BIOME).listElementIds()
+                    .map(resourceKey -> resourceKey.location())
                     .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString))
                     .toList());
         }
         if (minecraft.getConnection() != null) {
-            return new ArrayList<>(minecraft.getConnection().registryAccess().registryOrThrow(Registries.BIOME).keySet().stream()
+            return new ArrayList<>(minecraft.getConnection().registryAccess().lookupOrThrow(Registries.BIOME).listElementIds()
+                    .map(resourceKey -> resourceKey.location())
                     .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString))
                     .toList());
         }
@@ -249,7 +255,7 @@ final class AioaScreenUtil {
     }
 
     static String entityDisplayName(ResourceLocation id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
         if (type == null) {
             return id.toString();
         }
@@ -258,13 +264,13 @@ final class AioaScreenUtil {
     }
 
     static String entityLine(ResourceLocation id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
         String category = type == null ? "unknown" : type.getCategory().getName();
         return entityDisplayName(id) + " [" + category + "] - " + id;
     }
 
     static String categoryLabel(ResourceLocation id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
         return type == null ? "unknown" : humanizeEnum(type.getCategory().getName());
     }
 
@@ -330,7 +336,7 @@ final class AioaScreenUtil {
         if (eggId == null) {
             return new ItemStack(Items.BARRIER);
         }
-        var item = BuiltInRegistries.ITEM.get(eggId);
+        var item = BuiltInRegistries.ITEM.getValue(eggId);
         if (item instanceof SpawnEggItem) {
             return new ItemStack(item);
         }
@@ -461,14 +467,14 @@ final class AioaScreenUtil {
             return null;
         }
 
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
         if (type == null) {
             return null;
         }
 
         Entity entity;
         try {
-            entity = type.create(minecraft.level);
+            entity = type.create(minecraft.level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
         } catch (Exception ignored) {
             return null;
         }
@@ -692,10 +698,10 @@ final class AioaScreenUtil {
             int bottom = top + this.getHeight();
             drawInsetPanel(guiGraphics, left, top, right, bottom, this.isFocused());
             guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, 0x55000000);
-            guiGraphics.pose().pushPose();
-            guiGraphics.pose().translate(6.0F, 2.0F, 0.0F);
+            guiGraphics.pose().pushMatrix();
+            guiGraphics.pose().translate(6.0F, 2.0F);
             super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
-            guiGraphics.pose().popPose();
+            guiGraphics.pose().popMatrix();
         }
     }
 }
