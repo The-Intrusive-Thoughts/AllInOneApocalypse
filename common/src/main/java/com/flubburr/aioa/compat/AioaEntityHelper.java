@@ -37,7 +37,7 @@ public final class AioaEntityHelper {
 
     public static Optional<EntityType<?>> resolveEntityType(Identifier entityId) {
         return BuiltInRegistries.ENTITY_TYPE.containsKey(entityId)
-                ? Optional.of(BuiltInRegistries.ENTITY_TYPE.get(entityId))
+                ? Optional.of(BuiltInRegistries.ENTITY_TYPE.getValue(entityId))
                 : Optional.empty();
     }
 
@@ -103,7 +103,7 @@ public final class AioaEntityHelper {
 
     private static MobClassification inspectEntityType(EntityType<?> entityType, ServerLevel level, Identifier id) {
         try {
-            Entity entity = entityType.create(level);
+            Entity entity = entityType.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
             if (!(entity instanceof Mob mob)) {
                 return MobClassification.NONE;
             }

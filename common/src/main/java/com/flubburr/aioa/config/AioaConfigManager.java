@@ -123,7 +123,7 @@ public final class AioaConfigManager {
             lines.add("");
 
             AioaEntityHelper.enumerateConfigurableMobIds(level).forEach(entityId -> {
-                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(entityId);
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(entityId);
                 boolean hostile = AioaEntityHelper.isHostileMob(type, level);
                 String template = entityId + ";enabled=true;rarity=common;chance=1.0;min=1;max=3";
                 lines.add(AioaEntityHelper.describeEntity(entityId)

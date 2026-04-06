@@ -36,7 +36,7 @@ public abstract class MobMixin {
         AioaConfig.DaySurfaceSpawns settings = AioaConfigManager.getConfig().daySurfaceSpawns;
         AioaConfig.ZombieTargetMode targetMode = AioaZombieBehaviour.getTargetMode(self, settings);
 
-        if (targetMode != null && (targetMode != AioaConfig.ZombieTargetMode.VANILLA || self instanceof net.minecraft.world.entity.monster.Zombie)) {
+        if (targetMode != null && (targetMode != AioaConfig.ZombieTargetMode.VANILLA || self instanceof net.minecraft.world.entity.monster.zombie.Zombie)) {
             if (this.aioa$lastTargetMode != targetMode) {
                 AioaZombieBehaviour.refreshTargetGoals(self, ((MobAccessor) self).aioa$getTargetSelector(), targetMode);
                 this.aioa$lastTargetMode = targetMode;

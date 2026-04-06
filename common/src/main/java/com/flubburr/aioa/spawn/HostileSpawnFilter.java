@@ -28,7 +28,7 @@ public final class HostileSpawnFilter {
             EntitySpawnReason.MOB_SUMMONED,
             EntitySpawnReason.PATROL,
             EntitySpawnReason.REINFORCEMENT,
-            EntitySpawnReason.SPAWN_EGG,
+            EntitySpawnReason.SPAWN_ITEM_USE,
             EntitySpawnReason.TRIGGERED
     );
 

@@ -162,12 +162,12 @@ final class AioaScreenUtil {
     static List<Identifier> allBiomeIds() {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level != null) {
-            return new ArrayList<>(minecraft.level.registryAccess().registryOrThrow(Registries.BIOME).keySet().stream()
+            return new ArrayList<>(minecraft.level.registryAccess().lookupOrThrow(Registries.BIOME).keySet().stream()
                     .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(Identifier::toString))
                     .toList());
         }
         if (minecraft.getConnection() != null) {
-            return new ArrayList<>(minecraft.getConnection().registryAccess().registryOrThrow(Registries.BIOME).keySet().stream()
+            return new ArrayList<>(minecraft.getConnection().registryAccess().lookupOrThrow(Registries.BIOME).keySet().stream()
                     .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(Identifier::toString))
                     .toList());
         }
@@ -249,7 +249,7 @@ final class AioaScreenUtil {
     }
 
     static String entityDisplayName(Identifier id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
         if (type == null) {
             return id.toString();
         }
@@ -258,13 +258,13 @@ final class AioaScreenUtil {
     }
 
     static String entityLine(Identifier id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
         String category = type == null ? "unknown" : type.getCategory().getName();
         return entityDisplayName(id) + " [" + category + "] - " + id;
     }
 
     static String categoryLabel(Identifier id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
         return type == null ? "unknown" : humanizeEnum(type.getCategory().getName());
     }
 
@@ -330,7 +330,7 @@ final class AioaScreenUtil {
         if (eggId == null) {
             return new ItemStack(Items.BARRIER);
         }
-        var item = BuiltInRegistries.ITEM.get(eggId);
+        var item = BuiltInRegistries.ITEM.getValue(eggId);
         if (item instanceof SpawnEggItem) {
             return new ItemStack(item);
         }
@@ -450,14 +450,14 @@ final class AioaScreenUtil {
             return null;
         }
 
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
         if (type == null) {
             return null;
         }
 
         Entity entity;
         try {
-            entity = type.create(minecraft.level);
+            entity = type.create(minecraft.level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
         } catch (Exception ignored) {
             return null;
         }
@@ -642,7 +642,7 @@ final class AioaScreenUtil {
         }
 
         @Override
-        protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        protected void renderContents(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             int left = this.getX();
             int top = this.getY();
             int right = left + this.width;
@@ -681,10 +681,10 @@ final class AioaScreenUtil {
             int bottom = top + this.getHeight();
             drawInsetPanel(guiGraphics, left, top, right, bottom, this.isFocused());
             guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, 0x55000000);
-            guiGraphics.pose().pushPose();
-            guiGraphics.pose().translate(6.0F, 2.0F, 0.0F);
+            guiGraphics.pose().pushMatrix();
+            guiGraphics.pose().translate(6.0F, 2.0F);
             super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
-            guiGraphics.pose().popPose();
+            guiGraphics.pose().popMatrix();
         }
     }
 }

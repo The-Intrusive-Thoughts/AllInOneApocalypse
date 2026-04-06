@@ -15,29 +15,25 @@ public final class AioaForge {
 
     public AioaForge() {
         AioaCommon.init();
-        MinecraftForge.EVENT_BUS.addListener(this::onLevelTick);
+        TickEvent.LevelTickEvent.Post.BUS.addListener(this::onLevelTick);
 
         if (FMLEnvironment.dist.isClient()) {
             AioaForgeClient.registerConfigScreen();
-            MinecraftForge.EVENT_BUS.addListener(this::onClientTick);
+            TickEvent.ClientTickEvent.Post.BUS.addListener(this::onClientTick);
         }
     }
 
-    private void onLevelTick(TickEvent.LevelTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || event.level.isClientSide()) {
+    private void onLevelTick(TickEvent.LevelTickEvent.Post event) {
+        if (event.level().isClientSide()) {
             return;
         }
 
-        if (event.level instanceof ServerLevel serverLevel) {
+        if (event.level() instanceof ServerLevel serverLevel) {
             AioaCommon.onServerLevelTick(serverLevel);
         }
     }
 
-    private void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) {
-            return;
-        }
-
+    private void onClientTick(TickEvent.ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
         while (AioaForgeClient.openConfigKey().consumeClick()) {
             if (minecraft.player != null && minecraft.player.isCreative()) {

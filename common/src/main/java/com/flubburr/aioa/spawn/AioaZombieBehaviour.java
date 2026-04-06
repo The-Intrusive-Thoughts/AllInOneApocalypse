@@ -32,8 +32,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class AioaZombieBehaviour {
 
-    private static final Identifier FOLLOW_RANGE_MODIFIER_ID = Identifier.of("aioa", "refined_zombie_follow_range");
-    private static final Identifier CHASE_SPEED_MODIFIER_ID = Identifier.of("aioa", "refined_zombie_chase_speed");
+    private static final Identifier FOLLOW_RANGE_MODIFIER_ID = Identifier.fromNamespaceAndPath("aioa", "refined_zombie_follow_range");
+    private static final Identifier CHASE_SPEED_MODIFIER_ID = Identifier.fromNamespaceAndPath("aioa", "refined_zombie_chase_speed");
     private static final AttributeModifier FOLLOW_RANGE_MODIFIER = new AttributeModifier(
             FOLLOW_RANGE_MODIFIER_ID,
             10.0D,
@@ -113,11 +113,11 @@ public final class AioaZombieBehaviour {
             }
             case OTHER_MOBS_ONLY -> targetSelector.addGoal(
                     2,
-                    new NearestAttackableTargetGoal<>(mob, PathfinderMob.class, 10, true, false, target -> canTarget(mob, target, mode))
+                    new NearestAttackableTargetGoal<PathfinderMob>(mob, PathfinderMob.class, 10, true, false, (target, level) -> canTarget(mob, target, mode))
             );
             case EVERYTHING -> targetSelector.addGoal(
                     2,
-                    new NearestAttackableTargetGoal<>(mob, LivingEntity.class, 10, true, false, target -> canTarget(mob, target, mode))
+                    new NearestAttackableTargetGoal<LivingEntity>(mob, LivingEntity.class, 10, true, false, (target, level) -> canTarget(mob, target, mode))
             );
         }
     }
@@ -178,7 +178,7 @@ public final class AioaZombieBehaviour {
                 (currentVelocity.z * 0.92D) + chaseVector.z
         );
         mob.fallDistance = 0.0F;
-        mob.hasImpulse = true;
+        mob.hurtMarked = true;
 
         if (mob instanceof PathfinderMob pathfinderMob) {
             double speed = refinedAiEnabled ? 1.15D : 1.0D;

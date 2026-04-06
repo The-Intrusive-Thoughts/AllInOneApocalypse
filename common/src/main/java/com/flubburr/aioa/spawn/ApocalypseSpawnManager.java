@@ -41,7 +41,7 @@ public final class ApocalypseSpawnManager {
         if (settings.overworldOnly && !level.dimension().equals(Level.OVERWORLD)) {
             return;
         }
-        if (settings.requireDaytime && !level.isDay()) {
+        if (settings.requireDaytime && !level.isBrightOutside()) {
             return;
         }
         if (level.getGameTime() % settings.spawnIntervalTicks != 0L) {
@@ -211,12 +211,12 @@ public final class ApocalypseSpawnManager {
             return false;
         }
 
-        Entity entity = entityType.create(level);
+        Entity entity = entityType.create(level, EntitySpawnReason.EVENT);
         if (!(entity instanceof Mob mob)) {
             return false;
         }
 
-        mob.moveTo(
+        mob.snapTo(
                 spawnPosition.getX() + 0.5D,
                 spawnPosition.getY(),
                 spawnPosition.getZ() + 0.5D,
@@ -228,7 +228,7 @@ public final class ApocalypseSpawnManager {
             return false;
         }
 
-        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), EntitySpawnReason.EVENT, null, null);
+        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), EntitySpawnReason.EVENT, null);
         if (!AioaZombieBehaviour.applyVariantMode(mob, settings)) {
             return false;
         }
@@ -241,8 +241,8 @@ public final class ApocalypseSpawnManager {
     }
 
     private static boolean isPotentialSpawnPosition(ServerLevel level, BlockPos spawnPosition, EntityType<?> entityType) {
-        SpawnPlacements.Type placementType = SpawnPlacements.getPlacementType(entityType);
-        if (!NaturalSpawner.isSpawnPositionOk(placementType, level, spawnPosition, entityType)) {
+        net.minecraft.world.entity.SpawnPlacementType placementType = SpawnPlacements.getPlacementType(entityType);
+        if (!SpawnPlacements.isSpawnPositionOk(entityType, level, spawnPosition)) {
             return false;
         }
 
@@ -256,7 +256,7 @@ public final class ApocalypseSpawnManager {
         }
 
         Identifier biomeId = level.registryAccess()
-                .registryOrThrow(Registries.BIOME)
+                .lookupOrThrow(Registries.BIOME)
                 .getKey(level.getBiome(pos).value());
 
         if (biomeId == null) {

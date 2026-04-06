@@ -9,7 +9,7 @@ import net.minecraft.resources.Identifier;
 
 public final class AioaConfigScreen extends AioaScrollableScreen {
 
-    private static final Identifier LOGO = Identifier.of("aioa", "textures/gui/aioa-logo2.png");
+    private static final Identifier LOGO = Identifier.fromNamespaceAndPath("aioa", "textures/gui/aioa-logo2.png");
     private static final int LOGO_TEXTURE_WIDTH = 1024;
     private static final int LOGO_TEXTURE_HEIGHT = 230;
 
@@ -83,7 +83,7 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
+        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         int headerBottom = this.contentTop - 12;
         boolean compactHeader = this.height < 300;
@@ -100,11 +100,11 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         int logoY = 38;
         AioaScreenUtil.drawInsetPanel(guiGraphics, logoX - 10, logoY - 8, logoX + logoWidth + 10, logoY + logoHeight + 8, false);
         float logoScale = logoWidth / (float) LOGO_TEXTURE_WIDTH;
-        guiGraphics.pose().pushPose();
-        guiGraphics.pose().translate(logoX, logoY, 0.0F);
-        guiGraphics.pose().scale(logoScale, logoScale, 1.0F);
+        guiGraphics.pose().pushMatrix();
+        guiGraphics.pose().translate(logoX, logoY);
+        guiGraphics.pose().scale(logoScale, logoScale);
         guiGraphics.blit(LOGO, 0, 0, 0, 0, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT);
-        guiGraphics.pose().popPose();
+        guiGraphics.pose().popMatrix();
         int titleY = Math.min(logoY + logoHeight + 10, headerBottom - (compactHeader ? 12 : 26));
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, titleY, AioaScreenUtil.TEXT_MAIN);
         if (!compactHeader) {
