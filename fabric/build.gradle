@@ -151,9 +151,7 @@ loom {
     }
 }
 
-tasks.named("jar", Jar).configure {
-    // MidnightLib is supplied as a normal dependency for dev/runtime and distribution.
-}
+sourceSets.main.java.exclude 'com/flubburr/aioa/fabric/config/AioaMidnightConfig.java'
 
 tasks.matching { it.name in ["runClient", "runServer"] }.configureEach {
     doFirst {
