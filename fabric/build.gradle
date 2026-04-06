@@ -79,9 +79,10 @@ dependencies {
     //   - cloth-config-...-fabric.jar
     //   - supermartijn642sconfiglib-...-fabric-...jar
     // These are loader-specific UI dependencies only; the shared gameplay logic stays in :common.
-    // MidnightLib is resolved from Maven by minecraft_version profile for safer upgrades.
+    // This branch uses the custom AIOA config UI directly, so MidnightLib only needs to stay available
+    // for legacy source compatibility, not as a runtime dependency.
+    modCompileOnly "maven.modrinth:midnightlib:${midnightlib_version}"
     // Mod Menu stays optional; enable runtime loading only when desired.
-    modImplementation "maven.modrinth:midnightlib:${midnightlib_version}"
     def modMenuDep = "maven.modrinth:modmenu:${modmenu_version}"
     if (modMenuJar != null && modMenuJar.exists()) {
         modCompileOnly files(modMenuJar)
@@ -149,10 +150,6 @@ loom {
             runDir("run")
         }
     }
-}
-
-tasks.named("jar", Jar).configure {
-    // MidnightLib is supplied as a normal dependency for dev/runtime and distribution.
 }
 
 tasks.matching { it.name in ["runClient", "runServer"] }.configureEach {

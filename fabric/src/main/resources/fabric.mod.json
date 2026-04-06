@@ -10,11 +10,6 @@
   "license": "${license}",
   "icon": "logo.png",
   "environment": "*",
-  "jars": [
-    {
-      "file": "META-INF/jars/aioa-embedded-midnightlib.jar"
-    }
-  ],
   "entrypoints": {
     "main": [
       "com.flubburr.aioa.fabric.AioaFabric"
@@ -36,7 +31,6 @@
     "java": ">=17"
   },
   "suggests": {
-    "midnightlib": "*",
     "modmenu": "*",
     "cloth-config": "*",
     "cloth-config2": "*",
