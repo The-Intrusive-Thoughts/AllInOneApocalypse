@@ -70,6 +70,11 @@ minecraft {
     runs {
         configureEach {
             workingDirectory project.file('run')
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
         }
 
         client {
@@ -85,6 +90,7 @@ minecraft {
 }
 
 sourceSets.main.resources.srcDir 'src/generated/resources'
+sourceSets.main.output.resourcesDir = file("$buildDir/classes/java/main")
 if (yaclJar == null || !yaclJar.exists()) {
     sourceSets.main.java.exclude 'com/flubburr/aioa/forge/config/AioaYaclConfigScreen.java'
 }
@@ -158,24 +164,6 @@ tasks.named('jar', Jar).configure {
     manifest.attributes([
             'MixinConfigs': "${mod_id}.mixins.json"
     ])
-}
-
-tasks.matching { it.name in ['runClient', 'runServer', 'runData'] }.configureEach {
-    doFirst {
-        File resourcesDir = sourceSets.main.output.resourcesDir
-        File classesDir = sourceSets.main.output.classesDirs.files.find { it.exists() }
-
-        if (resourcesDir != null && resourcesDir.exists() && classesDir != null) {
-            copy {
-                from resourcesDir
-                into classesDir
-            }
-
-            if (hasProperty('classpath') && classpath != null) {
-                classpath = files(classpath.files.findAll { it.absoluteFile != resourcesDir.absoluteFile })
-            }
-        }
-    }
 }
 
 modrinth {
