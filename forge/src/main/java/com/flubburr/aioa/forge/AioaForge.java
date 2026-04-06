@@ -2,6 +2,7 @@ package com.flubburr.aioa.forge;
 
 import com.flubburr.aioa.AioaCommon;
 import com.flubburr.aioa.AioaConstants;
+import com.flubburr.aioa.client.config.AioaScreenUtil;
 import com.flubburr.aioa.forge.config.AioaForgeClient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.level.ServerLevel;
@@ -39,6 +40,7 @@ public final class AioaForge {
         }
 
         Minecraft minecraft = Minecraft.getInstance();
+        AioaScreenUtil.tickMenuAudio(minecraft);
         while (AioaForgeClient.openConfigKey().consumeClick()) {
             if (minecraft.player != null && minecraft.player.isCreative()) {
                 minecraft.setScreen(AioaForgeClient.createScreen(minecraft.screen));

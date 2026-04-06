@@ -9,9 +9,11 @@ import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -39,13 +41,15 @@ import java.util.function.DoubleConsumer;
 import java.util.function.DoubleFunction;
 import java.util.stream.Collectors;
 
-final class AioaScreenUtil {
+public final class AioaScreenUtil {
 
     private static final Map<ResourceLocation, LivingEntity> PREVIEW_ENTITY_CACHE = new HashMap<>();
     private static final RandomSource UI_SOUND_RANDOM = RandomSource.create();
     private static final ResourceLocation UI_CLICK_SOUND = new ResourceLocation("aioa", "ui.click");
     private static final ResourceLocation UI_HOVER_SOUND = new ResourceLocation("aioa", "ui.hover");
     private static final ResourceLocation UI_SLIDER_SOUND = new ResourceLocation("aioa", "ui.slider");
+    private static final ResourceLocation MENU_MUSIC_SOUND = new ResourceLocation("aioa", "music.menu");
+    private static MenuLoopSound menuMusic;
 
     static final int BUTTON_HEIGHT = 24;
     static final int PANEL_BACKGROUND = 0xE0101010;
@@ -157,6 +161,34 @@ final class AioaScreenUtil {
         int range = Math.max(1, height - thumbHeight - 2);
         int thumbTop = top + 1 + (int) Math.round((scrollOffset / (double) maxScroll) * range);
         guiGraphics.fill(x + 1, thumbTop, x + 7, thumbTop + thumbHeight, PANEL_ACCENT);
+    }
+
+    public static void tickMenuAudio(Minecraft minecraft) {
+        if (minecraft == null) {
+            return;
+        }
+
+        if (menuMusic != null && menuMusic.isStopped()) {
+            menuMusic = null;
+        }
+
+        if (minecraft.screen instanceof AioaAnimatedScreen) {
+            SoundEvent soundEvent = BuiltInRegistries.SOUND_EVENT.get(MENU_MUSIC_SOUND);
+            if (soundEvent == null) {
+                return;
+            }
+
+            if (menuMusic == null || !minecraft.getSoundManager().isActive(menuMusic)) {
+                menuMusic = new MenuLoopSound(soundEvent);
+                minecraft.getSoundManager().play(menuMusic);
+            }
+            return;
+        }
+
+        if (menuMusic != null) {
+            minecraft.getSoundManager().stop(menuMusic);
+            menuMusic = null;
+        }
     }
 
     static List<ResourceLocation> allEntityIds() {
@@ -546,6 +578,26 @@ final class AioaScreenUtil {
 
     private static float randomPitch(float min, float max) {
         return min + (UI_SOUND_RANDOM.nextFloat() * (max - min));
+    }
+
+    private static final class MenuLoopSound extends AbstractTickableSoundInstance {
+
+        private static final float LOOP_VOLUME = 1.35F;
+
+        private MenuLoopSound(SoundEvent soundEvent) {
+            super(soundEvent, SoundSource.MASTER, UI_SOUND_RANDOM);
+            this.looping = true;
+            this.delay = 0;
+            this.attenuation = SoundInstance.Attenuation.NONE;
+            this.relative = true;
+            this.volume = LOOP_VOLUME;
+            this.pitch = 1.0F;
+        }
+
+        @Override
+        public void tick() {
+            this.volume = LOOP_VOLUME;
+        }
     }
 
     static final class AioaSlider extends AbstractSliderButton {

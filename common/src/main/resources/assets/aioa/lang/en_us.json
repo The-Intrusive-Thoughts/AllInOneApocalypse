@@ -1,6 +1,7 @@
 {
   "aioa.common.on": "ON",
   "aioa.common.off": "OFF",
+  "aioa.common.multiplayer_locked": "AIOA config saving is disabled while connected to multiplayer or dedicated servers.",
   "key.categories.aioa": "All In One Apocalypse",
   "key.aioa.open_config": "Open AIOA Config",
 

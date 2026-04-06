@@ -172,9 +172,9 @@ final class AioaDaySettingsScreen extends AioaScrollableScreen {
             target.maxSpawnDistance = Math.max(target.minSpawnDistance + 8, this.maxSpawnDistanceValue);
             target.maxNearbyManagedMobs = Math.max(1, this.maxNearbyManagedMobsValue);
             this.editableConfig.sanitize();
-            this.minecraft.setScreen(this.parent);
+            this.transitionTo(this.parent);
         }), y);
-        this.addScrollable(AioaScreenUtil.button(centerX + 8, 0, 164, "Cancel", b -> this.minecraft.setScreen(this.parent)), y);
+        this.addScrollable(AioaScreenUtil.button(centerX + 8, 0, 164, "Cancel", b -> this.transitionTo(this.parent)), y);
         this.finishScrollLayout(y + AioaScreenUtil.BUTTON_HEIGHT);
     }
 
@@ -194,6 +194,7 @@ final class AioaDaySettingsScreen extends AioaScrollableScreen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        this.beginUiRender(guiGraphics);
         AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
@@ -201,10 +202,11 @@ final class AioaDaySettingsScreen extends AioaScrollableScreen {
         AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom,
                 () -> AioaDaySettingsScreen.super.render(guiGraphics, mouseX, mouseY, partialTick));
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
+        this.finishUiRender(guiGraphics);
     }
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(this.parent);
+        this.transitionTo(this.parent);
     }
 }

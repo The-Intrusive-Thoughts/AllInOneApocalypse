@@ -4,6 +4,35 @@ plugins {
     id 'com.modrinth.minotaur' version '2.+' apply(false)
 }
 
+def requestedReleaseVersion = providers.gradleProperty('releaseVersion').orNull
+def requestedReleaseChangelog = providers.gradleProperty('releaseChangelog').orNull
+
+if (requestedReleaseVersion?.trim()) {
+    version = requestedReleaseVersion.trim()
+}
+
+def requireReleaseVersion = {
+    if (!(requestedReleaseVersion?.trim())) {
+        throw new GradleException('Set -PreleaseVersion=<version> when running this task.')
+    }
+}
+
+def normalizedReleaseVersion = {
+    requireReleaseVersion()
+    return requestedReleaseVersion.trim()
+}
+
+def releaseChangelogLines = {
+    if (requestedReleaseChangelog?.trim()) {
+        return requestedReleaseChangelog
+                .split(/\|\|/)
+                .collect { it.trim() }
+                .findAll { !it.isBlank() }
+    }
+
+    return ["Release ${normalizedReleaseVersion()}"]
+}
+
 tasks.register('publishModrinth') {
     group = 'publishing'
     description = 'Syncs the Modrinth project body and publishes all configured loader artifacts.'
@@ -13,4 +42,61 @@ tasks.register('publishModrinth') {
     if (findProject(':forge') != null) {
         dependsOn(':forge:modrinth')
     }
+}
+
+tasks.register('verifyAll') {
+    group = 'verification'
+    description = 'Builds every configured loader artifact to catch cross-loader regressions before release.'
+
+    dependsOn(':fabric:build')
+
+    if (findProject(':forge') != null) {
+        dependsOn(':forge:build')
+    }
+}
+
+tasks.register('syncReleaseMetadata') {
+    group = 'release'
+    description = 'Writes the requested release version to gradle.properties and prepends a matching CHANGELOG entry.'
+
+    doLast {
+        def releaseVersion = normalizedReleaseVersion()
+        def propsFile = file('gradle.properties')
+        def changelogFile = file('CHANGELOG.md')
+
+        def propsText = propsFile.getText('UTF-8')
+        if (!(propsText =~ /(?m)^version=/).find()) {
+            throw new GradleException("Could not find a version= line in ${propsFile}.")
+        }
+        def updatedPropsText = propsText.replaceFirst(/(?m)^version=.*/, "version=${releaseVersion}")
+        if (propsText != updatedPropsText) {
+            propsFile.write(updatedPropsText, 'UTF-8')
+        }
+
+        def changelogHeader = "## ${releaseVersion}"
+        def changelogText = changelogFile.exists() ? changelogFile.getText('UTF-8') : "# Changelog\n\n"
+        if (!changelogText.contains(changelogHeader)) {
+            def changelogEntry = new StringBuilder()
+            changelogEntry.append(changelogHeader).append('\n\n')
+            releaseChangelogLines().each { line ->
+                changelogEntry.append('- ').append(line).append('\n')
+            }
+            changelogEntry.append('\n')
+
+            def updatedChangelogText = changelogText.replaceFirst(/(?s)^# Changelog\s*/, "# Changelog\n\n${changelogEntry}")
+            if (updatedChangelogText == changelogText) {
+                updatedChangelogText = "# Changelog\n\n${changelogEntry}${changelogText}"
+            }
+            changelogFile.write(updatedChangelogText, 'UTF-8')
+        }
+    }
+}
+
+tasks.register('releaseModrinth') {
+    group = 'release'
+    description = 'Updates local release metadata, verifies Fabric/Forge builds, then publishes both loaders to Modrinth.'
+
+    dependsOn('syncReleaseMetadata')
+    dependsOn('verifyAll')
+    dependsOn('publishModrinth')
 }

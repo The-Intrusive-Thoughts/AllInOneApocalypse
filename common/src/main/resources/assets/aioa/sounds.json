@@ -13,5 +13,13 @@
     "sounds": [
       "aioa:aioa_ui_slider"
     ]
+  },
+  "music.menu": {
+    "sounds": [
+      {
+        "name": "aioa:aioa_menu_music",
+        "stream": true
+      }
+    ]
   }
 }

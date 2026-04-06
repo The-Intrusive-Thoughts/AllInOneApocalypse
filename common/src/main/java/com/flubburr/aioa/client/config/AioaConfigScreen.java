@@ -15,6 +15,7 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
 
     private final Screen parent;
     private AioaConfig editableConfig;
+    private boolean canSave;
 
     private AioaConfigScreen(Screen parent, AioaConfig editableConfig) {
         super(Component.literal("AIOA Configuration"));
@@ -28,6 +29,7 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
 
     @Override
     protected void init() {
+        this.canSave = this.canEditServerAffectingConfig();
         int contentTop = AioaScreenUtil.adaptiveContentTop(this.height, 238, 68, 120);
         int contentBottom = AioaScreenUtil.adaptiveContentBottom(this.height, this.height - 68, 40, contentTop, 120);
         this.resetScrollLayout(760, contentTop, contentBottom);
@@ -41,35 +43,36 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         int step = AioaScreenUtil.BUTTON_HEIGHT + 10;
 
         this.addScrollable(AioaScreenUtil.button(leftX, 0, columnWidth, "Hostile Spawn Rules", b ->
-                this.minecraft.setScreen(new AioaHostileSettingsScreen(this, this.editableConfig))), y);
+                this.transitionTo(new AioaHostileSettingsScreen(this, this.editableConfig))), y);
         this.addScrollable(AioaScreenUtil.button(rightX, 0, columnWidth, "Day Spawn Rules", b ->
-                this.minecraft.setScreen(new AioaDaySettingsScreen(this, this.editableConfig))), singleColumn ? y + step : y);
+                this.transitionTo(new AioaDaySettingsScreen(this, this.editableConfig))), singleColumn ? y + step : y);
         y += singleColumn ? step * 2 : step;
 
         this.addScrollable(AioaScreenUtil.button(leftX, 0, columnWidth, "Zombie AI and Targeting", b ->
-                this.minecraft.setScreen(new AioaZombieAiScreen(this, this.editableConfig))), y);
+                this.transitionTo(new AioaZombieAiScreen(this, this.editableConfig))), y);
         this.addScrollable(AioaScreenUtil.button(rightX, 0, columnWidth, "Choose Allowed Hostiles", b ->
-                this.minecraft.setScreen(AioaEntityToggleScreen.forHostiles(this, this.editableConfig))), singleColumn ? y + step : y);
+                this.transitionTo(AioaEntityToggleScreen.forHostiles(this, this.editableConfig))), singleColumn ? y + step : y);
         y += singleColumn ? step * 2 : step;
 
         this.addScrollable(AioaScreenUtil.button(leftX, 0, columnWidth, "Edit Day Spawn Pool", b ->
-                this.minecraft.setScreen(new AioaSpawnPoolScreen(this, this.editableConfig))), y);
+                this.transitionTo(new AioaSpawnPoolScreen(this, this.editableConfig))), y);
         this.addScrollable(AioaScreenUtil.button(rightX, 0, columnWidth, "Allowed Biomes", b ->
-                this.minecraft.setScreen(AioaBiomeToggleScreen.create(this, this.editableConfig))), singleColumn ? y + step : y);
+                this.transitionTo(AioaBiomeToggleScreen.create(this, this.editableConfig))), singleColumn ? y + step : y);
         y += singleColumn ? step * 2 : step + 14;
 
         int actionWidth = singleColumn ? columnWidth : (this.panelWidth - 58) / 2;
         this.addScrollable(AioaScreenUtil.button(singleColumn ? leftX : centerX - actionWidth - (gap / 2), 0, actionWidth, "Reset to Defaults", b ->
-                this.minecraft.setScreen(new AioaConfigScreen(this.parent, AioaConfig.createDefault()))), y);
+                this.transitionTo(new AioaConfigScreen(this.parent, AioaConfig.createDefault()))), y);
         this.addScrollable(AioaScreenUtil.button(singleColumn ? leftX : centerX + (gap / 2), 0, actionWidth, "Reload Saved Config", b ->
-                this.minecraft.setScreen(new AioaConfigScreen(this.parent, AioaConfigManager.getConfigCopy()))), singleColumn ? y + step : y);
+                this.transitionTo(new AioaConfigScreen(this.parent, AioaConfigManager.getConfigCopy()))), singleColumn ? y + step : y);
         y += singleColumn ? step * 2 : step + 10;
 
-        this.addScrollable(AioaScreenUtil.button(centerX - 172, 0, 164, "Save", b -> {
+        var saveButton = this.addScrollable(AioaScreenUtil.button(centerX - 172, 0, 164, "Save", b -> {
             this.editableConfig = this.editableConfig.sanitize();
             AioaConfigManager.save(this.editableConfig);
             this.onClose();
         }), y);
+        saveButton.active = this.canSave;
         this.addScrollable(AioaScreenUtil.button(centerX + 8, 0, 164, "Cancel", b -> this.onClose()), y);
         this.finishScrollLayout(y + AioaScreenUtil.BUTTON_HEIGHT);
     }
@@ -77,12 +80,13 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
     @Override
     public void onClose() {
         if (this.minecraft != null) {
-            this.minecraft.setScreen(this.parent);
+            this.transitionTo(this.parent);
         }
     }
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        this.beginUiRender(guiGraphics);
         AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         int headerBottom = this.contentTop - 12;
@@ -118,8 +122,20 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
                     AioaScreenUtil.TEXT_SUB
             );
         }
+        if (!this.canSave) {
+            AioaScreenUtil.drawWrappedCenteredText(
+                    guiGraphics,
+                    this.font,
+                    Component.literal("Connected to a multiplayer or dedicated server. Saving apocalypse gameplay settings is disabled in this session."),
+                    this.width / 2,
+                    Math.max(titleY + (compactHeader ? 14 : 34), this.contentTop - 34),
+                    this.panelWidth - 72,
+                    0xFFE7C76A
+            );
+        }
         AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom,
                 () -> AioaConfigScreen.super.render(guiGraphics, mouseX, mouseY, partialTick));
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
+        this.finishUiRender(guiGraphics);
     }
 }

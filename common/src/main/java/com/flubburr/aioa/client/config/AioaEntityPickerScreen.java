@@ -60,7 +60,7 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
 
         this.addButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Add Selected Mob", b -> this.confirmSelection()), y);
         y += AioaScreenUtil.BUTTON_HEIGHT + 8;
-        this.backButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Back", b -> this.minecraft.setScreen(this.parent)), y);
+        this.backButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Back", b -> this.transitionTo(this.parent)), y);
 
         this.refreshList();
         this.setInitialFocus(this.searchBox);
@@ -121,11 +121,12 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
             return;
         }
         this.selectionConsumer.accept(this.selectedOption);
-        this.minecraft.setScreen(this.parent);
+        this.transitionTo(this.parent);
     }
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        this.beginUiRender(guiGraphics);
         AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
@@ -153,10 +154,11 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
         });
 
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
+        this.finishUiRender(guiGraphics);
     }
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(this.parent);
+        this.transitionTo(this.parent);
     }
 }
