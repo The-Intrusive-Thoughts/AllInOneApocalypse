@@ -37,11 +37,6 @@ final class AioaRawEntryEditorScreen extends Screen {
     }
 
     @Override
-    public void tick() {
-        this.rawEntryBox.tick();
-    }
-
-    @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(guiGraphics);
         AioaScreenUtil.drawPanel(guiGraphics, this.width / 2 - 196, 24, this.width / 2 + 196, this.height - 40);
