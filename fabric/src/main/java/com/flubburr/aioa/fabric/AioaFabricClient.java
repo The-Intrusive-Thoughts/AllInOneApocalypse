@@ -19,7 +19,7 @@ public final class AioaFabricClient implements ClientModInitializer {
                 "key.aioa.open_config",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_F6,
-                "key.categories." + AioaConstants.MOD_ID
+                KeyMapping.Category.MISC
         ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {

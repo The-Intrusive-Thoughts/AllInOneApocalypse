@@ -17,7 +17,7 @@ public final class AioaForgeClient {
             "key.aioa.open_config",
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_F6,
-            "key.categories." + AioaConstants.MOD_ID
+            KeyMapping.Category.MISC
     );
 
     private AioaForgeClient() {

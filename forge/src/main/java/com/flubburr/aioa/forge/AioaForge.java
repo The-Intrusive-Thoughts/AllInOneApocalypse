@@ -23,11 +23,11 @@ public final class AioaForge {
     }
 
     private void onLevelTick(TickEvent.LevelTickEvent.Post event) {
-        if (event.level.isClientSide()) {
+        if (event.level().isClientSide()) {
             return;
         }
 
-        if (event.level instanceof ServerLevel serverLevel) {
+        if (event.level() instanceof ServerLevel serverLevel) {
             AioaCommon.onServerLevelTick(serverLevel);
         }
     }

@@ -383,15 +383,6 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
         }
 
         @Override
-        public void tick() {
-            this.spawnIntervalTicks.tick();
-            this.spawnAttemptsPerPlayer.tick();
-            this.minSpawnDistance.tick();
-            this.maxSpawnDistance.tick();
-            this.maxNearbyManagedMobs.tick();
-        }
-
-        @Override
         public void onClose() {
             this.minecraft.setScreen(this.parent);
         }
@@ -497,11 +488,6 @@ public final class AioaForgeFallbackConfigScreen extends Screen {
                     .build());
 
             this.setInitialFocus(this.editor);
-        }
-
-        @Override
-        public void tick() {
-            this.editor.tick();
         }
 
         @Override

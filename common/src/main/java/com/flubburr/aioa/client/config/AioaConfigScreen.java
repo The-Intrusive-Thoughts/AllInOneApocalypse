@@ -9,7 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public final class AioaConfigScreen extends AioaScrollableScreen {
 
-    private static final ResourceLocation LOGO = new ResourceLocation("aioa", "textures/gui/aioa-logo2.png");
+    private static final ResourceLocation LOGO = ResourceLocation.fromNamespaceAndPath("aioa", "textures/gui/aioa-logo2.png");
     private static final int LOGO_TEXTURE_WIDTH = 1024;
     private static final int LOGO_TEXTURE_HEIGHT = 230;
 
