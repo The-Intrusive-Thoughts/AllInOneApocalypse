@@ -131,13 +131,6 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
         this.setInitialFocus(this.searchBox);
     }
 
-    @Override
-    public void tick() {
-        if (this.searchBox != null) {
-            this.searchBox.tick();
-        }
-    }
-
     private void refreshList() {
         String query = this.searchQuery.trim().toLowerCase(Locale.ROOT);
         this.filteredBiomes = this.allBiomes.stream()
