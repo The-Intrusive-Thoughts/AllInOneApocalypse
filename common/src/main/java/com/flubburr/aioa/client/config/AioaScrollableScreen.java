@@ -86,4 +86,9 @@ abstract class AioaScrollableScreen extends Screen {
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
         return this.handleScroll(delta, 28) || super.mouseScrolled(mouseX, mouseY, delta);
     }
+
+    @Override
+    public void renderBackground(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        AioaScreenUtil.drawBackdrop(guiGraphics, this.width, this.height);
+    }
 }

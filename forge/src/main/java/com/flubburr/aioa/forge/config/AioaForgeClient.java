@@ -5,8 +5,8 @@ import com.flubburr.aioa.client.config.AioaConfigScreen;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.KeyMapping;
-import net.minecraftforge.client.ConfigScreenHandler;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.lwjgl.glfw.GLFW;
@@ -24,11 +24,8 @@ public final class AioaForgeClient {
     }
 
     public static void registerConfigScreen() {
-        FMLJavaModLoadingContext.get().getModEventBus().addListener(AioaForgeClient::onRegisterKeyMappings);
-        ModLoadingContext.get().registerExtensionPoint(
-                ConfigScreenHandler.ConfigScreenFactory.class,
-                () -> new ConfigScreenHandler.ConfigScreenFactory(AioaForgeClient::createScreen)
-        );
+        RegisterKeyMappingsEvent.getBus(FMLJavaModLoadingContext.get().getModBusGroup()).addListener(AioaForgeClient::onRegisterKeyMappings);
+        MinecraftForge.registerConfigScreen(AioaForgeClient::createScreen);
     }
 
     private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {

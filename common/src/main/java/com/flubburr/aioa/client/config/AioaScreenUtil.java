@@ -71,6 +71,10 @@ final class AioaScreenUtil {
         guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, PANEL_ACCENT);
     }
 
+    static void drawBackdrop(GuiGraphics guiGraphics, int width, int height) {
+        guiGraphics.fillGradient(0, 0, width, height, 0xE0101010, 0xF0050706);
+    }
+
     static void drawInsetPanel(GuiGraphics guiGraphics, int left, int top, int right, int bottom, boolean selected) {
         guiGraphics.fill(left, top, right, bottom, selected ? PANEL_SELECTED : PANEL_SOFT);
         guiGraphics.fill(left, top, right, top + 1, selected ? PANEL_ACCENT : PANEL_SOFT_BORDER);
@@ -681,10 +685,10 @@ final class AioaScreenUtil {
             int bottom = top + this.getHeight();
             drawInsetPanel(guiGraphics, left, top, right, bottom, this.isFocused());
             guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, 0x55000000);
-            guiGraphics.pose().pushPose();
-            guiGraphics.pose().translate(6.0F, 2.0F, 0.0F);
+            guiGraphics.pose().pushMatrix();
+            guiGraphics.pose().translate(6.0F, 2.0F);
             super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
-            guiGraphics.pose().popPose();
+            guiGraphics.pose().popMatrix();
         }
     }
 }
