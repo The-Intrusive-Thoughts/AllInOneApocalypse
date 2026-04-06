@@ -155,7 +155,6 @@ modrinth {
 
 tasks.named('modrinth').configure {
     dependsOn tasks.named('build')
-    dependsOn tasks.named('modrinthSyncBody')
     doFirst {
         requireModrinthPublishConfig()
     }

@@ -35,13 +35,20 @@ def releaseChangelogLines = {
 
 tasks.register('publishModrinth') {
     group = 'publishing'
-    description = 'Syncs the Modrinth project body and publishes all configured loader artifacts.'
+    description = 'Publishes all configured loader artifacts to Modrinth without changing the project body.'
 
     dependsOn(':fabric:modrinth')
 
     if (findProject(':forge') != null) {
         dependsOn(':forge:modrinth')
     }
+}
+
+tasks.register('syncModrinthBody') {
+    group = 'publishing'
+    description = 'Syncs the Modrinth project body separately from version publishing.'
+
+    dependsOn(':fabric:modrinthSyncBody')
 }
 
 tasks.register('verifyAll') {
