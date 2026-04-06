@@ -133,7 +133,7 @@ final class AioaZombieAiScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+        AioaScreenUtil.drawBackdrop(guiGraphics, this.width, this.height);
         int panelWidth = AioaScreenUtil.panelWidth(this.width, 700);
         int panelLeft = AioaScreenUtil.panelLeft(this.width, panelWidth);
         AioaScreenUtil.drawPanel(guiGraphics, panelLeft, 24, panelLeft + panelWidth, this.height - 40);

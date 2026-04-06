@@ -4,7 +4,7 @@ import com.flubburr.aioa.config.AioaConfig;
 import com.flubburr.aioa.config.AioaConfigManager;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
@@ -101,11 +101,11 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         int logoY = 38;
         AioaScreenUtil.drawInsetPanel(guiGraphics, logoX - 10, logoY - 8, logoX + logoWidth + 10, logoY + logoHeight + 8, false);
         float logoScale = logoWidth / (float) LOGO_TEXTURE_WIDTH;
-        guiGraphics.pose().pushPose();
-        guiGraphics.pose().translate(logoX, logoY, 0.0F);
-        guiGraphics.pose().scale(logoScale, logoScale, 1.0F);
-        guiGraphics.blit(RenderType::guiTextured, LOGO, 0, 0, 0.0F, 0.0F, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT);
-        guiGraphics.pose().popPose();
+        guiGraphics.pose().pushMatrix();
+        guiGraphics.pose().translate(logoX, logoY);
+        guiGraphics.pose().scale(logoScale, logoScale);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, LOGO, 0, 0, 0.0F, 0.0F, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT);
+        guiGraphics.pose().popMatrix();
         int titleY = Math.min(logoY + logoHeight + 10, headerBottom - (compactHeader ? 12 : 26));
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, titleY, AioaScreenUtil.TEXT_MAIN);
         if (!compactHeader) {
