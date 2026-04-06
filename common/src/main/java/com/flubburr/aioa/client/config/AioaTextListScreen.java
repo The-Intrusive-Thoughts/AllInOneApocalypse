@@ -64,11 +64,6 @@ final class AioaTextListScreen extends Screen {
     }
 
     @Override
-    public void tick() {
-        this.editor.tick();
-    }
-
-    @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         AioaScreenUtil.drawBackdrop(guiGraphics, this.width, this.height);
         AioaScreenUtil.drawPanel(guiGraphics, this.width / 2 - 196, 24, this.width / 2 + 196, this.height - 40);

@@ -373,7 +373,18 @@ final class AioaScreenUtil {
             int modelCenterX = modelLeft + ((left + width - padding - modelLeft) / 2);
             int modelAnchorY = modelBottom - 10;
             int scale = Math.max(24, Math.min(42, (modelBottom - modelTop) / 2));
-            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, modelCenterX, modelAnchorY, scale, 0.0F, 0.0F, previewEntity);
+            InventoryScreen.renderEntityInInventoryFollowsMouse(
+                    guiGraphics,
+                    modelLeft,
+                    modelTop,
+                    left + width - padding,
+                    modelBottom,
+                    scale,
+                    0.0F,
+                    0.0F,
+                    0.0F,
+                    previewEntity
+            );
         } else {
             int itemX = modelLeft + (((left + width - padding) - modelLeft) / 2) - 8;
             int itemY = modelTop + ((modelBottom - modelTop) / 2) - 8;
