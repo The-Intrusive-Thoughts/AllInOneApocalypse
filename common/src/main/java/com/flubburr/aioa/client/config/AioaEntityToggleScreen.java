@@ -7,7 +7,8 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,25 +26,24 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
 
     private final Screen parent;
     private final String description;
-    private final List<Identifier> allOptions;
+    private final List<ResourceLocation> allOptions;
     private final Set<String> selectedIds;
     private final java.util.function.Consumer<List<String>> saveConsumer;
     private final boolean groupedByDimension;
 
     private final List<Button> optionButtons = new ArrayList<>();
-    private final List<Identifier> visibleButtonOptions = new ArrayList<>();
+    private final List<ResourceLocation> visibleButtonOptions = new ArrayList<>();
     private EditBox searchBox;
     private Button selectAllButton;
     private Button clearButton;
     private Button doneButton;
-    private Button cancelButton;
     private Button overworldHeader;
     private Button netherHeader;
     private Button endHeader;
     private Button moddedHeader;
-    private Identifier focusedOption;
+    private ResourceLocation focusedOption;
     private String searchQuery = "";
-    private List<Identifier> filteredOptions = List.of();
+    private List<ResourceLocation> filteredOptions = List.of();
     private boolean overworldExpanded;
     private boolean netherExpanded;
     private boolean endExpanded;
@@ -53,7 +53,7 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
             Screen parent,
             String title,
             String description,
-            List<Identifier> allOptions,
+            List<ResourceLocation> allOptions,
             Set<String> selectedIds,
             java.util.function.Consumer<List<String>> saveConsumer,
             boolean groupedByDimension
@@ -135,7 +135,7 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
             }), y);
         }
 
-        for (Identifier ignored : this.allOptions) {
+        for (ResourceLocation ignored : this.allOptions) {
             Button button = this.addScrollable(AioaScreenUtil.button(left, 0, width, "-", b -> this.toggleButton((Button) b)), y);
             button.visible = false;
             this.optionButtons.add(button);
@@ -143,7 +143,7 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         }
 
         this.selectAllButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Select All Visible", b -> {
-            for (Identifier option : this.visibleButtonOptions) {
+            for (ResourceLocation option : this.visibleButtonOptions) {
                 if (option != null) {
                     this.selectedIds.add(option.toString());
                 }
@@ -152,7 +152,7 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         }), y);
         y += AioaScreenUtil.BUTTON_HEIGHT + 8;
         this.clearButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Clear Visible", b -> {
-            for (Identifier option : this.visibleButtonOptions) {
+            for (ResourceLocation option : this.visibleButtonOptions) {
                 if (option != null) {
                     this.selectedIds.remove(option.toString());
                 }
@@ -162,13 +162,18 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         y += AioaScreenUtil.BUTTON_HEIGHT + 8;
         this.doneButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Done", b -> {
             this.saveConsumer.accept(new ArrayList<>(this.selectedIds));
-            this.minecraft.setScreen(this.parent);
+            this.closeToParent();
         }), y);
-        y += AioaScreenUtil.BUTTON_HEIGHT + 8;
-        this.cancelButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Cancel", b -> this.minecraft.setScreen(this.parent)), y);
 
         this.refreshList();
         this.setInitialFocus(this.searchBox);
+    }
+
+    @Override
+    public void tick() {
+        if (this.searchBox != null) {
+            this.searchBox.tick();
+        }
     }
 
     private void refreshList() {
@@ -184,12 +189,12 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         int y = this.previewReservedHeight();
         int slot = 0;
         if (this.groupedByDimension) {
-            Map<String, List<Identifier>> groups = new HashMap<>();
+            Map<String, List<ResourceLocation>> groups = new HashMap<>();
             groups.put("Overworld", new ArrayList<>());
             groups.put("Nether", new ArrayList<>());
             groups.put("End", new ArrayList<>());
             groups.put("Modded", new ArrayList<>());
-            for (Identifier id : this.filteredOptions) {
+            for (ResourceLocation id : this.filteredOptions) {
                 groups.computeIfAbsent(AioaScreenUtil.dimensionCategory(id), key -> new ArrayList<>()).add(id);
             }
             y = this.layoutGroup(this.overworldHeader, "Overworld hostiles", this.overworldExpanded, groups.get("Overworld"), y, slot);
@@ -201,7 +206,7 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
             y = this.layoutGroup(this.moddedHeader, "Modded hostiles", this.moddedExpanded, groups.get("Modded"), y, slot);
             slot += this.moddedExpanded ? groups.get("Modded").size() : 0;
         } else {
-            for (Identifier id : this.filteredOptions) {
+            for (ResourceLocation id : this.filteredOptions) {
                 y = this.layoutOptionButton(this.optionButtons.get(slot), slot, id, y);
                 slot++;
             }
@@ -215,14 +220,13 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         this.setScrollableRelativeY(this.selectAllButton, y + 6);
         this.setScrollableRelativeY(this.clearButton, y + 38);
         this.setScrollableRelativeY(this.doneButton, y + 70);
-        this.setScrollableRelativeY(this.cancelButton, y + 102);
         boolean hasVisibleOptions = this.visibleButtonOptions.stream().anyMatch(option -> option != null);
         this.selectAllButton.active = hasVisibleOptions;
         this.clearButton.active = hasVisibleOptions;
-        this.finishScrollLayout(y + 134);
+        this.finishScrollLayout(y + 102);
     }
 
-    private int layoutGroup(Button header, String label, boolean expanded, List<Identifier> entries, int y, int slotStart) {
+    private int layoutGroup(Button header, String label, boolean expanded, List<ResourceLocation> entries, int y, int slotStart) {
         if (header == null) {
             return y;
         }
@@ -234,14 +238,14 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
             return y;
         }
         int slot = slotStart;
-        for (Identifier id : entries) {
+        for (ResourceLocation id : entries) {
             y = this.layoutOptionButton(this.optionButtons.get(slot), slot, id, y);
             slot++;
         }
         return y + 4;
     }
 
-    private int layoutOptionButton(Button button, int slot, Identifier id, int y) {
+    private int layoutOptionButton(Button button, int slot, ResourceLocation id, int y) {
         boolean selected = this.selectedIds.contains(id.toString());
         boolean focused = id.equals(this.focusedOption);
         this.visibleButtonOptions.set(slot, id);
@@ -262,7 +266,7 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
             return;
         }
 
-        Identifier id = this.visibleButtonOptions.get(index);
+        ResourceLocation id = this.visibleButtonOptions.get(index);
         if (id == null) {
             return;
         }
@@ -278,7 +282,8 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+        this.beginUiRender(guiGraphics);
+        AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
         AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal(this.description), this.width / 2, 49, this.panelWidth - 72, AioaScreenUtil.TEXT_SUB);
@@ -303,11 +308,21 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         });
 
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
+        this.finishUiRender(guiGraphics);
     }
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(this.parent);
+        this.closeToParent();
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+            this.closeToParent();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     private int previewHeight() {
@@ -325,5 +340,11 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         lines.add(Component.literal("ID: " + this.focusedOption));
         lines.add(Component.literal(selected ? "Status: included in the hostile allow-list" : "Status: currently excluded"));
         return lines;
+    }
+
+    private void closeToParent() {
+        if (this.minecraft != null) {
+            this.minecraft.setScreen(this.parent);
+        }
     }
 }

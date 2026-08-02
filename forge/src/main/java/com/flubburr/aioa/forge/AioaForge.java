@@ -101,7 +101,7 @@ public final class AioaForge {
                 continue;
             }
             if (minecraft.player != null && minecraft.player.isCreative()) {
-                minecraft.setScreen(com.flubburr.aioa.client.config.AioaSpawnStudioScreen.create(minecraft.screen));
+                minecraft.setScreen(com.flubburr.aioa.client.config.AioaBehaviorEditorScreen.createForWorld(minecraft.screen));
             }
         }
     }

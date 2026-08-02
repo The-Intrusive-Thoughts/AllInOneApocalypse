@@ -74,7 +74,7 @@ final class AioaDocsScreen extends AioaAnimatedScreen {
         card(g, left + 20, top, width - 40, "WELCOME TO MOB STUDIO", "Build mob behavior by placing readable nodes, linking their output ports, previewing the selected mob, validating, and applying. Start with one mob type before using global scopes.");
         AioaScreenUtil.drawMobPreview(g, this.font, left + 36, top + 76, 210, 150, Identifier.fromNamespaceAndPath("minecraft", "zombie"), true,
                 List.of(Component.literal("LIVE MOB SHOWCASE"), Component.literal("Select, preview, spawn, direct")));
-        card(g, left + 270, top + 76, width - 306, "FIRST GRAPH", "1. Open Behavior Graph Studio.  2. Choose a scope or use world picking.  3. Add event, sensing, action, and condition nodes.  4. Link ports.  5. Validate and Apply. Use Spawn Studio to create a test subject.");
+        card(g, left + 270, top + 76, width - 306, "FIRST GRAPH", "1. Open Behavior Graph Studio or press F7.  2. Choose a scope or use world picking.  3. Add event, sensing, action, and condition nodes.  4. Link ports.  5. Validate and press Done. Use Spawn Studio to create a test subject.");
     }
 
     private void drawEditorDocs(GuiGraphics g, int left, int top, int width) {
