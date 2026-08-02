@@ -1073,7 +1073,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             ResourceLocation parsed = AioaEntityHelper.parseResourceLocation(this.selected.parameters.get("entity"));
             if (parsed != null) return parsed;
         }
-        return new ResourceLocation("minecraft", "zombie");
+        return ResourceLocation.fromNamespaceAndPath("minecraft", "zombie");
     }
 
     private AioaBehaviorGraph.Node findNode(String id) {
