@@ -2,6 +2,9 @@ package com.flubburr.aioa.forge.config;
 
 import com.flubburr.aioa.AioaConstants;
 import com.flubburr.aioa.client.config.AioaConfigScreen;
+import com.flubburr.aioa.client.config.AioaSpawnStudioScreen;
+import com.flubburr.aioa.network.AioaClientNetworking;
+import com.flubburr.aioa.forge.AioaForge;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.KeyMapping;
@@ -19,6 +22,10 @@ public final class AioaForgeClient {
             GLFW.GLFW_KEY_F6,
             "key.categories." + AioaConstants.MOD_ID
     );
+    private static final KeyMapping OPEN_SPAWN_STUDIO_KEY = new KeyMapping(
+            "key.aioa.open_spawn_studio", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F7,
+            "key.categories." + AioaConstants.MOD_ID
+    );
 
     private AioaForgeClient() {
     }
@@ -29,10 +36,12 @@ public final class AioaForgeClient {
                 ConfigScreenHandler.ConfigScreenFactory.class,
                 () -> new ConfigScreenHandler.ConfigScreenFactory(AioaForgeClient::createScreen)
         );
+        AioaClientNetworking.registerSender(request -> AioaForge.NETWORK.send(request, net.minecraftforge.network.PacketDistributor.SERVER.noArg()));
     }
 
     private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         event.register(OPEN_CONFIG_KEY);
+        event.register(OPEN_SPAWN_STUDIO_KEY);
     }
 
     public static Screen createScreen(Screen parent) {
@@ -41,5 +50,9 @@ public final class AioaForgeClient {
 
     public static KeyMapping openConfigKey() {
         return OPEN_CONFIG_KEY;
+    }
+
+    public static KeyMapping openSpawnStudioKey() {
+        return OPEN_SPAWN_STUDIO_KEY;
     }
 }

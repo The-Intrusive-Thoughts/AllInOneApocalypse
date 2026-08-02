@@ -62,6 +62,14 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
                 this.minecraft.setScreen(AioaBiomeToggleScreen.create(this, this.editableConfig))), singleColumn ? y + step : y);
         y += singleColumn ? step * 2 : step + 14;
 
+        this.addScrollable(AioaScreenUtil.button(leftX, 0, singleColumn ? columnWidth : this.panelWidth - 44, "Open Creative Spawn Studio", b ->
+                this.minecraft.setScreen(AioaSpawnStudioScreen.create(this))), y);
+        y += step + 6;
+
+        this.addScrollable(AioaScreenUtil.button(leftX, 0, singleColumn ? columnWidth : this.panelWidth - 44, "Quick Presets", b ->
+                this.minecraft.setScreen(new AioaPresetScreen(this, this.editableConfig))), y);
+        y += step + 6;
+
         int actionWidth = singleColumn ? columnWidth : (this.panelWidth - 58) / 2;
         this.addScrollable(AioaScreenUtil.button(singleColumn ? leftX : centerX - actionWidth - (gap / 2), 0, actionWidth, "Reset to Defaults", b ->
                 this.minecraft.setScreen(new AioaConfigScreen(this.parent, AioaConfig.createDefault()))), y);
