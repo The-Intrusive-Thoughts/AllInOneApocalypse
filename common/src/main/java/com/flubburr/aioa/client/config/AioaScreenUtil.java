@@ -46,10 +46,10 @@ public final class AioaScreenUtil {
 
     private static final Map<ResourceLocation, LivingEntity> PREVIEW_ENTITY_CACHE = new HashMap<>();
     private static final RandomSource UI_SOUND_RANDOM = RandomSource.create();
-    private static final ResourceLocation UI_CLICK_SOUND = new ResourceLocation("aioa", "ui.click");
-    private static final ResourceLocation UI_HOVER_SOUND = new ResourceLocation("aioa", "ui.hover");
-    private static final ResourceLocation UI_SLIDER_SOUND = new ResourceLocation("aioa", "ui.slider");
-    private static final ResourceLocation MENU_MUSIC_SOUND = new ResourceLocation("aioa", "music.menu");
+    private static final ResourceLocation UI_CLICK_SOUND = ResourceLocation.fromNamespaceAndPath("aioa", "ui.click");
+    private static final ResourceLocation UI_HOVER_SOUND = ResourceLocation.fromNamespaceAndPath("aioa", "ui.hover");
+    private static final ResourceLocation UI_SLIDER_SOUND = ResourceLocation.fromNamespaceAndPath("aioa", "ui.slider");
+    private static final ResourceLocation MENU_MUSIC_SOUND = ResourceLocation.fromNamespaceAndPath("aioa", "music.menu");
     private static MenuLoopSound menuMusic;
 
     static final int BUTTON_HEIGHT = 24;
