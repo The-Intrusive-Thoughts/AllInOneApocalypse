@@ -37,6 +37,7 @@ public final class AioaForgeClient {
                 () -> new ConfigScreenHandler.ConfigScreenFactory(AioaForgeClient::createScreen)
         );
         AioaClientNetworking.registerSender(request -> AioaForge.NETWORK.sendToServer(request));
+        AioaClientNetworking.registerGraphSender(request -> AioaForge.NETWORK.sendToServer(request));
     }
 
     private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {

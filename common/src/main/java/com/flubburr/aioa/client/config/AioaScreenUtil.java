@@ -68,6 +68,15 @@ public final class AioaScreenUtil {
     private AioaScreenUtil() {
     }
 
+    private static int lerpColor(int from, int to, float amount) {
+        float t = Math.max(0.0F, Math.min(1.0F, amount));
+        int a = Math.round(((from >>> 24) & 0xFF) + ((((to >>> 24) & 0xFF) - ((from >>> 24) & 0xFF)) * t));
+        int r = Math.round(((from >>> 16) & 0xFF) + ((((to >>> 16) & 0xFF) - ((from >>> 16) & 0xFF)) * t));
+        int g = Math.round(((from >>> 8) & 0xFF) + ((((to >>> 8) & 0xFF) - ((from >>> 8) & 0xFF)) * t));
+        int b = Math.round((from & 0xFF) + (((to & 0xFF) - (from & 0xFF)) * t));
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
     static Button button(int x, int y, int width, String label, Button.OnPress onPress) {
         return new AioaButton(x, y, width, BUTTON_HEIGHT, Component.literal(label), onPress);
     }
@@ -608,6 +617,7 @@ public final class AioaScreenUtil {
         private final DoubleFunction<String> labelFactory;
         private final DoubleConsumer consumer;
         private boolean wasHovered;
+        private float hoverProgress;
         private double lastSoundValue = Double.NaN;
 
         AioaSlider(
@@ -681,12 +691,13 @@ public final class AioaScreenUtil {
             int right = left + this.width;
             int bottom = top + this.height;
             boolean hovered = this.isHoveredOrFocused();
+            this.hoverProgress += ((hovered ? 1.0F : 0.0F) - this.hoverProgress) * 0.24F;
             if (hovered && !this.wasHovered && this.active) {
                 playUiSound(UI_HOVER_SOUND, 0.45F, randomPitch(1.05F, 1.22F));
             }
             this.wasHovered = hovered;
 
-            drawInsetPanel(guiGraphics, left, top, right, bottom, hovered);
+            drawInsetPanel(guiGraphics, left, top, right, bottom, this.hoverProgress > 0.45F);
             guiGraphics.fill(left + 2, top + 2, right - 2, top + 4, hovered ? 0x88000000 : 0x55000000);
 
             int trackLeft = left + 12;
@@ -711,7 +722,7 @@ public final class AioaScreenUtil {
                 guiGraphics.fill(trackLeft + 1, trackTop + 1, Math.min(trackLeft + progressWidth, trackRight - 1), trackBottom - 1, PANEL_ACCENT);
             }
 
-            int knobRadius = hovered ? 6 : 5;
+            int knobRadius = 5 + Math.round(this.hoverProgress);
             guiGraphics.fill(knobCenterX - knobRadius, trackTop - 4, knobCenterX + knobRadius, trackBottom + 4, this.active ? TEXT_MAIN : TEXT_MUTED);
             guiGraphics.fill(knobCenterX - 2, trackTop - 1, knobCenterX + 2, trackBottom + 1, 0xFF0C1711);
 
@@ -760,6 +771,8 @@ public final class AioaScreenUtil {
     static final class AioaButton extends Button {
 
         private boolean wasHovered;
+        private float hoverProgress;
+        private float pressPulse;
 
         AioaButton(int x, int y, int width, int height, Component message, OnPress onPress) {
             super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
@@ -768,6 +781,7 @@ public final class AioaScreenUtil {
         @Override
         public void playDownSound(net.minecraft.client.sounds.SoundManager soundManager) {
             playUiSound(UI_CLICK_SOUND, 0.65F, randomPitch(0.75F, 1.08F));
+            this.pressPulse = 1.0F;
         }
 
         @Override
@@ -777,11 +791,18 @@ public final class AioaScreenUtil {
             int right = left + this.width;
             int bottom = top + this.height;
             boolean hovered = this.isHoveredOrFocused();
+            this.hoverProgress += ((hovered ? 1.0F : 0.0F) - this.hoverProgress) * 0.28F;
+            this.pressPulse *= 0.72F;
             if (hovered && !this.wasHovered && this.active) {
                 playUiSound(UI_HOVER_SOUND, 0.45F, randomPitch(1.05F, 1.22F));
             }
             this.wasHovered = hovered;
-            int fill = !this.active ? 0xAA0B0B0B : hovered ? 0xFF03D772 : 0xE001BF63;
+            int pressInset = Math.round(this.pressPulse * 2.0F);
+            left += pressInset;
+            top += pressInset;
+            right -= pressInset;
+            bottom -= pressInset;
+            int fill = !this.active ? 0xAA0B0B0B : lerpColor(0xE001BF63, 0xFF03D772, this.hoverProgress);
             int text = !this.active ? TEXT_MUTED : BUTTON_TEXT;
 
             guiGraphics.fill(left, top, right, bottom, fill);
@@ -790,8 +811,12 @@ public final class AioaScreenUtil {
             guiGraphics.fill(left, top, left + 1, bottom, PANEL_BORDER);
             guiGraphics.fill(right - 1, top, right, bottom, PANEL_BORDER);
             guiGraphics.fill(left + 2, top + 2, right - 2, top + 4, hovered ? 0x88000000 : 0x55000000);
+            int sweepWidth = Math.round((right - left - 4) * this.hoverProgress);
+            if (sweepWidth > 0) {
+                guiGraphics.fill(left + 2, bottom - 3, left + 2 + sweepWidth, bottom - 1, 0xCCB4FFD4);
+            }
 
-            guiGraphics.drawCenteredString(Minecraft.getInstance().font, this.getMessage(), left + this.width / 2, top + (this.height - 8) / 2, text);
+            guiGraphics.drawCenteredString(Minecraft.getInstance().font, this.getMessage(), (left + right) / 2, (top + bottom - 8) / 2, text);
         }
     }
 

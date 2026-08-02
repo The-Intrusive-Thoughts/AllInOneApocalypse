@@ -19,6 +19,8 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
     private final Screen parent;
     private final List<ResourceLocation> allOptions;
     private final Consumer<ResourceLocation> selectionConsumer;
+    private final String description;
+    private final String actionLabel;
     private final List<Button> optionButtons = new ArrayList<>();
     private EditBox searchBox;
     private Button addButton;
@@ -28,9 +30,15 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
     private List<ResourceLocation> filteredOptions = List.of();
 
     AioaEntityPickerScreen(Screen parent, String title, List<ResourceLocation> allOptions, Consumer<ResourceLocation> selectionConsumer) {
+        this(parent, title, allOptions, "Search the mob list and add a creature to the day spawn pool.", "Add Selected Mob", selectionConsumer);
+    }
+
+    AioaEntityPickerScreen(Screen parent, String title, List<ResourceLocation> allOptions, String description, String actionLabel, Consumer<ResourceLocation> selectionConsumer) {
         super(Component.literal(title));
         this.parent = parent;
         this.allOptions = new ArrayList<>(allOptions);
+        this.description = description;
+        this.actionLabel = actionLabel;
         this.selectionConsumer = selectionConsumer;
     }
 
@@ -58,7 +66,7 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
             this.optionButtons.add(button);
         }
 
-        this.addButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Add Selected Mob", b -> this.confirmSelection()), y);
+        this.addButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, this.actionLabel, b -> this.confirmSelection()), y);
         y += AioaScreenUtil.BUTTON_HEIGHT + 8;
         this.backButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Back", b -> this.transitionTo(this.parent)), y);
 
@@ -130,7 +138,7 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
         AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
-        AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal("Search the mob list and add a creature to the day spawn pool."), this.width / 2, 49, this.panelWidth - 72, AioaScreenUtil.TEXT_SUB);
+        AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal(this.description), this.width / 2, 49, this.panelWidth - 72, AioaScreenUtil.TEXT_SUB);
 
         AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom, () -> {
             if (this.selectedOption != null) {

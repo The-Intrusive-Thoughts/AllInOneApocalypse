@@ -6,9 +6,9 @@ import net.minecraft.network.chat.Component;
 
 abstract class AioaAnimatedScreen extends Screen {
 
-    private static final int TRANSITION_TICKS = 8;
-    private static final int OPEN_OVERLAY_ALPHA = 110;
-    private static final int CLOSE_OVERLAY_ALPHA = 72;
+    private static final int TRANSITION_TICKS = 1;
+    private static final int OPEN_OVERLAY_ALPHA = 28;
+    private static final int CLOSE_OVERLAY_ALPHA = 20;
 
     private int openTicks;
     private int closingTicks = -1;

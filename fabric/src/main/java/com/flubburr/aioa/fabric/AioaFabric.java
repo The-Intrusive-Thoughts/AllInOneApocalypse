@@ -12,11 +12,14 @@ import net.minecraft.resources.ResourceLocation;
 
 import com.flubburr.aioa.AioaConstants;
 import com.flubburr.aioa.network.AioaSpawnRequest;
+import com.flubburr.aioa.network.AioaGraphUpdateRequest;
+import com.flubburr.aioa.behavior.AioaGraphUpdateHandler;
 import com.flubburr.aioa.spawn.AioaSpawnStudioHandler;
 
 public final class AioaFabric implements ModInitializer {
 
     public static final ResourceLocation SPAWN_REQUEST = new ResourceLocation(AioaConstants.MOD_ID, "spawn_request");
+    public static final ResourceLocation GRAPH_UPDATE = new ResourceLocation(AioaConstants.MOD_ID, "graph_update");
 
     @Override
     public void onInitialize() {
@@ -28,6 +31,10 @@ public final class AioaFabric implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(SPAWN_REQUEST, (server, player, handler, buffer, responseSender) -> {
             AioaSpawnRequest request = readSpawnRequest(buffer);
             server.execute(() -> AioaSpawnStudioHandler.handle(player, request));
+        });
+        ServerPlayNetworking.registerGlobalReceiver(GRAPH_UPDATE, (server, player, handler, buffer, responseSender) -> {
+            AioaGraphUpdateRequest request = new AioaGraphUpdateRequest(buffer.readUtf(65_536));
+            server.execute(() -> AioaGraphUpdateHandler.handle(player, request));
         });
     }
 

@@ -2,6 +2,14 @@
 
 ## 0.2.0
 
+- Replaced the old fixed zombie-AI editor with Behavior Graph Studio: a Scratch/Blueprint-style node editor for one mob, entity types, entity tags, managed apocalypse mobs, or every mob.
+- Added more than 35 event, sensing, condition, targeting, movement, combat, interaction, state, world, effect, and organization nodes, including walk a fixed block distance, rotate exact degrees, attack, flee, strafe, jump, teleport, spawn another mob, play sound, and share targets.
+- Added multi-graph editing, draggable nodes and editor window, typed output ports, quick linking, undo/redo, validation, canvas panning, animated grid/scanline feedback, selected-node pulses, and a contextual live mob viewport.
+- Added a proper world picker: the editor closes, the player right-clicks a mob, and the editor reopens bound to that exact entity. `F7` cancels or the picker safely times out.
+- Added a movable, resizable, closable, paged help overlay covering graph basics, scopes, world selection, links, permissions, and server safety.
+- Added Behavior Engine configuration for execution cadence, graph and node-step budgets, world-node permission, and spawn-node caps so creators and servers can tune complex scenes safely.
+- Added validated Fabric and Forge graph networking with creative/operator permission checks, bounded payloads, graph/node/link limits, and server-authoritative persistence.
+- Removed the legacy refined-AI tick pipeline in favor of the graph runtime while keeping existing settings readable for migration and compatibility.
 - Fixed the Forge 1.20.1 `javafml:53` startup failure by locking the artifact to Forge 47, Java 17 bytecode, and a bounded `[47,48)` loader range so a jar from a newer Minecraft line cannot masquerade as a 1.20.1 build.
 - Disabled the vanilla background post-processing path on every AIOA screen, preventing stacked blur, framebuffer conflicts, and the background scale/shrink effect seen with other UI mods.
 - Added a compact, ImGui-inspired creative Spawn Studio, available from the config home or with `F7`, for spawning any registered mob at the cursor with No AI, face-player, and persistence controls.
@@ -9,7 +17,7 @@
 - Added per-player spawn instances: every automatic group has an owner tag and its own nearby cap, preventing one player from consuming another player's apocalypse budget.
 - Added coordinated horde AI. Configured apocalypse mobs can share live targets with nearby refined-AI mobs and immediately join the pursuit.
 - Added Balanced Survival, Cinematic/Manual, and High-Intensity Horde quick presets while preserving full manual editing after a preset is applied.
-- Kept the UI compact with fixed maximum logical panel sizes, cleaner one-action rows, existing hover/press/slider micro-animations, and non-pausing screens for live content creation.
+- Kept the UI compact with fixed maximum logical panel sizes, near-instant opening/closing, richer hover/press/slider/link micro-animations, and non-pausing screens for live content creation.
 - Preserved compatibility with vanilla and modded entity registries, Fabric API, Forge, MidnightLib, Mod Menu, YACL, Cloth Config, Catalogue, Configured, and SuperMartijn642's Config Lib without making optional UI integrations mandatory.
 
 ## 0.1.2c
