@@ -2,7 +2,7 @@ package com.flubburr.aioa.behavior;
 
 import com.flubburr.aioa.compat.AioaEntityHelper;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -63,7 +63,7 @@ public final class AioaBehaviorValidator {
             case SET_ATTACK_DAMAGE -> number(node, "value", 0, 2048, issues);
             case SET_MOVEMENT_SPEED -> number(node, "value", 0.01, 2, issues);
             case EQUIP_ITEM -> {
-                ResourceLocation id = AioaEntityHelper.parseResourceLocation(node.parameters.get("item"));
+                Identifier id = AioaEntityHelper.parseResourceLocation(node.parameters.get("item"));
                 if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) issues.add("Equip Item needs a valid registered item id.");
                 String slot = node.parameters.getOrDefault("slot", "MAINHAND").toUpperCase(java.util.Locale.ROOT);
                 if (!Set.of("MAINHAND", "OFFHAND", "FEET", "LEGS", "CHEST", "HEAD").contains(slot)) issues.add("Equip Item has an invalid slot.");
