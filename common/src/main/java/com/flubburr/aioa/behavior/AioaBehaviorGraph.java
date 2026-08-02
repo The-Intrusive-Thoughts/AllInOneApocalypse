@@ -18,10 +18,13 @@ public final class AioaBehaviorGraph {
     public static AioaBehaviorGraph createStarter() {
         AioaBehaviorGraph graph = new AioaBehaviorGraph();
         graph.name = "Hunt nearby players";
+        graph.nodes.add(new Node("base", NodeType.MOB_BASE, -140, 70)
+                .parameter("entity", "auto").parameter("health", "20").parameter("damage", "3").parameter("speed", "0.23"));
         graph.nodes.add(new Node("tick", NodeType.ON_TICK, 40, 70));
         graph.nodes.add(new Node("sense", NodeType.FIND_NEAREST_PLAYER, 220, 70).parameter("range", "32"));
         graph.nodes.add(new Node("target", NodeType.SET_TARGET, 400, 70));
         graph.nodes.add(new Node("move", NodeType.MOVE_TO_TARGET, 580, 70).parameter("speed", "1.1"));
+        graph.edges.add(new Edge("base", "tick", "next"));
         graph.edges.add(new Edge("tick", "sense", "next"));
         graph.edges.add(new Edge("sense", "target", "found"));
         graph.edges.add(new Edge("target", "move", "next"));
@@ -52,6 +55,13 @@ public final class AioaBehaviorGraph {
         this.nodes.removeIf(node -> node == null || node.id == null || node.type == null);
         this.nodes.forEach(Node::sanitize);
         this.edges.removeIf(edge -> edge == null || edge.from == null || edge.to == null);
+        if (this.nodes.stream().noneMatch(node -> node.type == NodeType.MOB_BASE)) {
+            Node base = new Node("base_" + UUID.randomUUID().toString().substring(0, 8), NodeType.MOB_BASE, -140, 70)
+                    .parameter("entity", "auto").parameter("health", "20").parameter("damage", "3").parameter("speed", "0.23");
+            this.nodes.add(0, base);
+            this.nodes.stream().filter(node -> node.type == NodeType.ON_TICK).findFirst()
+                    .ifPresent(entry -> this.edges.add(new Edge(base.id, entry.id, "next")));
+        }
         return this;
     }
 
@@ -64,6 +74,7 @@ public final class AioaBehaviorGraph {
     }
 
     public enum NodeType {
+        MOB_BASE("Base", "Required root for this mob. Auto-detects the selected mob and defines base health, damage, and movement speed."),
         ON_TICK("Events", "Runs the graph once per AI tick."),
         ON_FIRST_TICK("Events", "Runs only when a newly created mob begins ticking."),
         EVERY_TICKS("Events", "Continues at a configurable tick interval."),
@@ -102,6 +113,10 @@ public final class AioaBehaviorGraph {
         SET_SILENT("State", "Toggles mob sounds."),
         SET_INVULNERABLE("State", "Toggles damage immunity."),
         SET_CUSTOM_NAME("State", "Sets a visible custom mob name."),
+        SET_MAX_HEALTH("Attributes", "Changes maximum health and safely clamps current health."),
+        SET_ATTACK_DAMAGE("Attributes", "Changes base melee attack damage when the mob supports it."),
+        SET_MOVEMENT_SPEED("Attributes", "Changes the mob's base movement speed."),
+        EQUIP_ITEM("Equipment", "Equips a registered item into a chosen equipment slot."),
         SPAWN_MOB("World", "Safely spawns another configured mob nearby with a cooldown."),
         PLAY_SOUND("Effects", "Plays a registered sound at the mob."),
         COMMENT("Organization", "A note for creators; it does not execute.");
