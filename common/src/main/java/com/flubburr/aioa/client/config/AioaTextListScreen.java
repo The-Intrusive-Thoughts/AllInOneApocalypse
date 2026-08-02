@@ -38,15 +38,12 @@ final class AioaTextListScreen extends AioaAnimatedScreen {
 
     @Override
     protected void init() {
-        this.editor = new MultiLineEditBox(
-                this.font,
-                this.width / 2 - 180,
-                62,
-                360,
-                Math.max(100, this.height - 116),
-                Component.literal("Entries"),
-                Component.literal("One value per line")
-        );
+        this.editor = MultiLineEditBox.builder()
+                .setX(this.width / 2 - 180).setY(62)
+                .setPlaceholder(Component.literal("One value per line"))
+                .setTextColor(AioaScreenUtil.TEXT_MAIN).setCursorColor(AioaScreenUtil.TEXT_MAIN)
+                .setShowBackground(false).setShowDecorations(false)
+                .build(this.font, 360, Math.max(100, this.height - 116), Component.literal("Entries"));
         this.editor.setCharacterLimit(32767);
         this.editor.setValue(String.join("\n", this.initialValues));
         this.addRenderableWidget(this.editor);
