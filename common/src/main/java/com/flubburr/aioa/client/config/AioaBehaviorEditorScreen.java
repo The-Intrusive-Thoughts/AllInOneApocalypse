@@ -16,6 +16,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Mob;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -550,14 +551,14 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 }
                 this.selected = hit;
                 long now = System.currentTimeMillis();
-                boolean doubleClick = hit.id.equals(this.lastNodeClickId) && now - this.lastNodeClickAt <= 360L;
+                boolean nodeDoubleClick = doubleClick || (hit.id.equals(this.lastNodeClickId) && now - this.lastNodeClickAt <= 360L);
                 this.lastNodeClickId = hit.id;
                 this.lastNodeClickAt = now;
                 this.draggingNode = true;
                 this.dragOffsetX = (int) mouseX - screenNodeX(hit);
                 this.dragOffsetY = (int) mouseY - screenNodeY(hit);
                 this.status = hit.type.help;
-                loadSelectedParameter(doubleClick);
+                loadSelectedParameter(nodeDoubleClick);
                 return true;
             }
             if (button == 1) {
@@ -657,7 +658,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             return true;
         }
         if (insideCanvas(mouseX, mouseY)) {
-            if (!Screen.hasShiftDown()) {
+            if (!shiftDown()) {
                 double oldZoom = this.canvasZoom;
                 double graphX = (mouseX - canvasLeft() - this.canvasPanX) / oldZoom;
                 double graphY = (mouseY - canvasTop() - this.canvasPanY) / oldZoom;
@@ -701,7 +702,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             setParameter();
             return true;
         }
-        if (Screen.hasControlDown()) {
+        if (controlDown()) {
             if (keyCode == 90) { undo(); return true; }
             if (keyCode == 89) { redo(); return true; }
             if (keyCode == 83) { applyAndClose(); return true; }
@@ -713,6 +714,20 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         if (keyCode == 72) { this.showHelp = !this.showHelp; return true; }
         if (keyCode == 70) { fitGraph(); return true; }
         return super.keyPressed(event);
+    }
+
+    private boolean controlDown() {
+        if (this.minecraft == null) return false;
+        long window = this.minecraft.getWindow().handle();
+        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
+                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+    }
+
+    private boolean shiftDown() {
+        if (this.minecraft == null) return false;
+        long window = this.minecraft.getWindow().handle();
+        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
+                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
     }
 
     @Override
