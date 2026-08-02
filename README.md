@@ -19,6 +19,11 @@ You can also adjust how frequently those mobs spawn, making it easy to balance m
 - Prevents zombies from burning in sunlight
 - Configurable spawn list for modded mobs
 - Adjustable spawn rarity
+- Creative Spawn Studio (`F7`) with cursor placement, No AI, face-player, and persistence controls
+- Per-player instanced horde spawning for predictable multiplayer budgets
+- Coordinated target-sharing AI for configurable vanilla and modded mobs
+- Balanced, Cinematic, and Horde quick presets
+- Compact custom UI with blur-safe backgrounds and micro-animated controls
 
 
 

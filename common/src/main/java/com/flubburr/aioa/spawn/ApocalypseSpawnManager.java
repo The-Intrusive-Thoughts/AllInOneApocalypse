@@ -58,7 +58,8 @@ public final class ApocalypseSpawnManager {
                 continue;
             }
 
-            int nearbyManaged = countNearbyManagedMobs(level, player.blockPosition(), settings.maxSpawnDistance);
+            String instanceTag = AioaConstants.INSTANCE_TAG_PREFIX + player.getUUID();
+            int nearbyManaged = countNearbyManagedMobs(level, player.blockPosition(), settings.maxSpawnDistance, instanceTag);
             if (nearbyManaged >= settings.maxNearbyManagedMobs) {
                 continue;
             }
@@ -74,7 +75,7 @@ public final class ApocalypseSpawnManager {
                     continue;
                 }
 
-                nearbyManaged += spawnGroup(level, basePosition, chosenEntry, settings, level.getRandom());
+                nearbyManaged += spawnGroup(level, basePosition, chosenEntry, settings, level.getRandom(), instanceTag);
             }
         }
     }
@@ -179,7 +180,8 @@ public final class ApocalypseSpawnManager {
             BlockPos basePosition,
             ResolvedSpawnEntry resolvedEntry,
             AioaConfig.DaySurfaceSpawns settings,
-            RandomSource random
+            RandomSource random,
+            String instanceTag
     ) {
         int groupSize = Mth.nextInt(random, resolvedEntry.entry().minGroupSize(), resolvedEntry.entry().maxGroupSize());
         int spawned = 0;
@@ -190,7 +192,7 @@ public final class ApocalypseSpawnManager {
                 int z = basePosition.getZ() + random.nextInt(9) - 4;
                 BlockPos spawnPosition = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, new BlockPos(x, 0, z));
 
-                if (trySpawn(level, spawnPosition, resolvedEntry.entityType(), settings, random)) {
+                if (trySpawn(level, spawnPosition, resolvedEntry.entityType(), settings, random, instanceTag)) {
                     spawned++;
                     break;
                 }
@@ -205,7 +207,8 @@ public final class ApocalypseSpawnManager {
             BlockPos spawnPosition,
             EntityType<?> entityType,
             AioaConfig.DaySurfaceSpawns settings,
-            RandomSource random
+            RandomSource random,
+            String instanceTag
     ) {
         if (!isPotentialSpawnPosition(level, spawnPosition, entityType)) {
             return false;
@@ -235,6 +238,7 @@ public final class ApocalypseSpawnManager {
         if (settings.preventSunlightBurn) {
             mob.addTag(AioaConstants.DAY_SPAWN_TAG);
         }
+        mob.addTag(instanceTag);
 
         level.addFreshEntityWithPassengers(mob);
         return true;
@@ -280,9 +284,9 @@ public final class ApocalypseSpawnManager {
         return false;
     }
 
-    private static int countNearbyManagedMobs(ServerLevel level, BlockPos center, int range) {
+    private static int countNearbyManagedMobs(ServerLevel level, BlockPos center, int range, String instanceTag) {
         AABB searchBox = new AABB(center).inflate(range);
-        return level.getEntitiesOfClass(Mob.class, searchBox, mob -> mob.getTags().contains(AioaConstants.DAY_SPAWN_TAG)).size();
+        return level.getEntitiesOfClass(Mob.class, searchBox, mob -> mob.getTags().contains(instanceTag)).size();
     }
 
     private static int randomOffset(RandomSource random, int minDistance, int maxDistance) {
