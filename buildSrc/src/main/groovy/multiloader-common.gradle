@@ -13,6 +13,10 @@ java {
     withJavadocJar()
 }
 
+tasks.withType(JavaCompile).configureEach {
+    options.release = Integer.parseInt(java_version)
+}
+
 repositories {
     mavenCentral()
     maven {
