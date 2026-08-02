@@ -767,7 +767,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     }; }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double delta) {
         if (!this.paletteCollapsed && mouseX >= this.paletteX && mouseX < this.paletteX + this.paletteWidth
                 && mouseY >= this.paletteY && mouseY <= this.paletteY + this.paletteHeight) {
             int pageSize = Math.max(3, (this.paletteHeight - 74) / 30);
@@ -790,7 +790,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             }
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, delta);
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, delta);
     }
 
     private boolean insideCanvas(double x, double y) {
