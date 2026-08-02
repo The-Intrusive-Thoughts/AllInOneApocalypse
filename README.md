@@ -22,8 +22,12 @@ You can also adjust how frequently those mobs spawn, making it easy to balance m
 - Creative Spawn Studio (`F7`) with cursor placement, No AI, face-player, and persistence controls
 - Per-player instanced horde spawning for predictable multiplayer budgets
 - Coordinated target-sharing AI for configurable vanilla and modded mobs
+- Visual Behavior Graph Studio for scripting individual mobs, entity types, tags, managed mobs, or global mob behavior
+- 35+ graph nodes for sensing, conditions, movement, combat, state changes, mob interaction, spawning, and effects
+- Right-click world selection, multi-graph projects, live mob viewport, draggable paged help, validation, and secure multiplayer syncing
+- Configurable graph cadence, execution budgets, and mob-spawn safety caps
 - Balanced, Cinematic, and Horde quick presets
-- Compact custom UI with blur-safe backgrounds and micro-animated controls
+- Compact ImGui-inspired UI with blur-safe animated-grid backgrounds and micro-animated controls
 
 
 
