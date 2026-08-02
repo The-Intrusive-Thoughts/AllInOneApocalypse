@@ -11,7 +11,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.resources.ResourceLocation;
 
-public final class AioaSpawnStudioScreen extends Screen {
+public final class AioaSpawnStudioScreen extends AioaAnimatedScreen {
     private final Screen parent;
     private ResourceLocation entityId = new ResourceLocation("minecraft", "zombie");
     private Button mobButton;
