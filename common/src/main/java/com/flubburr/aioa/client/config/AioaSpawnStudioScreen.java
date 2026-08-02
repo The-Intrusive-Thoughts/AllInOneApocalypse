@@ -9,11 +9,11 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public final class AioaSpawnStudioScreen extends Screen {
     private final Screen parent;
-    private ResourceLocation entityId = new ResourceLocation("minecraft", "zombie");
+    private Identifier entityId = Identifier.fromNamespaceAndPath("minecraft", "zombie");
     private Button mobButton;
     private boolean noAi;
     private boolean facePlayer = true;
@@ -41,7 +41,7 @@ public final class AioaSpawnStudioScreen extends Screen {
         int y = Math.max(82, (this.height - 264) / 2 + 48);
 
         this.mobButton = this.addRenderableWidget(AioaScreenUtil.button(x, y, fieldWidth,
-                "Mob: " + AioaScreenUtil.entityDisplayName(this.entityId), button -> this.transitionTo(
+                "Mob: " + AioaScreenUtil.entityDisplayName(this.entityId), button -> Minecraft.getInstance().setScreen(
                         new AioaEntityPickerScreen(this, "Choose Spawn Mob", AioaScreenUtil.allEntityIds(),
                                 "Search translated mob names and use the live preview. Registry ids stay hidden.", "Done", id -> {
                             this.entityId = id;

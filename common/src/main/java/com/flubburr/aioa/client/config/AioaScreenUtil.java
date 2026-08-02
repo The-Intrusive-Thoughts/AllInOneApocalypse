@@ -10,6 +10,7 @@ import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -20,8 +21,9 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.SpawnEggItem;
@@ -44,12 +46,12 @@ import java.util.stream.Collectors;
 
 public final class AioaScreenUtil {
 
-    private static final Map<ResourceLocation, LivingEntity> PREVIEW_ENTITY_CACHE = new HashMap<>();
+    private static final Map<Identifier, LivingEntity> PREVIEW_ENTITY_CACHE = new HashMap<>();
     private static final RandomSource UI_SOUND_RANDOM = RandomSource.create();
-    private static final ResourceLocation UI_CLICK_SOUND = new ResourceLocation("aioa", "ui.click");
-    private static final ResourceLocation UI_HOVER_SOUND = new ResourceLocation("aioa", "ui.hover");
-    private static final ResourceLocation UI_SLIDER_SOUND = new ResourceLocation("aioa", "ui.slider");
-    private static final ResourceLocation MENU_MUSIC_SOUND = new ResourceLocation("aioa", "music.menu");
+    private static final Identifier UI_CLICK_SOUND = Identifier.fromNamespaceAndPath("aioa", "ui.click");
+    private static final Identifier UI_HOVER_SOUND = Identifier.fromNamespaceAndPath("aioa", "ui.hover");
+    private static final Identifier UI_SLIDER_SOUND = Identifier.fromNamespaceAndPath("aioa", "ui.slider");
+    private static final Identifier MENU_MUSIC_SOUND = Identifier.fromNamespaceAndPath("aioa", "music.menu");
     private static MenuLoopSound menuMusic;
 
     static final int BUTTON_HEIGHT = 24;
@@ -183,7 +185,7 @@ public final class AioaScreenUtil {
         }
 
         if (minecraft.screen instanceof AioaAnimatedScreen) {
-            SoundEvent soundEvent = BuiltInRegistries.SOUND_EVENT.get(MENU_MUSIC_SOUND);
+            SoundEvent soundEvent = BuiltInRegistries.SOUND_EVENT.getValue(MENU_MUSIC_SOUND);
             if (soundEvent == null) {
                 return;
             }
@@ -201,36 +203,36 @@ public final class AioaScreenUtil {
         }
     }
 
-    static List<ResourceLocation> allEntityIds() {
+    static List<Identifier> allEntityIds() {
         return new ArrayList<>(BuiltInRegistries.ENTITY_TYPE.keySet().stream()
-                .sorted(Comparator.comparing(AioaScreenUtil::entitySortKey).thenComparing(ResourceLocation::toString))
+                .sorted(Comparator.comparing(AioaScreenUtil::entitySortKey).thenComparing(Identifier::toString))
                 .toList());
     }
 
-    static List<ResourceLocation> hostileEntityIds() {
+    static List<Identifier> hostileEntityIds() {
         return new ArrayList<>(BuiltInRegistries.ENTITY_TYPE.stream()
                 .filter(type -> type.getCategory() == MobCategory.MONSTER)
                 .map(BuiltInRegistries.ENTITY_TYPE::getKey)
-                .sorted(Comparator.comparing(AioaScreenUtil::entitySortKey).thenComparing(ResourceLocation::toString))
+                .sorted(Comparator.comparing(AioaScreenUtil::entitySortKey).thenComparing(Identifier::toString))
                 .toList());
     }
 
-    static List<ResourceLocation> allBiomeIds() {
+    static List<Identifier> allBiomeIds() {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level != null) {
-            return new ArrayList<>(minecraft.level.registryAccess().registryOrThrow(Registries.BIOME).keySet().stream()
-                    .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString))
+            return new ArrayList<>(minecraft.level.registryAccess().lookupOrThrow(Registries.BIOME).keySet().stream()
+                    .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(Identifier::toString))
                     .toList());
         }
         if (minecraft.getConnection() != null) {
-            return new ArrayList<>(minecraft.getConnection().registryAccess().registryOrThrow(Registries.BIOME).keySet().stream()
-                    .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString))
+            return new ArrayList<>(minecraft.getConnection().registryAccess().lookupOrThrow(Registries.BIOME).keySet().stream()
+                    .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(Identifier::toString))
                     .toList());
         }
         return defaultBiomeIds();
     }
 
-    private static ArrayList<ResourceLocation> defaultBiomeIds() {
+    private static ArrayList<Identifier> defaultBiomeIds() {
         List<String> vanillaBiomes = List.of(
                 "minecraft:badlands",
                 "minecraft:bamboo_jungle",
@@ -298,14 +300,14 @@ public final class AioaScreenUtil {
                 "minecraft:wooded_badlands"
         );
         return new ArrayList<>(vanillaBiomes.stream()
-                .map(ResourceLocation::tryParse)
+                .map(Identifier::tryParse)
                 .filter(Objects::nonNull)
-                .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString))
+                .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(Identifier::toString))
                 .toList());
     }
 
-    static String entityDisplayName(ResourceLocation id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
+    static String entityDisplayName(Identifier id) {
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
         if (type == null) {
             return id.toString();
         }
@@ -313,29 +315,29 @@ public final class AioaScreenUtil {
         return description == null || description.isBlank() ? id.toString() : description;
     }
 
-    static String entityLine(ResourceLocation id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
+    static String entityLine(Identifier id) {
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
         String category = type == null ? "unknown" : type.getCategory().getName();
         return entityDisplayName(id) + " [" + category + "] - " + id;
     }
 
-    static String categoryLabel(ResourceLocation id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
+    static String categoryLabel(Identifier id) {
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
         return type == null ? "unknown" : humanizeEnum(type.getCategory().getName());
     }
 
-    static String biomeDisplayName(ResourceLocation id) {
+    static String biomeDisplayName(Identifier id) {
         return Arrays.stream(id.getPath().split("[_/]"))
                 .filter(part -> !part.isBlank())
                 .map(part -> Character.toUpperCase(part.charAt(0)) + part.substring(1))
                 .collect(Collectors.joining(" "));
     }
 
-    static String biomeLine(ResourceLocation id) {
+    static String biomeLine(Identifier id) {
         return biomeDisplayName(id) + " - " + id;
     }
 
-    static String biomeCategory(ResourceLocation id) {
+    static String biomeCategory(Identifier id) {
         if (!"minecraft".equals(id.getNamespace())) {
             return "Modded";
         }
@@ -357,7 +359,7 @@ public final class AioaScreenUtil {
         return "Overworld";
     }
 
-    static String dimensionCategory(ResourceLocation id) {
+    static String dimensionCategory(Identifier id) {
         if (!"minecraft".equals(id.getNamespace())) {
             return "Modded";
         }
@@ -381,19 +383,19 @@ public final class AioaScreenUtil {
         return "Overworld";
     }
 
-    static ItemStack entityPreviewItem(ResourceLocation id) {
-        ResourceLocation eggId = AioaEntityHelper.parseResourceLocation(id.getNamespace() + ":" + id.getPath() + "_spawn_egg");
+    static ItemStack entityPreviewItem(Identifier id) {
+        Identifier eggId = AioaEntityHelper.parseResourceLocation(id.getNamespace() + ":" + id.getPath() + "_spawn_egg");
         if (eggId == null) {
             return new ItemStack(Items.BARRIER);
         }
-        var item = BuiltInRegistries.ITEM.get(eggId);
+        var item = BuiltInRegistries.ITEM.getValue(eggId);
         if (item instanceof SpawnEggItem) {
             return new ItemStack(item);
         }
         return new ItemStack(Items.BARRIER);
     }
 
-    static void drawMobPreview(GuiGraphics guiGraphics, Font font, int left, int top, int width, int height, ResourceLocation id, boolean selected, List<Component> detailLines) {
+    static void drawMobPreview(GuiGraphics guiGraphics, Font font, int left, int top, int width, int height, Identifier id, boolean selected, List<Component> detailLines) {
         drawInsetPanel(guiGraphics, left, top, left + width, top + height, selected);
         int padding = 12;
         int modelPanelWidth = Math.max(92, Math.min(132, width / 3));
@@ -422,7 +424,8 @@ public final class AioaScreenUtil {
             int modelCenterX = modelLeft + ((left + width - padding - modelLeft) / 2);
             int modelAnchorY = modelBottom - 10;
             int scale = Math.max(24, Math.min(42, (modelBottom - modelTop) / 2));
-            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, modelCenterX, modelAnchorY, scale, 0.0F, 0.0F, previewEntity);
+            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, modelCenterX - scale, modelTop,
+                    modelCenterX + scale, modelAnchorY, scale, 0.0F, 0.0F, 0.0F, previewEntity);
         } else {
             int itemX = modelLeft + (((left + width - padding) - modelLeft) / 2) - 8;
             int itemY = modelTop + ((modelBottom - modelTop) / 2) - 8;
@@ -431,7 +434,7 @@ public final class AioaScreenUtil {
     }
 
     static void drawEntityViewport(GuiGraphics guiGraphics, Font font, int left, int top, int width, int height,
-                                   ResourceLocation id, int mouseX, int mouseY, String state) {
+                                   Identifier id, int mouseX, int mouseY, String state) {
         drawInsetPanel(guiGraphics, left, top, left + width, top + height, true);
         guiGraphics.fill(left + 2, top + 20, left + width - 2, top + height - 2, 0xFF080D0A);
         guiGraphics.fill(left + 2, top + 2, left + width - 2, top + 20, 0xFF17271E);
@@ -465,11 +468,14 @@ public final class AioaScreenUtil {
             entity.setYRot(simulationYaw);
             entity.setYHeadRot(simulationYaw);
             entity.setYBodyRot(simulationYaw);
-            entity.walkAnimation.update(0.65F, 1.0F);
-            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX, floorBottom - 3, scale, orbitX, orbitY, entity);
+            entity.walkAnimation.update(0.65F, 1.0F, 1.0F);
+            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX - scale, top + 22,
+                    mobX + scale, floorBottom - 3, scale, 0.0F, orbitX, orbitY, entity);
             if (width >= 230 && Minecraft.getInstance().player != null) {
-                InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, left + width * 3 / 4, floorBottom - 3,
-                        Math.max(24, scale * 3 / 4), orbitX, orbitY, Minecraft.getInstance().player);
+                int playerX = left + width * 3 / 4;
+                int playerScale = Math.max(24, scale * 3 / 4);
+                InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, playerX - playerScale, top + 22,
+                        playerX + playerScale, floorBottom - 3, playerScale, 0.0F, orbitX, orbitY, Minecraft.getInstance().player);
             }
             guiGraphics.disableScissor();
         } else {
@@ -552,7 +558,7 @@ public final class AioaScreenUtil {
         return Math.max(0.0D, Math.min(1.0D, value));
     }
 
-    static LivingEntity previewEntity(ResourceLocation id) {
+    static LivingEntity previewEntity(Identifier id) {
         LivingEntity cached = PREVIEW_ENTITY_CACHE.get(id);
         if (cached != null && cached.isAlive()) {
             return cached;
@@ -563,14 +569,14 @@ public final class AioaScreenUtil {
             return null;
         }
 
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
         if (type == null) {
             return null;
         }
 
         Entity entity;
         try {
-            entity = type.create(minecraft.level);
+            entity = type.create(minecraft.level, EntitySpawnReason.COMMAND);
         } catch (Exception ignored) {
             return null;
         }
@@ -617,15 +623,15 @@ public final class AioaScreenUtil {
         );
     }
 
-    private static String entitySortKey(ResourceLocation id) {
+    private static String entitySortKey(Identifier id) {
         return entityDisplayName(id).toLowerCase(Locale.ROOT);
     }
 
-    private static String biomeSortKey(ResourceLocation id) {
+    private static String biomeSortKey(Identifier id) {
         return biomeDisplayName(id).toLowerCase(Locale.ROOT);
     }
 
-    private static void playUiSound(ResourceLocation soundId, float volume, float pitch) {
+    private static void playUiSound(Identifier soundId, float volume, float pitch) {
         Minecraft minecraft = Minecraft.getInstance();
         float configuredVolume = (float) AioaConfigManager.getConfig().clientUi.uiSoundVolume;
         if (configuredVolume <= 0.0F) return;
@@ -735,14 +741,14 @@ public final class AioaScreenUtil {
         }
 
         @Override
-        protected void onDrag(double mouseX, double mouseY, double dragX, double dragY) {
-            super.onDrag(mouseX, mouseY, dragX, dragY);
+        protected void onDrag(MouseButtonEvent event, double dragX, double dragY) {
+            super.onDrag(event, dragX, dragY);
             this.playSliderStepIfChanged();
         }
 
         @Override
-        public void onRelease(double mouseX, double mouseY) {
-            super.onRelease(mouseX, mouseY);
+        public void onRelease(MouseButtonEvent event) {
+            super.onRelease(event);
             this.lastSoundValue = Double.NaN;
         }
 
@@ -847,7 +853,7 @@ public final class AioaScreenUtil {
         }
 
         @Override
-        protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        protected void renderContents(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             int left = this.getX();
             int top = this.getY();
             int right = left + this.width;
@@ -900,10 +906,10 @@ public final class AioaScreenUtil {
             int bottom = top + this.getHeight();
             drawInsetPanel(guiGraphics, left, top, right, bottom, this.isFocused());
             guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, 0x55000000);
-            guiGraphics.pose().pushPose();
-            guiGraphics.pose().translate(6.0F, 2.0F, 0.0F);
+            guiGraphics.pose().pushMatrix();
+            guiGraphics.pose().translate(6.0F, 2.0F);
             super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
-            guiGraphics.pose().popPose();
+            guiGraphics.pose().popMatrix();
         }
     }
 }
