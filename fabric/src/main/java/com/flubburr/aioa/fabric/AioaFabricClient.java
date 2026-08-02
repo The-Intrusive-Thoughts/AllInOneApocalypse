@@ -27,13 +27,13 @@ public final class AioaFabricClient implements ClientModInitializer {
                 "key.aioa.open_config",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_F6,
-                "key.categories." + AioaConstants.MOD_ID
+                KeyMapping.Category.MISC
         ));
         openSpawnStudioKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.aioa.open_behavior_graph",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_F7,
-                "key.categories." + AioaConstants.MOD_ID
+                KeyMapping.Category.MISC
         ));
         AioaClientNetworking.registerSender(request -> ClientPlayNetworking.send(new AioaFabricSpawnPayload(request)));
         AioaClientNetworking.registerGraphSender(request -> ClientPlayNetworking.send(new AioaFabricGraphPayload(request)));
