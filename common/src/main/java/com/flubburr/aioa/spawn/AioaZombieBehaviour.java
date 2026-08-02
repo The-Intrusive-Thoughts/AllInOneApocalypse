@@ -24,6 +24,7 @@ import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.AABB;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -229,6 +230,26 @@ public final class AioaZombieBehaviour {
                 && pathfinderMob.getNavigation() instanceof GroundPathNavigation groundNavigation) {
             groundNavigation.setCanOpenDoors(false);
             groundNavigation.setCanPassDoors(false);
+        }
+    }
+
+    public static void coordinateNearbyMobs(Mob mob, AioaConfig.DaySurfaceSpawns settings) {
+        if (!settings.coordinatedHordeAi || mob.level().isClientSide() || mob.tickCount % 20 != 0) {
+            return;
+        }
+        LivingEntity target = mob.getTarget();
+        if (target == null || !target.isAlive()) {
+            return;
+        }
+
+        AABB awareness = mob.getBoundingBox().inflate(24.0D, 10.0D, 24.0D);
+        for (Mob ally : mob.level().getEntitiesOfClass(Mob.class, awareness, candidate -> candidate != mob && candidate.getTarget() == null)) {
+            if (usesRefinedAi(ally, settings) && canTarget(ally, target)) {
+                ally.setTarget(target);
+                if (ally instanceof PathfinderMob pathfinderMob) {
+                    pathfinderMob.getNavigation().moveTo(target, 1.1D);
+                }
+            }
         }
     }
 

@@ -16,6 +16,7 @@ final class AioaZombieAiScreen extends Screen {
     private AioaConfig.ZombieTargetMode zombieTargetMode;
     private boolean zombiesCanClimbWalls;
     private boolean refinedZombieAi;
+    private boolean coordinatedHordeAi;
     private final List<AbstractWidget> scrollWidgets = new ArrayList<>();
     private final List<Integer> baseY = new ArrayList<>();
     private int scrollOffset;
@@ -38,6 +39,7 @@ final class AioaZombieAiScreen extends Screen {
         this.zombieTargetMode = config.zombieTargetMode;
         this.zombiesCanClimbWalls = config.zombiesCanClimbWalls;
         this.refinedZombieAi = config.refinedZombieAi;
+        this.coordinatedHordeAi = config.coordinatedHordeAi;
 
         int centerX = this.width / 2;
         int panelWidth = AioaScreenUtil.panelWidth(this.width, 700);
@@ -61,6 +63,11 @@ final class AioaZombieAiScreen extends Screen {
         this.addScrollable(AioaScreenUtil.button(leftX, 0, width, AioaScreenUtil.boolLabel("Refined chase AI", this.refinedZombieAi), b -> {
             this.refinedZombieAi = !this.refinedZombieAi;
             b.setMessage(Component.literal(AioaScreenUtil.boolLabel("Refined chase AI", this.refinedZombieAi)));
+        }), y);
+        y += step + 8;
+        this.addScrollable(AioaScreenUtil.button(leftX, 0, width, AioaScreenUtil.boolLabel("Share targets with nearby mobs", this.coordinatedHordeAi), b -> {
+            this.coordinatedHordeAi = !this.coordinatedHordeAi;
+            b.setMessage(Component.literal(AioaScreenUtil.boolLabel("Share targets with nearby mobs", this.coordinatedHordeAi)));
         }), y);
         y += step + 8;
 
@@ -123,6 +130,7 @@ final class AioaZombieAiScreen extends Screen {
             this.editableConfig.daySurfaceSpawns.zombieTargetMode = this.zombieTargetMode;
             this.editableConfig.daySurfaceSpawns.zombiesCanClimbWalls = this.zombiesCanClimbWalls;
             this.editableConfig.daySurfaceSpawns.refinedZombieAi = this.refinedZombieAi;
+            this.editableConfig.daySurfaceSpawns.coordinatedHordeAi = this.coordinatedHordeAi;
             this.minecraft.setScreen(this.parent);
         }), y);
         this.addScrollable(AioaScreenUtil.button(centerX + 8, 0, 164, "Cancel", b -> this.minecraft.setScreen(this.parent)), y);
