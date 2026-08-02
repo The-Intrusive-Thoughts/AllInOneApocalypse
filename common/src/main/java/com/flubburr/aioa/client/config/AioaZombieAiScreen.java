@@ -155,9 +155,9 @@ final class AioaZombieAiScreen extends AioaAnimatedScreen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double delta) {
         if (this.maxScroll <= 0) {
-            return super.mouseScrolled(mouseX, mouseY, delta);
+            return super.mouseScrolled(mouseX, mouseY, horizontalAmount, delta);
         }
         this.scrollOffset = Math.max(0, Math.min(this.maxScroll, this.scrollOffset - ((int) delta * 24)));
         this.updateScrollLayout();
