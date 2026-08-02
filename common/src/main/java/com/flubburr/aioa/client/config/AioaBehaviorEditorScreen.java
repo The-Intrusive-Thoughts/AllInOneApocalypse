@@ -69,7 +69,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private int parametersHeight = 132;
     private boolean paletteCollapsed;
     private boolean inspectorCollapsed;
-    private boolean parametersCollapsed;
+    private boolean parametersCollapsed = true;
     private FloatingWindow draggingFloatingWindow;
     private int canvasPanX;
     private int canvasPanY;
@@ -213,7 +213,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         this.selector = new EditBox(this.font, inspectorX, inspectorContentY + 58, inspectorWidth, 22, Component.literal("Scope selector"));
         this.selector.setValue(this.graph.selector);
         this.selector.setHint(Component.literal("entity id, tag, or UUID"));
-        if (!this.inspectorCollapsed) this.addRenderableWidget(this.selector);
+        if (!this.inspectorCollapsed) this.addRenderableWidget(AioaScreenUtil.button(inspectorX, inspectorContentY + 58, inspectorWidth,
+                graphTargetLabel(), button -> selectGraphTarget()));
 
         int parameterContentX = this.parametersX + 10;
         int parameterContentWidth = this.parametersWidth - 20;
@@ -245,10 +246,6 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 }))));
         if (!this.inspectorCollapsed) this.addRenderableWidget(AioaScreenUtil.button(inspectorX, inspectorContentY + 152, inspectorWidth, "Pick in world (right-click)", button ->
                 AioaMobSelectionController.arm(this)));
-        if (!this.inspectorCollapsed) this.addRenderableWidget(AioaScreenUtil.button(inspectorX, inspectorContentY + 184, (inspectorWidth - 6) / 2, "< Graph", button -> switchGraph(-1)));
-        if (!this.inspectorCollapsed) this.addRenderableWidget(AioaScreenUtil.button(inspectorX + (inspectorWidth + 6) / 2, inspectorContentY + 184, (inspectorWidth - 6) / 2, "Graph >", button -> switchGraph(1)));
-        if (!this.inspectorCollapsed) this.addRenderableWidget(AioaScreenUtil.button(inspectorX, inspectorContentY + 216, (inspectorWidth - 6) / 2, "Export", button -> exportGraph()));
-        if (!this.inspectorCollapsed) this.addRenderableWidget(AioaScreenUtil.button(inspectorX + (inspectorWidth + 6) / 2, inspectorContentY + 216, (inspectorWidth - 6) / 2, "Load Newest", button -> loadNewestGraph()));
 
         int paletteX = this.paletteX + 10;
         int paletteY = this.paletteY + 28;
@@ -270,6 +267,34 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     }
 
     private enum FloatingWindow { PALETTE, INSPECTOR, PARAMETERS }
+
+    private String graphTargetLabel() {
+        return switch (this.graph.scope) {
+            case ENTITY_TYPE -> "Choose mob type...";
+            case SINGLE_ENTITY -> "Pick mob in world...";
+            case ENTITY_TAG -> "Choose tagged mob type...";
+            case MANAGED_MOBS -> "Target: managed mobs";
+            case ALL_MOBS -> "Target: every mob";
+        };
+    }
+
+    private void selectGraphTarget() {
+        if (this.graph.scope == AioaBehaviorGraph.Scope.SINGLE_ENTITY) {
+            AioaMobSelectionController.arm(this);
+            return;
+        }
+        if (this.graph.scope == AioaBehaviorGraph.Scope.MANAGED_MOBS || this.graph.scope == AioaBehaviorGraph.Scope.ALL_MOBS) {
+            this.status = "This scope selects mobs automatically; no raw id is needed.";
+            return;
+        }
+        this.transitionTo(new AioaEntityPickerScreen(this, "Choose Graph Mob", AioaScreenUtil.allEntityIds(),
+                "Pick a mob by its translated name and preview instead of typing a registry id.", "Done", id -> {
+            this.graph.scope = AioaBehaviorGraph.Scope.ENTITY_TYPE;
+            this.graph.selector = id.toString();
+            this.selector.setValue(this.graph.selector);
+            this.status = "Graph target: " + AioaScreenUtil.entityDisplayName(id);
+        }));
+    }
 
     private void newGraph() {
         syncFields();
@@ -822,7 +847,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private int nodeWidth() { return Math.max(64, (int) Math.round(NODE_WIDTH * this.canvasZoom)); }
     private int nodeHeight() { return Math.max(25, (int) Math.round(NODE_HEIGHT * this.canvasZoom)); }
     private int zoomPercent() { return (int) Math.round(this.canvasZoom * 100.0D); }
-    private static double clampZoom(double value) { return Math.max(0.5D, Math.min(1.75D, value)); }
+    private static double clampZoom(double value) { return Math.max(0.1D, Math.min(8.0D, value)); }
 
     @Override
     public boolean keyPressed(KeyEvent event) {
@@ -867,7 +892,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         int bottom = this.windowY + windowHeight();
         AioaScreenUtil.drawPanel(guiGraphics, this.windowX, this.windowY, right, bottom);
         guiGraphics.fill(this.windowX + 1, this.windowY + 1, right - 1, this.windowY + 24, 0xFF18231D);
-        guiGraphics.drawString(this.font, "AIOA Behavior Graph Studio - drag this title bar", this.windowX + 10, this.windowY + 8, AioaScreenUtil.TEXT_MAIN);
+        guiGraphics.drawString(this.font, "GRAPH: " + this.graph.name + "  :: drag / resize", this.windowX + 10, this.windowY + 8, AioaScreenUtil.TEXT_MAIN);
         drawGraphTabs(guiGraphics, mouseX, mouseY);
         guiGraphics.fill(this.canvasLeft(), this.canvasTop(), this.canvasRight(), this.canvasBottom(), 0xF0090D0B);
         drawGrid(guiGraphics);
@@ -1129,7 +1154,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private static void applyDefaultParameters(AioaBehaviorGraph.Node node) {
         switch (node.type) {
             case MOB_BASE -> node.parameter("entity", "auto").parameter("health", "20").parameter("damage", "3").parameter("speed", "0.23");
-            case EVERY_TICKS -> node.parameter("ticks", "20");
+            case EVERY_TICKS, DELAY_TICKS -> node.parameter("ticks", "20");
+            case EVERY_SECONDS -> node.parameter("seconds", "1");
             case RANDOM_CHANCE -> node.parameter("chance", "0.5");
             case FIND_NEAREST_PLAYER, FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB -> node.parameter("range", "24");
             case FIND_ENTITY_TYPE -> node.parameter("entity", "minecraft:zombie").parameter("range", "24");
@@ -1152,6 +1178,10 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             case EQUIP_ITEM -> node.parameter("item", "minecraft:iron_sword").parameter("slot", "MAINHAND").parameter("dropChance", "0");
             case SPAWN_MOB -> node.parameter("entity", "minecraft:zombie").parameter("cooldown", "200").parameter("nearbyCap", "8");
             case PLAY_SOUND -> node.parameter("sound", "minecraft:entity.zombie.ambient").parameter("volume", "1").parameter("pitch", "1");
+            case SAY_IN_CHAT -> node.parameter("message", "{mob} reached this node").parameter("range", "32");
+            case PARTICLE_PATTERN -> node.parameter("pattern", "circle").parameter("points", "16").parameter("radius", "1.5");
+            case SCRIPT -> node.parameter("script", "say={mob} started; rotate=90; glow=true");
+            case SET_BODY_ROTATION, SET_HEAD_ROTATION -> node.parameter("degrees", "0");
             default -> { }
         }
     }

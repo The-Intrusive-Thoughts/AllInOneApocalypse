@@ -111,6 +111,8 @@ public final class AioaBehaviorRuntime {
             case ON_TICK, COMMENT -> { return "next"; }
             case ON_FIRST_TICK -> { return mob.tickCount <= 1 ? "ready" : "waiting"; }
             case EVERY_TICKS -> { return mob.tickCount % (int) number(node, "ticks", 20, 1, 12000) == 0 ? "ready" : "waiting"; }
+            case EVERY_SECONDS -> { return mob.tickCount % Math.max(1, (int) Math.round(number(node, "seconds", 1, 0.05, 600) * 20)) == 0 ? "ready" : "waiting"; }
+            case DELAY_TICKS -> { return mob.tickCount % (int) number(node, "ticks", 20, 1, 12000) == 0 ? "ready" : "waiting"; }
             case RANDOM_CHANCE -> { return mob.getRandom().nextDouble() <= number(node, "chance", 0.5, 0, 1) ? "success" : "fail"; }
             case HAS_TARGET -> { return mob.getTarget() != null && mob.getTarget().isAlive() ? "true" : "false"; }
             case TARGET_IN_RANGE -> {
@@ -213,8 +215,55 @@ public final class AioaBehaviorRuntime {
                 if (AioaConfigManager.getConfig().behaviorEngine.allowWorldNodes) spawnMob(node, mob);
             }
             case PLAY_SOUND -> playSound(node, mob);
+            case SAY_IN_CHAT -> sayInChat(node, mob);
+            case PARTICLE_PATTERN -> particlePattern(node, mob);
+            case SCRIPT -> runCreatorScript(node, mob);
+            case SET_BODY_ROTATION -> mob.setYBodyRot((float) number(node, "degrees", mob.yBodyRot, -360, 360));
+            case SET_HEAD_ROTATION -> mob.setYHeadRot((float) number(node, "degrees", mob.getYHeadRot(), -360, 360));
         }
         return context.target == null ? "missing" : "found";
+    }
+
+    private static void sayInChat(AioaBehaviorGraph.Node node, Mob mob) {
+        if (!(mob.level() instanceof ServerLevel level)) return;
+        String message = node.parameters.getOrDefault("message", "AIOA event");
+        double range = number(node, "range", 32, 1, 256);
+        level.players().stream().filter(player -> player.distanceToSqr(mob) <= range * range)
+                .forEach(player -> player.sendSystemMessage(Component.literal(message.replace("{mob}", mob.getName().getString()))));
+    }
+
+    private static void particlePattern(AioaBehaviorGraph.Node node, Mob mob) {
+        if (!(mob.level() instanceof ServerLevel level)) return;
+        int points = (int) number(node, "points", 16, 3, 64);
+        double radius = number(node, "radius", 1.5, 0.1, 8);
+        String pattern = node.parameters.getOrDefault("pattern", "circle").toLowerCase(java.util.Locale.ROOT);
+        for (int i = 0; i < points; i++) {
+            double angle = Math.PI * 2.0D * i / points;
+            double progress = pattern.equals("spiral") ? (i + 1.0D) / points : 1.0D;
+            double x = mob.getX() + Math.cos(angle) * radius * progress;
+            double z = mob.getZ() + Math.sin(angle) * radius * progress;
+            double y = mob.getY() + 0.2D + (pattern.equals("spiral") ? progress * 2.0D : 0.0D);
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.HAPPY_VILLAGER, x, y, z, 1, 0, 0, 0, 0);
+        }
+    }
+
+    private static void runCreatorScript(AioaBehaviorGraph.Node node, Mob mob) {
+        String script = node.parameters.getOrDefault("script", "");
+        for (String raw : script.split(";")) {
+            String command = raw.trim();
+            if (command.isEmpty()) continue;
+            String[] parts = command.split("=", 2);
+            String name = parts[0].trim().toLowerCase(java.util.Locale.ROOT);
+            String value = parts.length > 1 ? parts[1].trim() : "true";
+            switch (name) {
+                case "say" -> sayInChat(new AioaBehaviorGraph.Node("script-say", AioaBehaviorGraph.NodeType.SAY_IN_CHAT, 0, 0).parameter("message", value), mob);
+                case "rotate" -> { try { mob.setYRot(mob.getYRot() + Float.parseFloat(value)); } catch (NumberFormatException ignored) { } }
+                case "glow" -> mob.setGlowingTag(Boolean.parseBoolean(value));
+                case "stop" -> mob.getNavigation().stop();
+                case "aggressive" -> mob.setAggressive(Boolean.parseBoolean(value));
+                default -> { }
+            }
+        }
     }
 
     private static LivingEntity findEntityType(AioaBehaviorGraph.Node node, Mob mob, double range) {

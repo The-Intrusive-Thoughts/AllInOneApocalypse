@@ -76,7 +76,8 @@ public final class AioaBehaviorValidator {
                     number(node, "nearbyCap", 1, 64, issues);
                 }
             }
-            case EVERY_TICKS -> number(node, "ticks", 1, 12000, issues);
+            case EVERY_TICKS, DELAY_TICKS -> number(node, "ticks", 1, 12000, issues);
+            case EVERY_SECONDS -> number(node, "seconds", 0.05, 600, issues);
             case RANDOM_CHANCE -> number(node, "chance", 0, 1, issues);
             case FIND_NEAREST_PLAYER, FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB -> number(node, "range", 1, 64, issues);
             case TARGET_IN_RANGE, ATTACK_TARGET -> number(node, "range", 1, 64, issues);
@@ -90,6 +91,13 @@ public final class AioaBehaviorValidator {
             case JUMP -> number(node, "strength", 0.1, 1.5, issues);
             case KNOCKBACK_TARGET -> number(node, "strength", 0, 4, issues);
             case PLAY_SOUND -> { number(node, "volume", 0, 4, issues); number(node, "pitch", 0.25, 2, issues); }
+            case SAY_IN_CHAT -> number(node, "range", 1, 256, issues);
+            case PARTICLE_PATTERN -> { number(node, "points", 3, 64, issues); number(node, "radius", 0.1, 8, issues); }
+            case SET_BODY_ROTATION, SET_HEAD_ROTATION -> number(node, "degrees", -360, 360, issues);
+            case SCRIPT -> {
+                String script = node.parameters.getOrDefault("script", "");
+                if (script.length() > 1024) issues.add("Script nodes are limited to 1,024 characters.");
+            }
             default -> { }
         }
     }
@@ -97,7 +105,8 @@ public final class AioaBehaviorValidator {
     private static Set<String> allowedParameters(AioaBehaviorGraph.NodeType type) {
         return switch (type) {
             case MOB_BASE -> Set.of("entity", "health", "damage", "speed");
-            case EVERY_TICKS -> Set.of("ticks");
+            case EVERY_TICKS, DELAY_TICKS -> Set.of("ticks");
+            case EVERY_SECONDS -> Set.of("seconds");
             case RANDOM_CHANCE -> Set.of("chance");
             case FIND_NEAREST_PLAYER, FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB -> Set.of("range");
             case FIND_ENTITY_TYPE -> Set.of("entity", "range");
@@ -117,6 +126,10 @@ public final class AioaBehaviorValidator {
             case EQUIP_ITEM -> Set.of("item", "slot", "dropChance");
             case SPAWN_MOB -> Set.of("entity", "cooldown", "nearbyCap", "capRadius", "offsetX", "offsetY", "offsetZ");
             case PLAY_SOUND -> Set.of("sound", "volume", "pitch");
+            case SAY_IN_CHAT -> Set.of("message", "range");
+            case PARTICLE_PATTERN -> Set.of("pattern", "points", "radius");
+            case SET_BODY_ROTATION, SET_HEAD_ROTATION -> Set.of("degrees");
+            case SCRIPT -> Set.of("script");
             case COMMENT -> Set.of("text");
             default -> Set.of();
         };
