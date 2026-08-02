@@ -37,6 +37,45 @@ public final class AioaConfig {
         return this;
     }
 
+    public AioaConfig applyPreset(Preset preset) {
+        HostileSpawnControl hostile = this.hostileSpawnControl;
+        DaySurfaceSpawns day = this.daySurfaceSpawns;
+        switch (preset) {
+            case BALANCED -> {
+                hostile.enabled = true;
+                day.enabled = true;
+                day.spawnIntervalTicks = 200;
+                day.spawnAttemptsPerPlayer = 2;
+                day.maxNearbyManagedMobs = 20;
+                day.refinedZombieAi = true;
+                day.coordinatedHordeAi = true;
+            }
+            case CINEMATIC -> {
+                hostile.enabled = false;
+                day.enabled = false;
+                day.preventSunlightBurn = true;
+                day.refinedZombieAi = false;
+                day.coordinatedHordeAi = false;
+            }
+            case HORDE -> {
+                hostile.enabled = true;
+                day.enabled = true;
+                day.spawnIntervalTicks = 80;
+                day.spawnAttemptsPerPlayer = 5;
+                day.maxNearbyManagedMobs = 60;
+                day.refinedZombieAi = true;
+                day.coordinatedHordeAi = true;
+            }
+        }
+        return this.sanitize();
+    }
+
+    public enum Preset {
+        BALANCED,
+        CINEMATIC,
+        HORDE
+    }
+
     public static final class HostileSpawnControl {
         public boolean enabled = true;
         public boolean overworldOnly = true;
@@ -85,6 +124,7 @@ public final class AioaConfig {
         public boolean zombiesCanClimbWalls = true;
         public boolean refinedZombieAi = true;
         public boolean refinedPathfindingOpensDoors = true;
+        public boolean coordinatedHordeAi = true;
         public boolean exportMobCatalog = true;
         public int spawnIntervalTicks = 200;
         public int spawnAttemptsPerPlayer = 2;
@@ -117,6 +157,7 @@ public final class AioaConfig {
             copy.zombiesCanClimbWalls = this.zombiesCanClimbWalls;
             copy.refinedZombieAi = this.refinedZombieAi;
             copy.refinedPathfindingOpensDoors = this.refinedPathfindingOpensDoors;
+            copy.coordinatedHordeAi = this.coordinatedHordeAi;
             copy.exportMobCatalog = this.exportMobCatalog;
             copy.spawnIntervalTicks = this.spawnIntervalTicks;
             copy.spawnAttemptsPerPlayer = this.spawnAttemptsPerPlayer;
