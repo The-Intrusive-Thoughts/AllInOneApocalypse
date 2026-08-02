@@ -4,7 +4,7 @@ import com.flubburr.aioa.behavior.AioaBehaviorGraph;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.List;
 
@@ -72,7 +72,7 @@ final class AioaDocsScreen extends AioaAnimatedScreen {
 
     private void drawStartDocs(GuiGraphics g, int left, int top, int width) {
         card(g, left + 20, top, width - 40, "WELCOME TO MOB STUDIO", "Build mob behavior by placing readable nodes, linking their output ports, previewing the selected mob, validating, and applying. Start with one mob type before using global scopes.");
-        AioaScreenUtil.drawMobPreview(g, this.font, left + 36, top + 76, 210, 150, new ResourceLocation("minecraft", "zombie"), true,
+        AioaScreenUtil.drawMobPreview(g, this.font, left + 36, top + 76, 210, 150, Identifier.fromNamespaceAndPath("minecraft", "zombie"), true,
                 List.of(Component.literal("LIVE MOB SHOWCASE"), Component.literal("Select, preview, spawn, direct")));
         card(g, left + 270, top + 76, width - 306, "FIRST GRAPH", "1. Open Behavior Graph Studio.  2. Choose a scope or use world picking.  3. Add event, sensing, action, and condition nodes.  4. Link ports.  5. Validate and Apply. Use Spawn Studio to create a test subject.");
     }
@@ -99,9 +99,9 @@ final class AioaDocsScreen extends AioaAnimatedScreen {
 
     private void drawSpawnDocs(GuiGraphics g, int left, int top, int width) {
         card(g, left + 20, top, width - 40, "SPAWN STUDIO", "Create individual mobs or instanced groups with exact facing, position, AI, persistence, silence, invulnerability, glow, baby state, equipment, and names. Preview first, then spawn at the player or cursor target.");
-        AioaScreenUtil.drawMobPreview(g, this.font, left + 30, top + 78, 190, 145, new ResourceLocation("minecraft", "skeleton"), true,
+        AioaScreenUtil.drawMobPreview(g, this.font, left + 30, top + 78, 190, 145, Identifier.fromNamespaceAndPath("minecraft", "skeleton"), true,
                 List.of(Component.literal("INSTANCE PRESET"), Component.literal("No AI + face player")));
-        AioaScreenUtil.drawMobPreview(g, this.font, left + 236, top + 78, 190, 145, new ResourceLocation("minecraft", "creeper"), true,
+        AioaScreenUtil.drawMobPreview(g, this.font, left + 236, top + 78, 190, 145, Identifier.fromNamespaceAndPath("minecraft", "creeper"), true,
                 List.of(Component.literal("CONTENT SHOT"), Component.literal("Persistent + custom name")));
         card(g, left + 442, top + 78, width - 472, "SAFE TESTING", "Creative/operator permission is required for server-side creation. Limits clamp group size, distance, graph size, and packet size. Test dangerous graphs on a copy of the world.");
     }
