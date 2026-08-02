@@ -49,11 +49,11 @@ abstract class AioaAnimatedScreen extends Screen {
     }
 
     protected final void beginUiRender(GuiGraphics guiGraphics) {
-        guiGraphics.pose().pushPose();
+        guiGraphics.pose().pushMatrix();
     }
 
     protected final void finishUiRender(GuiGraphics guiGraphics) {
-        guiGraphics.pose().popPose();
+        guiGraphics.pose().popMatrix();
         int scrimColor = this.transitionScrimColor();
         if ((scrimColor >>> 24) > 0) {
             guiGraphics.fillGradient(0, 0, this.width, this.height, scrimColor, scrimColor);
