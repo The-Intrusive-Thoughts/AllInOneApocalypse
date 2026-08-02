@@ -7,12 +7,13 @@ import java.util.List;
 
 public final class AioaConfig {
 
-    public static final int CURRENT_SCHEMA_VERSION = 5;
+    public static final int CURRENT_SCHEMA_VERSION = 6;
 
     public int schemaVersion = CURRENT_SCHEMA_VERSION;
     public HostileSpawnControl hostileSpawnControl = new HostileSpawnControl();
     public DaySurfaceSpawns daySurfaceSpawns = new DaySurfaceSpawns();
     public BehaviorEngine behaviorEngine = new BehaviorEngine();
+    public ClientUi clientUi = new ClientUi();
     public List<AioaBehaviorGraph> behaviorGraphs = new ArrayList<>(List.of(AioaBehaviorGraph.createStarter()));
 
     public static AioaConfig createDefault() {
@@ -25,6 +26,7 @@ public final class AioaConfig {
         copy.hostileSpawnControl = this.hostileSpawnControl.copy();
         copy.daySurfaceSpawns = this.daySurfaceSpawns.copy();
         copy.behaviorEngine = this.behaviorEngine.copy();
+        copy.clientUi = this.clientUi.copy();
         copy.behaviorGraphs = this.behaviorGraphs == null
                 ? new ArrayList<>()
                 : new ArrayList<>(this.behaviorGraphs.stream().map(AioaBehaviorGraph::copy).toList());
@@ -42,10 +44,14 @@ public final class AioaConfig {
         if (this.behaviorEngine == null) {
             this.behaviorEngine = new BehaviorEngine();
         }
+        if (this.clientUi == null) {
+            this.clientUi = new ClientUi();
+        }
 
         this.hostileSpawnControl.sanitize();
         this.daySurfaceSpawns.sanitize();
         this.behaviorEngine.sanitize();
+        this.clientUi.sanitize();
         if (this.behaviorGraphs == null) {
             this.behaviorGraphs = new ArrayList<>();
         }
@@ -91,6 +97,30 @@ public final class AioaConfig {
         BALANCED,
         CINEMATIC,
         HORDE
+    }
+
+    public static final class ClientUi {
+        public int editorScalePercent = 100;
+        public double menuSfxVolume = 0.35D;
+        public double uiSoundVolume = 0.70D;
+        public boolean showDocsHint = true;
+        public boolean tutorialCompleted = false;
+
+        private ClientUi copy() {
+            ClientUi copy = new ClientUi();
+            copy.editorScalePercent = this.editorScalePercent;
+            copy.menuSfxVolume = this.menuSfxVolume;
+            copy.uiSoundVolume = this.uiSoundVolume;
+            copy.showDocsHint = this.showDocsHint;
+            copy.tutorialCompleted = this.tutorialCompleted;
+            return copy;
+        }
+
+        private void sanitize() {
+            this.editorScalePercent = Math.max(60, Math.min(140, this.editorScalePercent));
+            this.menuSfxVolume = Math.max(0.0D, Math.min(1.0D, this.menuSfxVolume));
+            this.uiSoundVolume = Math.max(0.0D, Math.min(1.0D, this.uiSoundVolume));
+        }
     }
 
     public static final class BehaviorEngine {
