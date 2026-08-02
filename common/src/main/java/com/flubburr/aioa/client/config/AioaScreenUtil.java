@@ -96,7 +96,7 @@ public final class AioaScreenUtil {
         guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, PANEL_ACCENT);
     }
 
-    static void drawScreenBackground(GuiGraphics guiGraphics, int width, int height) {
+    public static void drawScreenBackground(GuiGraphics guiGraphics, int width, int height) {
         guiGraphics.fillGradient(0, 0, width, height, 0xF0101010, 0xFF080808);
     }
 
@@ -421,7 +421,7 @@ public final class AioaScreenUtil {
             int modelCenterX = modelLeft + ((left + width - padding - modelLeft) / 2);
             int modelAnchorY = modelBottom - 10;
             int scale = Math.max(24, Math.min(42, (modelBottom - modelTop) / 2));
-            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, modelCenterX, modelAnchorY, scale, 0.0F, 0.0F, previewEntity);
+            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, modelCenterX - scale, modelTop, modelCenterX + scale, modelAnchorY, scale, 0.0F, 0.0F, 0.0F, previewEntity);
         } else {
             int itemX = modelLeft + (((left + width - padding) - modelLeft) / 2) - 8;
             int itemY = modelTop + ((modelBottom - modelTop) / 2) - 8;
@@ -465,10 +465,12 @@ public final class AioaScreenUtil {
             entity.setYHeadRot(simulationYaw);
             entity.setYBodyRot(simulationYaw);
             entity.walkAnimation.update(0.65F, 1.0F);
-            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX, floorBottom - 3, scale, orbitX, orbitY, entity);
+            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX - scale, top + 22, mobX + scale, floorBottom - 3, scale, 0.0F, orbitX, orbitY, entity);
             if (width >= 230 && Minecraft.getInstance().player != null) {
-                InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, left + width * 3 / 4, floorBottom - 3,
-                        Math.max(24, scale * 3 / 4), orbitX, orbitY, Minecraft.getInstance().player);
+                int playerX = left + width * 3 / 4;
+                int playerScale = Math.max(24, scale * 3 / 4);
+                InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, playerX - playerScale, top + 22, playerX + playerScale,
+                        floorBottom - 3, playerScale, 0.0F, orbitX, orbitY, Minecraft.getInstance().player);
             }
             guiGraphics.disableScissor();
         } else {
