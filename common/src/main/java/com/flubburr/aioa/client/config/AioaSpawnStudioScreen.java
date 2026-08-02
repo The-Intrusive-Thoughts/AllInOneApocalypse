@@ -5,15 +5,16 @@ import com.flubburr.aioa.network.AioaSpawnRequest;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.resources.ResourceLocation;
 
 public final class AioaSpawnStudioScreen extends Screen {
     private final Screen parent;
-    private EditBox entityId;
+    private ResourceLocation entityId = new ResourceLocation("minecraft", "zombie");
+    private Button mobButton;
     private boolean noAi;
     private boolean facePlayer = true;
     private boolean persistent = true;
@@ -39,10 +40,13 @@ public final class AioaSpawnStudioScreen extends Screen {
         int x = left + 22;
         int y = Math.max(82, (this.height - 264) / 2 + 48);
 
-        this.entityId = new EditBox(this.font, x, y, fieldWidth, 24, Component.literal("Mob registry id"));
-        this.entityId.setValue("minecraft:zombie");
-        this.entityId.setHint(Component.literal("minecraft:zombie"));
-        this.addRenderableWidget(this.entityId);
+        this.mobButton = this.addRenderableWidget(AioaScreenUtil.button(x, y, fieldWidth,
+                "Mob: " + AioaScreenUtil.entityDisplayName(this.entityId), button -> this.transitionTo(
+                        new AioaEntityPickerScreen(this, "Choose Spawn Mob", AioaScreenUtil.allEntityIds(),
+                                "Search translated mob names and use the live preview. Registry ids stay hidden.", "Done", id -> {
+                            this.entityId = id;
+                            this.mobButton.setMessage(Component.literal("Mob: " + AioaScreenUtil.entityDisplayName(id)));
+                        }))));
         y += 34;
 
         this.noAiButton = this.addRenderableWidget(AioaScreenUtil.button(x, y, fieldWidth, AioaScreenUtil.boolLabel("No AI", this.noAi), button -> {
@@ -63,7 +67,6 @@ public final class AioaSpawnStudioScreen extends Screen {
 
         this.addRenderableWidget(AioaScreenUtil.button(x, y, (fieldWidth - 10) / 2, "Spawn at cursor", button -> this.spawnAtCursor()));
         this.addRenderableWidget(AioaScreenUtil.button(x + ((fieldWidth - 10) / 2) + 10, y, (fieldWidth - 10) / 2, "Done", button -> this.onClose()));
-        this.setInitialFocus(this.entityId);
     }
 
     private void refreshLabels() {
@@ -84,7 +87,7 @@ public final class AioaSpawnStudioScreen extends Screen {
             target = minecraft.player.getEyePosition().add(minecraft.player.getLookAngle().scale(5.0D));
         }
         AioaClientNetworking.sendSpawnRequest(new AioaSpawnRequest(
-                this.entityId.getValue().trim(), target.x, target.y, target.z, this.noAi, this.facePlayer, this.persistent
+                this.entityId.toString(), target.x, target.y, target.z, this.noAi, this.facePlayer, this.persistent
         ));
     }
 
