@@ -41,6 +41,10 @@ public final class AioaEntityHelper {
                 : Optional.empty();
     }
 
+    public static Identifier parseResourceLocation(String raw) {
+        return raw == null ? null : Identifier.tryParse(raw.trim());
+    }
+
     public static Optional<Identifier> resolveEntityId(String rawSelector, Consumer<String> warningConsumer) {
         String trimmed = rawSelector == null ? "" : rawSelector.trim();
         if (trimmed.isEmpty()) {

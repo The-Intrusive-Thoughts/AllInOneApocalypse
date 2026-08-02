@@ -5,6 +5,8 @@ import com.flubburr.aioa.AioaConstants;
 import com.flubburr.aioa.forge.config.AioaForgeClient;
 import com.flubburr.aioa.network.AioaSpawnRequest;
 import com.flubburr.aioa.spawn.AioaSpawnStudioHandler;
+import com.flubburr.aioa.behavior.AioaGraphUpdateHandler;
+import com.flubburr.aioa.network.AioaGraphUpdateRequest;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.common.MinecraftForge;
@@ -32,6 +34,11 @@ public final class AioaForge {
                 .encoder(AioaForge::encodeSpawnRequest)
                 .decoder(AioaForge::decodeSpawnRequest)
                 .consumerMainThread(AioaForge::handleSpawnRequest)
+                .add();
+        NETWORK.messageBuilder(AioaGraphUpdateRequest.class, 1)
+                .encoder((request, buffer) -> buffer.writeUtf(request.graphJson(), 65_536))
+                .decoder(buffer -> new AioaGraphUpdateRequest(buffer.readUtf(65_536)))
+                .consumerMainThread(AioaForge::handleGraphUpdate)
                 .add();
         TickEvent.LevelTickEvent.Post.BUS.addListener(this::onLevelTick);
 
@@ -63,6 +70,13 @@ public final class AioaForge {
         context.setPacketHandled(true);
     }
 
+    private static void handleGraphUpdate(AioaGraphUpdateRequest request, CustomPayloadEvent.Context context) {
+        if (context.getSender() != null) {
+            AioaGraphUpdateHandler.handle(context.getSender(), request);
+        }
+        context.setPacketHandled(true);
+    }
+
     private void onLevelTick(TickEvent.LevelTickEvent.Post event) {
         if (event.level().isClientSide()) {
             return;
@@ -75,12 +89,17 @@ public final class AioaForge {
 
     private void onClientTick(TickEvent.ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
+        com.flubburr.aioa.client.config.AioaMobSelectionController.tick(minecraft);
         while (AioaForgeClient.openConfigKey().consumeClick()) {
             if (minecraft.player != null && minecraft.player.isCreative()) {
                 minecraft.setScreen(AioaForgeClient.createScreen(minecraft.screen));
             }
         }
         while (AioaForgeClient.openSpawnStudioKey().consumeClick()) {
+            if (com.flubburr.aioa.client.config.AioaMobSelectionController.isArmed()) {
+                com.flubburr.aioa.client.config.AioaMobSelectionController.cancel(minecraft, "AIOA mob selection cancelled.");
+                continue;
+            }
             if (minecraft.player != null && minecraft.player.isCreative()) {
                 minecraft.setScreen(com.flubburr.aioa.client.config.AioaSpawnStudioScreen.create(minecraft.screen));
             }
