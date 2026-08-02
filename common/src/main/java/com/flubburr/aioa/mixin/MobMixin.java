@@ -58,5 +58,6 @@ public abstract class MobMixin {
                 AioaZombieBehaviour.usesWallClimbing(self, settings),
                 AioaZombieBehaviour.usesRefinedAi(self, settings)
         );
+        AioaZombieBehaviour.coordinateNearbyMobs(self, settings);
     }
 }

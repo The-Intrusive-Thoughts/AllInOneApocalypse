@@ -3,6 +3,7 @@
   "aioa.common.off": "OFF",
   "key.categories.aioa": "All In One Apocalypse",
   "key.aioa.open_config": "Open AIOA Config",
+  "key.aioa.open_spawn_studio": "Open AIOA Spawn Studio",
 
   "aioa.midnightconfig.title": "AIOA Configuration",
   "aioa.midnightconfig.category.hostile_spawn_control": "Hostile Spawn Control",
@@ -36,6 +37,7 @@
   "aioa.midnightconfig.zombies_can_climb_walls": "Enable wall climbing",
   "aioa.midnightconfig.refined_zombie_ai": "Enable refined chase AI",
   "aioa.midnightconfig.refined_pathfinding_opens_doors": "Allow refined pathfinding to use doors",
+  "aioa.midnightconfig.coordinated_horde_ai": "Share targets with nearby apocalypse mobs",
   "aioa.midnightconfig.refined_ai_entity_ids": "Mobs using refined AI",
   "aioa.midnightconfig.wall_climbing_entity_ids": "Mobs allowed to climb walls",
   "aioa.midnightconfig.player_only_target_entity_ids": "Per-entity override: players only",
