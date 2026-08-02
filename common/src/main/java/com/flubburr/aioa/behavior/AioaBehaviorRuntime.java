@@ -5,7 +5,7 @@ import com.flubburr.aioa.compat.AioaEntityHelper;
 import com.flubburr.aioa.config.AioaConfigManager;
 import com.flubburr.aioa.spawn.AioaZombieBehaviour;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
@@ -231,7 +231,7 @@ public final class AioaBehaviorRuntime {
     }
 
     private static void playSound(AioaBehaviorGraph.Node node, Mob mob) {
-        Optional<ResourceLocation> id = Optional.ofNullable(AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("sound", "minecraft:entity.zombie.ambient")));
+        Optional<Identifier> id = Optional.ofNullable(AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("sound", "minecraft:entity.zombie.ambient")));
         SoundEvent sound = id.map(BuiltInRegistries.SOUND_EVENT::getValue).orElse(null);
         if (sound != null) {
             mob.level().playSound(null, mob.blockPosition(), sound, SoundSource.HOSTILE,
