@@ -43,9 +43,11 @@ public final class AioaMobSelectionController {
     }
 
     public static void cancel(Minecraft minecraft, String message) {
+        AioaBehaviorEditorScreen editor = pendingEditor;
         pendingEditor = null;
         wasRightDown = false;
         if (minecraft.player != null) minecraft.player.displayClientMessage(Component.literal(message), true);
+        if (editor != null && minecraft.screen == null) minecraft.setScreen(editor);
     }
 
     public static boolean isArmed() {
