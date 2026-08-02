@@ -5,6 +5,7 @@ import com.flubburr.aioa.compat.AioaEntityHelper;
 import com.flubburr.aioa.config.AioaConfigManager;
 import com.flubburr.aioa.spawn.AioaZombieBehaviour;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -255,7 +256,7 @@ public final class AioaBehaviorRuntime {
         }
     }
 
-    private static void setAttribute(Mob mob, net.minecraft.world.entity.ai.attributes.Attribute attribute, double value) {
+    private static void setAttribute(Mob mob, Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute, double value) {
         AttributeInstance instance = mob.getAttribute(attribute);
         if (instance != null) instance.setBaseValue(value);
     }
