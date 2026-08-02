@@ -16,6 +16,8 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
 
     private final Screen parent;
     private AioaConfig editableConfig;
+    private static boolean welcomeShown;
+    private boolean showWelcome = !welcomeShown;
 
     private AioaConfigScreen(Screen parent, AioaConfig editableConfig) {
         super(Component.literal("AIOA Configuration"));
@@ -44,6 +46,13 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         int rightX = singleColumn ? leftX : leftX + columnWidth + gap;
         int y = 0;
         int step = AioaScreenUtil.BUTTON_HEIGHT + 10;
+
+        this.addScrollable(AioaScreenUtil.button(leftX, 0, singleColumn ? columnWidth : this.panelWidth - 44, Component.translatable("aioa.docs.button").getString(), b -> {
+            welcomeShown = true;
+            this.showWelcome = false;
+            this.minecraft.setScreen(new AioaDocsScreen(this));
+        }), y);
+        y += step + 6;
 
         this.addScrollable(AioaScreenUtil.button(leftX, 0, columnWidth, "Hostile Spawn Rules", b ->
                 this.minecraft.setScreen(new AioaHostileSettingsScreen(this, this.editableConfig))), y);
@@ -137,6 +146,16 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         }
         AioaConfigScreen.super.render(guiGraphics, mouseX, mouseY, partialTick);
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
+        if (this.showWelcome) {
+            int hintWidth = Math.min(390, this.width - 30);
+            int hintX = this.width - hintWidth - 14;
+            int hintY = 12;
+            guiGraphics.fill(hintX, hintY, hintX + hintWidth, hintY + 52, 0xF21A2B21);
+            guiGraphics.drawString(this.font, "NEW: INTEGRATED HELP & SHOWCASES", hintX + 10, hintY + 9, 0xFF78E5A5);
+            AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font,
+                    Component.literal("Open Documentation & Creator Guide for controls, every node, live mob examples, spawning, and multiplayer safety."),
+                    hintX + hintWidth / 2, hintY + 23, hintWidth - 18, AioaScreenUtil.TEXT_SUB);
+        }
         AioaScreenUtil.popUiLayer(guiGraphics);
     }
 }
