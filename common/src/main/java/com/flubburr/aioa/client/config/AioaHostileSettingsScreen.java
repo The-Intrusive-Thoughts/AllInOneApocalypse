@@ -98,7 +98,7 @@ final class AioaHostileSettingsScreen extends AioaScrollableScreen {
         }
         this.refreshVisibility();
 
-        this.addScrollable(AioaScreenUtil.button(centerX - 172, 0, 164, "Done", b -> {
+        this.addScrollable(AioaScreenUtil.button(centerX - 82, 0, 164, "Done", b -> {
             this.editableConfig.hostileSpawnControl.enabled = this.enabled;
             this.editableConfig.hostileSpawnControl.overworldOnly = this.overworldOnly;
             this.editableConfig.hostileSpawnControl.ignoreStructureSpawns = this.ignoreStructureSpawns;
@@ -106,7 +106,6 @@ final class AioaHostileSettingsScreen extends AioaScrollableScreen {
             this.editableConfig.hostileSpawnControl.ignoreSpecialSpawns = this.ignoreSpecialSpawns;
             this.transitionTo(this.parent);
         }), y);
-        this.addScrollable(AioaScreenUtil.button(centerX + 8, 0, 164, "Cancel", b -> this.transitionTo(this.parent)), y);
         this.finishScrollLayout(y + AioaScreenUtil.BUTTON_HEIGHT);
     }
 

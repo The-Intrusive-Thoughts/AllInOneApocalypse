@@ -2,6 +2,7 @@ package com.flubburr.aioa.client.config;
 
 import com.flubburr.aioa.compat.AioaEntityHelper;
 import com.flubburr.aioa.config.AioaSpawnEntry;
+import com.flubburr.aioa.config.AioaConfigManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -429,6 +430,57 @@ public final class AioaScreenUtil {
         }
     }
 
+    static void drawEntityViewport(GuiGraphics guiGraphics, Font font, int left, int top, int width, int height,
+                                   ResourceLocation id, int mouseX, int mouseY, String state) {
+        drawInsetPanel(guiGraphics, left, top, left + width, top + height, true);
+        guiGraphics.fill(left + 2, top + 20, left + width - 2, top + height - 2, 0xFF080D0A);
+        guiGraphics.fill(left + 2, top + 2, left + width - 2, top + 20, 0xFF17271E);
+        guiGraphics.drawString(font, "3D VIEWPORT", left + 8, top + 7, TEXT_MAIN);
+        String clippedState = font.plainSubstrByWidth(state, Math.max(20, width - 100));
+        guiGraphics.drawString(font, clippedState, left + width - font.width(clippedState) - 8, top + 7, TEXT_SUB);
+
+        int floorTop = top + Math.max(36, height / 2);
+        int floorBottom = top + height - 4;
+        for (int row = 0; row <= 5; row++) {
+            double t = row / 5.0D;
+            int y = floorTop + (int) Math.round(t * t * (floorBottom - floorTop));
+            guiGraphics.fill(left + 4, y, left + width - 4, y + 1, 0x3A4ACB78);
+        }
+        int centerX = left + width / 2;
+        for (int column = -4; column <= 4; column++) {
+            int nearX = centerX + column * Math.max(8, width / 9);
+            int farX = centerX + column * Math.max(2, width / 32);
+            drawViewportLine(guiGraphics, nearX, floorBottom, farX, floorTop, 0x334ACB78);
+        }
+
+        LivingEntity entity = previewEntity(id);
+        if (entity != null) {
+            guiGraphics.enableScissor(left + 2, top + 21, left + width - 2, top + height - 2);
+            float orbitX = (mouseX - centerX) * 0.55F;
+            float orbitY = (mouseY - (top + height / 2)) * 0.35F;
+            int scale = Math.max(28, Math.min(72, height / 2));
+            int mobX = width >= 230 ? left + width * 2 / 5 : centerX;
+            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX, floorBottom - 3, scale, orbitX, orbitY, entity);
+            if (width >= 230 && Minecraft.getInstance().player != null) {
+                InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, left + width * 3 / 4, floorBottom - 3,
+                        Math.max(24, scale * 3 / 4), orbitX, orbitY, Minecraft.getInstance().player);
+            }
+            guiGraphics.disableScissor();
+        } else {
+            guiGraphics.renderItem(entityPreviewItem(id), centerX - 8, top + height / 2 - 8);
+        }
+    }
+
+    private static void drawViewportLine(GuiGraphics graphics, int x1, int y1, int x2, int y2, int color) {
+        int steps = Math.max(1, Math.abs(y2 - y1));
+        for (int i = 0; i <= steps; i++) {
+            double t = i / (double) steps;
+            int x = (int) Math.round(x1 + (x2 - x1) * t);
+            int y = (int) Math.round(y1 + (y2 - y1) * t);
+            graphics.fill(x, y, x + 1, y + 1, color);
+        }
+    }
+
     static String summarizeEntry(String rawEntry) {
         Optional<AioaSpawnEntry> parsed = AioaSpawnEntry.parse(rawEntry, warning -> {
         });
@@ -569,10 +621,12 @@ public final class AioaScreenUtil {
 
     private static void playUiSound(ResourceLocation soundId, float volume, float pitch) {
         Minecraft minecraft = Minecraft.getInstance();
+        float configuredVolume = (float) AioaConfigManager.getConfig().clientUi.uiSoundVolume;
+        if (configuredVolume <= 0.0F) return;
         minecraft.getSoundManager().play(new SimpleSoundInstance(
                 soundId,
                 SoundSource.MASTER,
-                volume,
+                volume * configuredVolume,
                 pitch,
                 UI_SOUND_RANDOM,
                 false,
@@ -591,21 +645,23 @@ public final class AioaScreenUtil {
 
     private static final class MenuLoopSound extends AbstractTickableSoundInstance {
 
-        private static final float LOOP_VOLUME = 1.35F;
-
         private MenuLoopSound(SoundEvent soundEvent) {
             super(soundEvent, SoundSource.MASTER, UI_SOUND_RANDOM);
             this.looping = true;
             this.delay = 0;
             this.attenuation = SoundInstance.Attenuation.NONE;
             this.relative = true;
-            this.volume = LOOP_VOLUME;
+            this.volume = configuredMenuVolume();
             this.pitch = 1.0F;
         }
 
         @Override
         public void tick() {
-            this.volume = LOOP_VOLUME;
+            this.volume = configuredMenuVolume();
+        }
+
+        private static float configuredMenuVolume() {
+            return (float) AioaConfigManager.getConfig().clientUi.menuSfxVolume;
         }
     }
 

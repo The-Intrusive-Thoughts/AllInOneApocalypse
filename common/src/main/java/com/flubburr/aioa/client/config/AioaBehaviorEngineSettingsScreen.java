@@ -53,12 +53,11 @@ final class AioaBehaviorEngineSettingsScreen extends AioaScrollableScreen {
         this.libraryDirectory.setValue(this.draft.graphLibraryDirectory);
         this.libraryDirectory.setHint(Component.literal("Relative to config, e.g. aioa/graphs"));
         this.addScrollable(this.libraryDirectory, y); y += step + 8;
-        this.addScrollable(AioaScreenUtil.button(this.width / 2 - 172, 0, 164, "Done", b -> {
+        this.addScrollable(AioaScreenUtil.button(this.width / 2 - 82, 0, 164, "Done", b -> {
             this.draft.graphLibraryDirectory = this.libraryDirectory.getValue().trim();
             this.editableConfig.behaviorEngine = this.draft;
             this.transitionTo(this.parent);
         }), y);
-        this.addScrollable(AioaScreenUtil.button(this.width / 2 + 8, 0, 164, "Cancel", b -> this.transitionTo(this.parent)), y);
         this.finishScrollLayout(y + AioaScreenUtil.BUTTON_HEIGHT);
     }
 

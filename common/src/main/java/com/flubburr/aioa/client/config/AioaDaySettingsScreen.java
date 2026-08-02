@@ -156,7 +156,7 @@ final class AioaDaySettingsScreen extends AioaScrollableScreen {
 
         this.refreshVisibility();
 
-        this.addScrollable(AioaScreenUtil.button(centerX - 172, 0, 164, "Done", b -> {
+        this.addScrollable(AioaScreenUtil.button(centerX - 82, 0, 164, "Done", b -> {
             AioaConfig.DaySurfaceSpawns target = this.editableConfig.daySurfaceSpawns;
             target.enabled = this.enabled;
             target.overworldOnly = this.overworldOnly;
@@ -174,7 +174,6 @@ final class AioaDaySettingsScreen extends AioaScrollableScreen {
             this.editableConfig.sanitize();
             this.transitionTo(this.parent);
         }), y);
-        this.addScrollable(AioaScreenUtil.button(centerX + 8, 0, 164, "Cancel", b -> this.transitionTo(this.parent)), y);
         this.finishScrollLayout(y + AioaScreenUtil.BUTTON_HEIGHT);
     }
 

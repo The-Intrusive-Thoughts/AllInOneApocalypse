@@ -45,7 +45,7 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
     @Override
     protected void init() {
         int contentTop = AioaScreenUtil.adaptiveContentTop(this.height, 76, 68, 120);
-        int contentBottom = AioaScreenUtil.adaptiveContentBottom(this.height, this.height - 68, 40, contentTop, 120);
+        int contentBottom = AioaScreenUtil.adaptiveContentBottom(this.height, this.height - 106, 76, contentTop, 120);
         this.resetScrollLayout(620, contentTop, contentBottom);
         this.optionButtons.clear();
         int width = this.panelWidth - 40;
@@ -66,9 +66,9 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
             this.optionButtons.add(button);
         }
 
-        this.addButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, this.actionLabel, b -> this.confirmSelection()), y);
-        y += AioaScreenUtil.BUTTON_HEIGHT + 8;
-        this.backButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Back", b -> this.transitionTo(this.parent)), y);
+        int footerY = this.height - 92;
+        this.addButton = this.addRenderableWidget(AioaScreenUtil.button(left, footerY, (width - 10) / 2, this.actionLabel, b -> this.confirmSelection()));
+        this.backButton = this.addRenderableWidget(AioaScreenUtil.button(left + (width + 10) / 2, footerY, (width - 10) / 2, "Back", b -> this.transitionTo(this.parent)));
 
         this.refreshList();
         this.setInitialFocus(this.searchBox);
@@ -109,10 +109,8 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
             y += AioaScreenUtil.BUTTON_HEIGHT + 6;
         }
 
-        this.setScrollableRelativeY(this.addButton, y + 6);
-        this.setScrollableRelativeY(this.backButton, y + AioaScreenUtil.BUTTON_HEIGHT + 14);
         this.addButton.active = this.selectedOption != null;
-        this.finishScrollLayout(y + (AioaScreenUtil.BUTTON_HEIGHT * 2) + 44);
+        this.finishScrollLayout(y + 12);
     }
 
     private void selectButton(Button clicked) {

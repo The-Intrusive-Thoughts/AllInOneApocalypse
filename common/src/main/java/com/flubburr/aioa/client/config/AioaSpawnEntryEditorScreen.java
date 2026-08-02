@@ -108,7 +108,7 @@ final class AioaSpawnEntryEditorScreen extends AioaScrollableScreen {
         }
         this.refreshSectionVisibility();
 
-        this.addScrollable(AioaScreenUtil.button(centerX - 172, 0, 164, "Done", b -> {
+        this.addScrollable(AioaScreenUtil.button(centerX - 82, 0, 164, "Done", b -> {
             int weight = Math.max(1, this.cachedWeight);
             double chance = AioaScreenUtil.clampChance(this.cachedChance);
             int min = Math.max(1, this.cachedMin);
@@ -124,7 +124,6 @@ final class AioaSpawnEntryEditorScreen extends AioaScrollableScreen {
             ));
             this.transitionTo(this.parent);
         }), y);
-        this.addScrollable(AioaScreenUtil.button(centerX + 8, 0, 164, "Cancel", b -> this.transitionTo(this.parent)), y);
         this.finishScrollLayout(y + AioaScreenUtil.BUTTON_HEIGHT + 110);
         this.setInitialFocus(this.weightSlider);
     }

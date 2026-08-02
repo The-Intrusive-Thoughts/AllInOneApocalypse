@@ -36,7 +36,6 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
     private Button selectAllButton;
     private Button clearButton;
     private Button doneButton;
-    private Button cancelButton;
     private Button overworldHeader;
     private Button netherHeader;
     private Button endHeader;
@@ -126,8 +125,6 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
             this.editableConfig.daySurfaceSpawns.allowedBiomeIds = new ArrayList<>(this.selectedBiomeIds);
             this.closeToParent();
         }), y);
-        y += AioaScreenUtil.BUTTON_HEIGHT + 8;
-        this.cancelButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Cancel", b -> this.closeToParent()), y);
 
         this.refreshList();
         this.setInitialFocus(this.searchBox);
@@ -178,11 +175,10 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
         this.setScrollableRelativeY(this.selectAllButton, y + 6);
         this.setScrollableRelativeY(this.clearButton, y + 38);
         this.setScrollableRelativeY(this.doneButton, y + 70);
-        this.setScrollableRelativeY(this.cancelButton, y + 102);
         boolean hasVisibleBiomes = this.visibleButtonBiomes.stream().anyMatch(biome -> biome != null);
         this.selectAllButton.active = hasVisibleBiomes;
         this.clearButton.active = hasVisibleBiomes;
-        this.finishScrollLayout(y + 134);
+        this.finishScrollLayout(y + 102);
     }
 
     private int layoutGroup(Button header, String label, boolean expanded, List<ResourceLocation> entries, int y, int slotStart) {

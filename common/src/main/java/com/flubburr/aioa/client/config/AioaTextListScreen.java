@@ -51,7 +51,7 @@ final class AioaTextListScreen extends AioaAnimatedScreen {
         this.editor.setValue(String.join("\n", this.initialValues));
         this.addRenderableWidget(this.editor);
 
-        this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 - 154, this.height - 30, 150, "Done", b -> {
+        this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 - 75, this.height - 30, 150, "Done", b -> {
             List<String> values = this.editor.getValue().lines()
                     .map(String::trim)
                     .filter(line -> !line.isEmpty())
@@ -59,7 +59,6 @@ final class AioaTextListScreen extends AioaAnimatedScreen {
             this.saveConsumer.accept(new ArrayList<>(values));
             this.transitionTo(this.parent);
         }));
-        this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 + 4, this.height - 30, 150, "Cancel", b -> this.transitionTo(this.parent)));
         this.setInitialFocus(this.editor);
     }
 

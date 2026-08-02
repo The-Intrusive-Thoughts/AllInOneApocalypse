@@ -26,7 +26,6 @@ final class AioaSpawnPoolScreen extends AioaScrollableScreen {
     private Button removeButton;
     private Button defaultsButton;
     private Button doneButton;
-    private Button cancelButton;
     private int selectedIndex = -1;
 
     AioaSpawnPoolScreen(Screen parent, AioaConfig editableConfig) {
@@ -65,8 +64,6 @@ final class AioaSpawnPoolScreen extends AioaScrollableScreen {
         }), y);
         y += AioaScreenUtil.BUTTON_HEIGHT + 8;
         this.doneButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Done", b -> this.transitionTo(this.parent)), y);
-        y += AioaScreenUtil.BUTTON_HEIGHT + 8;
-        this.cancelButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Cancel", b -> this.transitionTo(this.parent)), y);
 
         this.refreshEntries();
     }
@@ -141,10 +138,9 @@ final class AioaSpawnPoolScreen extends AioaScrollableScreen {
         this.setScrollableRelativeY(this.removeButton, y + 70);
         this.setScrollableRelativeY(this.defaultsButton, y + 102);
         this.setScrollableRelativeY(this.doneButton, y + 134);
-        this.setScrollableRelativeY(this.cancelButton, y + 166);
         this.editButton.active = this.selectedIndex >= 0 && this.selectedIndex < entries.size();
         this.removeButton.active = this.editButton.active;
-        this.finishScrollLayout(y + 198);
+        this.finishScrollLayout(y + 166);
     }
 
     @Override

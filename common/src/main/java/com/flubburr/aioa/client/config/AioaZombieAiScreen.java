@@ -126,14 +126,13 @@ final class AioaZombieAiScreen extends AioaAnimatedScreen {
                 ))), y);
 
         y += step + 8;
-        this.addScrollable(AioaScreenUtil.button(centerX - 172, 0, 164, "Done", b -> {
+        this.addScrollable(AioaScreenUtil.button(centerX - 82, 0, 164, "Done", b -> {
             this.editableConfig.daySurfaceSpawns.zombieTargetMode = this.zombieTargetMode;
             this.editableConfig.daySurfaceSpawns.zombiesCanClimbWalls = this.zombiesCanClimbWalls;
             this.editableConfig.daySurfaceSpawns.refinedZombieAi = this.refinedZombieAi;
             this.editableConfig.daySurfaceSpawns.coordinatedHordeAi = this.coordinatedHordeAi;
             this.transitionTo(this.parent);
         }), y);
-        this.addScrollable(AioaScreenUtil.button(centerX + 8, 0, 164, "Cancel", b -> this.transitionTo(this.parent)), y);
         this.maxScroll = Math.max(0, (y + AioaScreenUtil.BUTTON_HEIGHT) - (this.contentBottom - this.contentTop));
         this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, this.maxScroll));
         this.updateScrollLayout();

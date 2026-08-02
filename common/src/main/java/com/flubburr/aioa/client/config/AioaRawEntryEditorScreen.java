@@ -28,11 +28,10 @@ final class AioaRawEntryEditorScreen extends AioaAnimatedScreen {
         this.rawEntryBox.setMaxLength(1024);
         this.rawEntryBox.setValue(this.initialValue);
         this.addRenderableWidget(this.rawEntryBox);
-        this.addRenderableWidget(AioaScreenUtil.button(centerX - 154, this.height - 30, 150, "Done", b -> {
+        this.addRenderableWidget(AioaScreenUtil.button(centerX - 75, this.height - 30, 150, "Done", b -> {
             this.saveConsumer.accept(this.rawEntryBox.getValue().trim());
             this.transitionTo(this.parent);
         }));
-        this.addRenderableWidget(AioaScreenUtil.button(centerX + 4, this.height - 30, 150, "Cancel", b -> this.transitionTo(this.parent)));
         this.setInitialFocus(this.rawEntryBox);
     }
 
