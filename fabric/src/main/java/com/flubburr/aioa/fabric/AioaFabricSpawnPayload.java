@@ -8,7 +8,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
 public record AioaFabricSpawnPayload(AioaSpawnRequest request) implements CustomPacketPayload {
-    public static final Type<AioaFabricSpawnPayload> TYPE = new Type<>(new ResourceLocation(AioaConstants.MOD_ID, "spawn_request"));
+    public static final Type<AioaFabricSpawnPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(AioaConstants.MOD_ID, "spawn_request"));
     public static final StreamCodec<FriendlyByteBuf, AioaFabricSpawnPayload> CODEC = new StreamCodec<>() {
         @Override
         public AioaFabricSpawnPayload decode(FriendlyByteBuf buffer) {
