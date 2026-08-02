@@ -456,10 +456,16 @@ public final class AioaScreenUtil {
         LivingEntity entity = previewEntity(id);
         if (entity != null) {
             guiGraphics.enableScissor(left + 2, top + 21, left + width - 2, top + height - 2);
-            float orbitX = (mouseX - centerX) * 0.55F;
-            float orbitY = (mouseY - (top + height / 2)) * 0.35F;
+            float simulationYaw = (System.currentTimeMillis() % 12_000L) / 12_000.0F * 360.0F;
+            float orbitX = (float) Math.sin(System.currentTimeMillis() / 1600.0D) * 18.0F;
+            float orbitY = -8.0F;
             int scale = Math.max(28, Math.min(72, height / 2));
             int mobX = width >= 230 ? left + width * 2 / 5 : centerX;
+            entity.tickCount++;
+            entity.setYRot(simulationYaw);
+            entity.setYHeadRot(simulationYaw);
+            entity.setYBodyRot(simulationYaw);
+            entity.walkAnimation.update(0.65F, 1.0F);
             InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX, floorBottom - 3, scale, orbitX, orbitY, entity);
             if (width >= 230 && Minecraft.getInstance().player != null) {
                 InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, left + width * 3 / 4, floorBottom - 3,

@@ -117,7 +117,7 @@ public final class AioaConfig {
         }
 
         private void sanitize() {
-            this.editorScalePercent = Math.max(60, Math.min(140, this.editorScalePercent));
+            this.editorScalePercent = Math.max(25, Math.min(500, this.editorScalePercent));
             this.menuSfxVolume = Math.max(0.0D, Math.min(1.0D, this.menuSfxVolume));
             this.uiSoundVolume = Math.max(0.0D, Math.min(1.0D, this.uiSoundVolume));
         }
