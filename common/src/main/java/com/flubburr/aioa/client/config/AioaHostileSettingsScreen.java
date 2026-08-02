@@ -98,27 +98,28 @@ final class AioaHostileSettingsScreen extends AioaScrollableScreen {
         }
         this.refreshVisibility();
 
-        this.addScrollable(AioaScreenUtil.button(centerX - 172, 0, 164, "Done", b -> {
+        this.addScrollable(AioaScreenUtil.button(centerX - 82, 0, 164, "Done", b -> {
             this.editableConfig.hostileSpawnControl.enabled = this.enabled;
             this.editableConfig.hostileSpawnControl.overworldOnly = this.overworldOnly;
             this.editableConfig.hostileSpawnControl.ignoreStructureSpawns = this.ignoreStructureSpawns;
             this.editableConfig.hostileSpawnControl.ignoreSpawnerSpawns = this.ignoreSpawnerSpawns;
             this.editableConfig.hostileSpawnControl.ignoreSpecialSpawns = this.ignoreSpecialSpawns;
-            this.minecraft.setScreen(this.parent);
+            this.transitionTo(this.parent);
         }), y);
-        this.addScrollable(AioaScreenUtil.button(centerX + 8, 0, 164, "Cancel", b -> this.minecraft.setScreen(this.parent)), y);
         this.finishScrollLayout(y + AioaScreenUtil.BUTTON_HEIGHT);
     }
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+        this.beginUiRender(guiGraphics);
+        AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
         AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal("Control which hostile spawns are blocked and which exceptions are still allowed through."), this.width / 2, 49, this.panelWidth - 72, AioaScreenUtil.TEXT_SUB);
         AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom,
                 () -> AioaHostileSettingsScreen.super.render(guiGraphics, mouseX, mouseY, partialTick));
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
+        this.finishUiRender(guiGraphics);
     }
 
     private void refreshVisibility() {
@@ -135,6 +136,6 @@ final class AioaHostileSettingsScreen extends AioaScrollableScreen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(this.parent);
+        this.transitionTo(this.parent);
     }
 }
