@@ -110,6 +110,9 @@ public final class AioaMidnightConfig extends MidnightConfig {
     public static boolean refined_pathfinding_opens_doors = true;
 
     @Entry(category = AI_CATEGORY)
+    public static boolean coordinated_horde_ai = true;
+
+    @Entry(category = AI_CATEGORY)
     public static List<String> refined_ai_entity_ids = new ArrayList<>();
 
     @Entry(category = AI_CATEGORY)
@@ -165,6 +168,7 @@ public final class AioaMidnightConfig extends MidnightConfig {
         zombies_can_climb_walls = config.daySurfaceSpawns.zombiesCanClimbWalls;
         refined_zombie_ai = config.daySurfaceSpawns.refinedZombieAi;
         refined_pathfinding_opens_doors = config.daySurfaceSpawns.refinedPathfindingOpensDoors;
+        coordinated_horde_ai = config.daySurfaceSpawns.coordinatedHordeAi;
         refined_ai_entity_ids = safeList(config.daySurfaceSpawns.refinedAiEntityIds);
         wall_climbing_entity_ids = safeList(config.daySurfaceSpawns.wallClimbingEntityIds);
         player_only_target_entity_ids = safeList(config.daySurfaceSpawns.playerOnlyTargetEntityIds);
@@ -209,6 +213,7 @@ public final class AioaMidnightConfig extends MidnightConfig {
         config.daySurfaceSpawns.zombiesCanClimbWalls = zombies_can_climb_walls;
         config.daySurfaceSpawns.refinedZombieAi = refined_zombie_ai;
         config.daySurfaceSpawns.refinedPathfindingOpensDoors = refined_pathfinding_opens_doors;
+        config.daySurfaceSpawns.coordinatedHordeAi = coordinated_horde_ai;
         config.daySurfaceSpawns.refinedAiEntityIds = safeList(refined_ai_entity_ids);
         config.daySurfaceSpawns.wallClimbingEntityIds = safeList(wall_climbing_entity_ids);
         config.daySurfaceSpawns.playerOnlyTargetEntityIds = safeList(player_only_target_entity_ids);

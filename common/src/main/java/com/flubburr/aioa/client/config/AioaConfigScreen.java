@@ -60,6 +60,14 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
                 this.transitionTo(AioaBiomeToggleScreen.create(this, this.editableConfig))), singleColumn ? y + step : y);
         y += singleColumn ? step * 2 : step + 14;
 
+        this.addScrollable(AioaScreenUtil.button(leftX, 0, singleColumn ? columnWidth : this.panelWidth - 44, "Open Creative Spawn Studio", b ->
+                this.transitionTo(AioaSpawnStudioScreen.create(this))), y);
+        y += step + 6;
+
+        this.addScrollable(AioaScreenUtil.button(leftX, 0, singleColumn ? columnWidth : this.panelWidth - 44, "Quick Presets", b ->
+                this.transitionTo(new AioaPresetScreen(this, this.editableConfig))), y);
+        y += step + 6;
+
         int actionWidth = singleColumn ? columnWidth : (this.panelWidth - 58) / 2;
         this.addScrollable(AioaScreenUtil.button(singleColumn ? leftX : centerX - actionWidth - (gap / 2), 0, actionWidth, "Reset to Defaults", b ->
                 this.transitionTo(new AioaConfigScreen(this.parent, AioaConfig.createDefault()))), y);

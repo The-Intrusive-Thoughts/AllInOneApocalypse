@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.0
+
+- Fixed the Forge 1.20.1 `javafml:53` startup failure by locking the artifact to Forge 47, Java 17 bytecode, and a bounded `[47,48)` loader range so a jar from a newer Minecraft line cannot masquerade as a 1.20.1 build.
+- Disabled the vanilla background post-processing path on every AIOA screen, preventing stacked blur, framebuffer conflicts, and the background scale/shrink effect seen with other UI mods.
+- Added a compact, ImGui-inspired creative Spawn Studio, available from the config home or with `F7`, for spawning any registered mob at the cursor with No AI, face-player, and persistence controls.
+- Added validated Fabric and Forge client/server networking for Spawn Studio requests. Servers require creative mode and independently validate entity ids, range, build height, mob type, and collision.
+- Added per-player spawn instances: every automatic group has an owner tag and its own nearby cap, preventing one player from consuming another player's apocalypse budget.
+- Added coordinated horde AI. Configured apocalypse mobs can share live targets with nearby refined-AI mobs and immediately join the pursuit.
+- Added Balanced Survival, Cinematic/Manual, and High-Intensity Horde quick presets while preserving full manual editing after a preset is applied.
+- Kept the UI compact with fixed maximum logical panel sizes, cleaner one-action rows, existing hover/press/slider micro-animations, and non-pausing screens for live content creation.
+- Preserved compatibility with vanilla and modded entity registries, Fabric API, Forge, MidnightLib, Mod Menu, YACL, Cloth Config, Catalogue, Configured, and SuperMartijn642's Config Lib without making optional UI integrations mandatory.
+
 ## 0.1.2c
 
 - Fixed the new in-game config UI so the allowed biomes and allowed hostiles selectors reliably close with `Done`, `Cancel`, and `Esc` instead of trapping the player.

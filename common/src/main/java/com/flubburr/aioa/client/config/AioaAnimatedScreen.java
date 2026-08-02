@@ -61,6 +61,17 @@ abstract class AioaAnimatedScreen extends Screen {
     }
 
     @Override
+    public void renderBackground(GuiGraphics guiGraphics) {
+        // AIOA owns its opaque backdrop. Suppressing vanilla's post-process path avoids
+        // blur stacking, framebuffer conflicts, and background resizing with UI mods.
+    }
+
+    @Override
+    public boolean isPauseScreen() {
+        return false;
+    }
+
+    @Override
     public void tick() {
         super.tick();
         if (this.skipOpenTransition) {

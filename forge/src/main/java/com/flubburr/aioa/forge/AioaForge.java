@@ -4,24 +4,63 @@ import com.flubburr.aioa.AioaCommon;
 import com.flubburr.aioa.AioaConstants;
 import com.flubburr.aioa.client.config.AioaScreenUtil;
 import com.flubburr.aioa.forge.config.AioaForgeClient;
+import com.flubburr.aioa.network.AioaSpawnRequest;
+import com.flubburr.aioa.spawn.AioaSpawnStudioHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.loading.FMLEnvironment;
+import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.network.NetworkRegistry;
+import net.minecraftforge.network.simple.SimpleChannel;
+
+import java.util.function.Supplier;
 
 @Mod(AioaConstants.MOD_ID)
 public final class AioaForge {
 
+    private static final String NETWORK_VERSION = "1";
+    public static final SimpleChannel NETWORK = NetworkRegistry.newSimpleChannel(
+            new net.minecraft.resources.ResourceLocation(AioaConstants.MOD_ID, "main"),
+            () -> NETWORK_VERSION, NETWORK_VERSION::equals, NETWORK_VERSION::equals
+    );
+
     public AioaForge() {
         AioaCommon.init();
+        NETWORK.registerMessage(0, AioaSpawnRequest.class, AioaForge::encodeSpawnRequest, AioaForge::decodeSpawnRequest, AioaForge::handleSpawnRequest);
         MinecraftForge.EVENT_BUS.addListener(this::onLevelTick);
 
         if (FMLEnvironment.dist.isClient()) {
             AioaForgeClient.registerConfigScreen();
             MinecraftForge.EVENT_BUS.addListener(this::onClientTick);
         }
+    }
+
+    private static void encodeSpawnRequest(AioaSpawnRequest request, net.minecraft.network.FriendlyByteBuf buffer) {
+        buffer.writeUtf(request.entityId(), 128);
+        buffer.writeDouble(request.x());
+        buffer.writeDouble(request.y());
+        buffer.writeDouble(request.z());
+        buffer.writeBoolean(request.noAi());
+        buffer.writeBoolean(request.facePlayer());
+        buffer.writeBoolean(request.persistent());
+    }
+
+    private static AioaSpawnRequest decodeSpawnRequest(net.minecraft.network.FriendlyByteBuf buffer) {
+        return new AioaSpawnRequest(buffer.readUtf(128), buffer.readDouble(), buffer.readDouble(), buffer.readDouble(),
+                buffer.readBoolean(), buffer.readBoolean(), buffer.readBoolean());
+    }
+
+    private static void handleSpawnRequest(AioaSpawnRequest request, Supplier<NetworkEvent.Context> contextSupplier) {
+        NetworkEvent.Context context = contextSupplier.get();
+        context.enqueueWork(() -> {
+            if (context.getSender() != null) {
+                AioaSpawnStudioHandler.handle(context.getSender(), request);
+            }
+        });
+        context.setPacketHandled(true);
     }
 
     private void onLevelTick(TickEvent.LevelTickEvent event) {
@@ -44,6 +83,11 @@ public final class AioaForge {
         while (AioaForgeClient.openConfigKey().consumeClick()) {
             if (minecraft.player != null && minecraft.player.isCreative()) {
                 minecraft.setScreen(AioaForgeClient.createScreen(minecraft.screen));
+            }
+        }
+        while (AioaForgeClient.openSpawnStudioKey().consumeClick()) {
+            if (minecraft.player != null && minecraft.player.isCreative()) {
+                minecraft.setScreen(com.flubburr.aioa.client.config.AioaSpawnStudioScreen.create(minecraft.screen));
             }
         }
     }
