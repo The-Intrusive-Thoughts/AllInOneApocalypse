@@ -15,7 +15,6 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Mob;
-import com.mojang.math.Axis;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -940,11 +939,11 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         double dx = x2 - x1;
         double dy = y2 - y1;
         int length = Math.max(1, (int) Math.ceil(Math.sqrt(dx * dx + dy * dy)) + 1);
-        graphics.pose().pushPose();
-        graphics.pose().translate(x1, y1, 0.0D);
-        graphics.pose().mulPose(Axis.ZP.rotation((float) Math.atan2(dy, dx)));
+        graphics.pose().pushMatrix();
+        graphics.pose().translate((float) x1, (float) y1);
+        graphics.pose().rotate((float) Math.atan2(dy, dx));
         graphics.fill(0, -1, length, 1, color);
-        graphics.pose().popPose();
+        graphics.pose().popMatrix();
     }
 
     private void drawPaletteScrollBar(GuiGraphics graphics) {
