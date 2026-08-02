@@ -12,7 +12,6 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
@@ -36,22 +35,8 @@ public final class AioaFabricClient implements ClientModInitializer {
                 GLFW.GLFW_KEY_F7,
                 "key.categories." + AioaConstants.MOD_ID
         ));
-        AioaClientNetworking.registerSender(request -> {
-            var buffer = PacketByteBufs.create();
-            buffer.writeUtf(request.entityId(), 128);
-            buffer.writeDouble(request.x());
-            buffer.writeDouble(request.y());
-            buffer.writeDouble(request.z());
-            buffer.writeBoolean(request.noAi());
-            buffer.writeBoolean(request.facePlayer());
-            buffer.writeBoolean(request.persistent());
-            ClientPlayNetworking.send(AioaFabric.SPAWN_REQUEST, buffer);
-        });
-        AioaClientNetworking.registerGraphSender(request -> {
-            var buffer = PacketByteBufs.create();
-            buffer.writeUtf(request.graphJson(), 65_536);
-            ClientPlayNetworking.send(AioaFabric.GRAPH_UPDATE, buffer);
-        });
+        AioaClientNetworking.registerSender(request -> ClientPlayNetworking.send(new AioaFabricSpawnPayload(request)));
+        AioaClientNetworking.registerGraphSender(request -> ClientPlayNetworking.send(new AioaFabricGraphPayload(request)));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             AioaScreenUtil.tickMenuAudio(client);
