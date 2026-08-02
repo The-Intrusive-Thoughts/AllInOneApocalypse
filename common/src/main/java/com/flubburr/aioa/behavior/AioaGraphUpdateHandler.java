@@ -32,7 +32,8 @@ public final class AioaGraphUpdateHandler {
                 player.displayClientMessage(Component.literal("AIOA graph rejected: " + issues.get(0)), true);
                 return;
             }
-            if (graph.scope != AioaBehaviorGraph.Scope.SINGLE_ENTITY && !player.hasPermissions(2)) {
+            if (graph.scope != AioaBehaviorGraph.Scope.SINGLE_ENTITY
+                    && !player.level().getServer().getPlayerList().isOp(player.nameAndId())) {
                 player.displayClientMessage(Component.literal("Operator permission is required for non-instance behavior graphs."), true);
                 return;
             }

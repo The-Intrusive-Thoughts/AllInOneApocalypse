@@ -6,7 +6,7 @@ import com.flubburr.aioa.config.AioaConfig;
 import com.flubburr.aioa.behavior.AioaGraphUpdateHandler;
 import com.flubburr.aioa.network.AioaClientNetworking;
 import com.flubburr.aioa.compat.AioaEntityHelper;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -546,7 +546,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     }
 
     private void drawViewport(GuiGraphics graphics) {
-        ResourceLocation entityId = previewEntityId();
+        Identifier entityId = previewEntityId();
         int width = Math.min(178, Math.max(120, canvasRight() - canvasLeft() - 20));
         int left = canvasRight() - width - 8;
         int top = canvasTop() + 8;
@@ -554,9 +554,9 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 List.of(Component.literal("LIVE VIEWPORT"), Component.literal(this.selected == null ? "Select a node" : friendly(this.selected.type))));
     }
 
-    private ResourceLocation previewEntityId() {
+    private Identifier previewEntityId() {
         if (this.graph.scope == AioaBehaviorGraph.Scope.ENTITY_TYPE) {
-            ResourceLocation parsed = AioaEntityHelper.parseResourceLocation(this.graph.selector);
+            Identifier parsed = AioaEntityHelper.parseResourceLocation(this.graph.selector);
             if (parsed != null) return parsed;
         }
         if (this.graph.scope == AioaBehaviorGraph.Scope.SINGLE_ENTITY && this.minecraft != null && this.minecraft.level != null) {
@@ -571,10 +571,10 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             }
         }
         if (this.selected != null) {
-            ResourceLocation parsed = AioaEntityHelper.parseResourceLocation(this.selected.parameters.get("entity"));
+            Identifier parsed = AioaEntityHelper.parseResourceLocation(this.selected.parameters.get("entity"));
             if (parsed != null) return parsed;
         }
-        return ResourceLocation.fromNamespaceAndPath("minecraft", "zombie");
+        return Identifier.fromNamespaceAndPath("minecraft", "zombie");
     }
 
     private AioaBehaviorGraph.Node findNode(String id) {

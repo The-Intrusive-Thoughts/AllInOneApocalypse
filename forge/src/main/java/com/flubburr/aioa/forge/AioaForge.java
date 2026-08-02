@@ -23,7 +23,7 @@ public final class AioaForge {
 
     private static final int NETWORK_VERSION = 1;
     public static final SimpleChannel NETWORK = ChannelBuilder
-            .named(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(AioaConstants.MOD_ID, "main"))
+            .named(net.minecraft.resources.Identifier.fromNamespaceAndPath(AioaConstants.MOD_ID, "main"))
             .networkProtocolVersion(NETWORK_VERSION)
             .acceptedVersions(Channel.VersionTest.exact(NETWORK_VERSION))
             .simpleChannel();
