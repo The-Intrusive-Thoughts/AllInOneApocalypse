@@ -7,7 +7,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-abstract class AioaScrollableScreen extends Screen {
+abstract class AioaScrollableScreen extends AioaAnimatedScreen {
 
     protected final List<AbstractWidget> scrollWidgets = new ArrayList<>();
     protected final List<Integer> scrollBaseY = new ArrayList<>();
