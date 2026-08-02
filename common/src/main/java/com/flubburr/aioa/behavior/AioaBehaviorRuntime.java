@@ -17,6 +17,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -74,7 +78,8 @@ public final class AioaBehaviorRuntime {
         Map<String, List<AioaBehaviorGraph.Edge>> outgoing = graph.edges.stream()
                 .collect(java.util.stream.Collectors.groupingBy(edge -> edge.from));
         ArrayDeque<AioaBehaviorGraph.Node> queue = new ArrayDeque<>();
-        graph.nodes.stream().filter(node -> node.type == AioaBehaviorGraph.NodeType.ON_TICK).forEach(queue::add);
+        graph.nodes.stream().filter(node -> node.type == AioaBehaviorGraph.NodeType.MOB_BASE).forEach(queue::add);
+        if (queue.isEmpty()) graph.nodes.stream().filter(node -> node.type == AioaBehaviorGraph.NodeType.ON_TICK).forEach(queue::add);
         Set<String> visited = new HashSet<>();
         ExecutionContext context = new ExecutionContext(mob.getTarget());
         int steps = 0;
@@ -95,6 +100,13 @@ public final class AioaBehaviorRuntime {
     private static String runNode(AioaBehaviorGraph.Node node, Mob mob, ExecutionContext context) {
         double range = number(node, "range", 24.0D, 1.0D, 64.0D);
         switch (node.type) {
+            case MOB_BASE -> {
+                setAttribute(mob, Attributes.MAX_HEALTH, number(node, "health", 20, 1, 2048));
+                setAttribute(mob, Attributes.ATTACK_DAMAGE, number(node, "damage", 3, 0, 2048));
+                setAttribute(mob, Attributes.MOVEMENT_SPEED, number(node, "speed", 0.23, 0.01, 2));
+                if (mob.getHealth() > mob.getMaxHealth()) mob.setHealth(mob.getMaxHealth());
+                return "next";
+            }
             case ON_TICK, COMMENT -> { return "next"; }
             case ON_FIRST_TICK -> { return mob.tickCount <= 1 ? "ready" : "waiting"; }
             case EVERY_TICKS -> { return mob.tickCount % (int) number(node, "ticks", 20, 1, 12000) == 0 ? "ready" : "waiting"; }
@@ -186,6 +198,13 @@ public final class AioaBehaviorRuntime {
                 mob.setCustomName(Component.literal(node.parameters.getOrDefault("name", "AIOA Mob")));
                 mob.setCustomNameVisible(flag(node, "visible", true));
             }
+            case SET_MAX_HEALTH -> {
+                setAttribute(mob, Attributes.MAX_HEALTH, number(node, "value", 20, 1, 2048));
+                if (mob.getHealth() > mob.getMaxHealth()) mob.setHealth(mob.getMaxHealth());
+            }
+            case SET_ATTACK_DAMAGE -> setAttribute(mob, Attributes.ATTACK_DAMAGE, number(node, "value", 3, 0, 2048));
+            case SET_MOVEMENT_SPEED -> setAttribute(mob, Attributes.MOVEMENT_SPEED, number(node, "value", 0.23, 0.01, 2));
+            case EQUIP_ITEM -> equipItem(node, mob);
             case SPAWN_MOB -> {
                 if (AioaConfigManager.getConfig().behaviorEngine.allowWorldNodes) spawnMob(node, mob);
             }
@@ -234,6 +253,24 @@ public final class AioaBehaviorRuntime {
             mob.level().playSound(null, mob.blockPosition(), sound, SoundSource.HOSTILE,
                     (float) number(node, "volume", 1, 0, 4), (float) number(node, "pitch", 1, 0.25, 2));
         }
+    }
+
+    private static void setAttribute(Mob mob, net.minecraft.world.entity.ai.attributes.Attribute attribute, double value) {
+        AttributeInstance instance = mob.getAttribute(attribute);
+        if (instance != null) instance.setBaseValue(value);
+    }
+
+    private static void equipItem(AioaBehaviorGraph.Node node, Mob mob) {
+        ResourceLocation id = AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("item", "minecraft:air"));
+        if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) return;
+        EquipmentSlot slot;
+        try {
+            slot = EquipmentSlot.valueOf(node.parameters.getOrDefault("slot", "MAINHAND").toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return;
+        }
+        mob.setItemSlot(slot, new ItemStack(BuiltInRegistries.ITEM.get(id)));
+        mob.setDropChance(slot, (float) number(node, "dropChance", 0, 0, 1));
     }
 
     private static boolean flag(AioaBehaviorGraph.Node node, String key, boolean fallback) {
