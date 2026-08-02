@@ -109,7 +109,7 @@ public final class AioaBehaviorRuntime {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
                 return target != null && mob.getSensing().hasLineOfSight(target) ? "true" : "false";
             }
-            case IS_DAYTIME -> { return mob.level().isDay() ? "true" : "false"; }
+            case IS_DAYTIME -> { return (mob.level().getDayTime() % 24000L) < 12000L ? "true" : "false"; }
             case IS_ON_GROUND -> { return mob.onGround() ? "true" : "false"; }
             case WAS_HURT -> { return mob.hurtTime > 0 ? "true" : "false"; }
             case FIND_NEAREST_PLAYER -> context.target = nearest(mob, Player.class, range, candidate -> !candidate.isSpectator());
@@ -216,7 +216,7 @@ public final class AioaBehaviorRuntime {
         if (type.isEmpty()) return;
         Entity created = type.get().create(level, EntitySpawnReason.EVENT);
         if (!(created instanceof Mob spawned)) return;
-        spawned.moveTo(source.getX() + number(node, "offsetX", 1, -8, 8), source.getY() + number(node, "offsetY", 0, -8, 8),
+        spawned.snapTo(source.getX() + number(node, "offsetX", 1, -8, 8), source.getY() + number(node, "offsetY", 0, -8, 8),
                 source.getZ() + number(node, "offsetZ", 1, -8, 8), source.getYRot(), 0);
         if (!level.noCollision(spawned)) return;
         spawned.finalizeSpawn(level, level.getCurrentDifficultyAt(spawned.blockPosition()), EntitySpawnReason.EVENT, null);
