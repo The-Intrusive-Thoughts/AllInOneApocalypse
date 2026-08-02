@@ -100,6 +100,7 @@ public final class AioaConfig {
         public int maxStepsPerGraph = 64;
         public boolean allowWorldNodes = true;
         public int maxNodeSpawnedMobsNearby = 16;
+        public String graphLibraryDirectory = "aioa/graphs";
 
         private BehaviorEngine copy() {
             BehaviorEngine copy = new BehaviorEngine();
@@ -109,6 +110,7 @@ public final class AioaConfig {
             copy.maxStepsPerGraph = this.maxStepsPerGraph;
             copy.allowWorldNodes = this.allowWorldNodes;
             copy.maxNodeSpawnedMobsNearby = this.maxNodeSpawnedMobsNearby;
+            copy.graphLibraryDirectory = this.graphLibraryDirectory;
             return copy;
         }
 
@@ -117,6 +119,11 @@ public final class AioaConfig {
             this.maxGraphsPerMob = Math.max(1, Math.min(32, this.maxGraphsPerMob));
             this.maxStepsPerGraph = Math.max(8, Math.min(256, this.maxStepsPerGraph));
             this.maxNodeSpawnedMobsNearby = Math.max(1, Math.min(64, this.maxNodeSpawnedMobsNearby));
+            if (this.graphLibraryDirectory == null || this.graphLibraryDirectory.isBlank()
+                    || this.graphLibraryDirectory.contains("..") || this.graphLibraryDirectory.startsWith("/")
+                    || this.graphLibraryDirectory.matches("^[A-Za-z]:.*")) {
+                this.graphLibraryDirectory = "aioa/graphs";
+            }
         }
     }
 
