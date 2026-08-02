@@ -8,7 +8,7 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 import net.minecraft.client.input.KeyEvent;
 
@@ -29,10 +29,10 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
     private final Screen parent;
     private final AioaConfig editableConfig;
     private final Set<String> selectedBiomeIds;
-    private final List<ResourceLocation> allBiomes;
+    private final List<Identifier> allBiomes;
 
     private final List<Button> optionButtons = new ArrayList<>();
-    private final List<ResourceLocation> visibleButtonBiomes = new ArrayList<>();
+    private final List<Identifier> visibleButtonBiomes = new ArrayList<>();
     private EditBox searchBox;
     private Button selectAllButton;
     private Button clearButton;
@@ -41,9 +41,9 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
     private Button netherHeader;
     private Button endHeader;
     private Button moddedHeader;
-    private ResourceLocation focusedBiome;
+    private Identifier focusedBiome;
     private String searchQuery = "";
-    private List<ResourceLocation> filteredBiomes = List.of();
+    private List<Identifier> filteredBiomes = List.of();
     private boolean overworldExpanded;
     private boolean netherExpanded;
     private boolean endExpanded;
@@ -97,7 +97,7 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
             this.refreshList();
         }), y);
 
-        for (ResourceLocation ignored : this.allBiomes) {
+        for (Identifier ignored : this.allBiomes) {
             Button button = this.addScrollable(AioaScreenUtil.button(left, 0, width, "-", b -> this.toggleButton((Button) b)), y);
             this.setScrollableShown(button, false);
             this.optionButtons.add(button);
@@ -105,7 +105,7 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
         }
 
         this.selectAllButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Select All Visible", b -> {
-            for (ResourceLocation biome : this.visibleButtonBiomes) {
+            for (Identifier biome : this.visibleButtonBiomes) {
                 if (biome != null) {
                     this.selectedBiomeIds.add(biome.toString());
                 }
@@ -114,7 +114,7 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
         }), y);
         y += AioaScreenUtil.BUTTON_HEIGHT + 8;
         this.clearButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Clear Visible", b -> {
-            for (ResourceLocation biome : this.visibleButtonBiomes) {
+            for (Identifier biome : this.visibleButtonBiomes) {
                 if (biome != null) {
                     this.selectedBiomeIds.remove(biome.toString());
                 }
@@ -145,12 +145,12 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
             this.focusedBiome = this.filteredBiomes.isEmpty() ? null : this.filteredBiomes.get(0);
         }
 
-        Map<String, List<ResourceLocation>> groups = new HashMap<>();
+        Map<String, List<Identifier>> groups = new HashMap<>();
         groups.put("Overworld", new ArrayList<>());
         groups.put("Nether", new ArrayList<>());
         groups.put("End", new ArrayList<>());
         groups.put("Modded", new ArrayList<>());
-        for (ResourceLocation biome : this.filteredBiomes) {
+        for (Identifier biome : this.filteredBiomes) {
             groups.computeIfAbsent(AioaScreenUtil.biomeCategory(biome), key -> new ArrayList<>()).add(biome);
         }
 
@@ -179,7 +179,7 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
         this.finishScrollLayout(y + 102);
     }
 
-    private int layoutGroup(Button header, String label, boolean expanded, List<ResourceLocation> entries, int y, int slotStart) {
+    private int layoutGroup(Button header, String label, boolean expanded, List<Identifier> entries, int y, int slotStart) {
         this.setScrollableRelativeY(header, y);
         this.setScrollableShown(header, true);
         header.setMessage(Component.literal(AioaScreenUtil.sectionLabel(label + " (" + entries.size() + ")", expanded)));
@@ -188,14 +188,14 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
             return y;
         }
         int slot = slotStart;
-        for (ResourceLocation biome : entries) {
+        for (Identifier biome : entries) {
             y = this.layoutBiomeButton(this.optionButtons.get(slot), slot, biome, y);
             slot++;
         }
         return y + 4;
     }
 
-    private int layoutBiomeButton(Button button, int slot, ResourceLocation biome, int y) {
+    private int layoutBiomeButton(Button button, int slot, Identifier biome, int y) {
         boolean selected = this.selectedBiomeIds.contains(biome.toString());
         boolean focused = biome.equals(this.focusedBiome);
         this.visibleButtonBiomes.set(slot, biome);
@@ -215,7 +215,7 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
         if (index < 0 || index >= this.visibleButtonBiomes.size()) {
             return;
         }
-        ResourceLocation biome = this.visibleButtonBiomes.get(index);
+        Identifier biome = this.visibleButtonBiomes.get(index);
         if (biome == null) {
             return;
         }
