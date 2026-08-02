@@ -7,6 +7,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.renderer.RenderType;
 
 public final class AioaConfigScreen extends AioaScrollableScreen {
 
@@ -135,7 +136,7 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         guiGraphics.pose().pushPose();
         guiGraphics.pose().translate(logoX, logoY, 0.0F);
         guiGraphics.pose().scale(logoScale, logoScale, 1.0F);
-        guiGraphics.blit(LOGO, 0, 0, 0, 0, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT);
+        guiGraphics.blit(RenderType::guiTextured, LOGO, 0, 0, 0.0F, 0.0F, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT);
         guiGraphics.pose().popPose();
         int titleY = Math.min(logoY + logoHeight + 10, headerBottom - (compactHeader ? 12 : 26));
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, titleY, AioaScreenUtil.TEXT_MAIN);
