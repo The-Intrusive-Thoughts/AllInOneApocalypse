@@ -5,6 +5,9 @@
 - Replaced the old fixed zombie-AI editor with Behavior Graph Studio: a Scratch/Blueprint-style node editor for one mob, entity types, entity tags, managed apocalypse mobs, or every mob.
 - Added more than 35 event, sensing, condition, targeting, movement, combat, interaction, state, world, effect, and organization nodes, including walk a fixed block distance, rotate exact degrees, attack, flee, strafe, jump, teleport, spawn another mob, play sound, and share targets.
 - Added multi-graph editing, draggable nodes and editor window, typed output ports, quick linking, undo/redo, validation, canvas panning, animated grid/scanline feedback, selected-node pulses, and a contextual live mob viewport.
+- Added cursor-centered `Ctrl + wheel` zoom, `Shift + wheel` horizontal panning, `Alt + drag` and middle-drag canvas movement, graph fitting, and creator shortcuts for undo, redo, duplicate, new, delete, help, save/apply, and fit-to-view.
+- Added an integrated, tabbed Documentation & Creator Guide with first-open guidance, live mob showcase cards, complete paged node reference, editor controls, Spawn Studio instructions, networking safety, and compatibility guidance without exposing implementation code.
+- Added Minecraft-language-system labels and bundled English, French, Spanish, and German navigation translations; other languages safely fall back to English.
 - Added a proper world picker: the editor closes, the player right-clicks a mob, and the editor reopens bound to that exact entity. `F7` cancels or the picker safely times out.
 - Added a movable, resizable, closable, paged help overlay covering graph basics, scopes, world selection, links, permissions, and server safety.
 - Added Behavior Engine configuration for execution cadence, graph and node-step budgets, world-node permission, and spawn-node caps so creators and servers can tune complex scenes safely.
