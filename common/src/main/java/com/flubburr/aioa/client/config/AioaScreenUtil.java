@@ -95,7 +95,7 @@ public final class AioaScreenUtil {
         guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, PANEL_ACCENT);
     }
 
-    public static void drawScreenBackground(GuiGraphics guiGraphics, int width, int height) {
+    static void drawScreenBackground(GuiGraphics guiGraphics, int width, int height) {
         guiGraphics.fillGradient(0, 0, width, height, 0xF0101010, 0xFF080808);
     }
 
@@ -422,8 +422,7 @@ public final class AioaScreenUtil {
             int modelCenterX = modelLeft + ((left + width - padding - modelLeft) / 2);
             int modelAnchorY = modelBottom - 10;
             int scale = Math.max(24, Math.min(42, (modelBottom - modelTop) / 2));
-            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, modelCenterX - scale, modelTop, modelCenterX + scale,
-                    modelAnchorY, scale, 0.0F, 0.0F, 0.0F, previewEntity);
+            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, modelCenterX, modelAnchorY, scale, 0.0F, 0.0F, previewEntity);
         } else {
             int itemX = modelLeft + (((left + width - padding) - modelLeft) / 2) - 8;
             int itemY = modelTop + ((modelBottom - modelTop) / 2) - 8;
@@ -457,17 +456,20 @@ public final class AioaScreenUtil {
         LivingEntity entity = previewEntity(id);
         if (entity != null) {
             guiGraphics.enableScissor(left + 2, top + 21, left + width - 2, top + height - 2);
-            float orbitX = (mouseX - centerX) * 0.55F;
-            float orbitY = (mouseY - (top + height / 2)) * 0.35F;
+            float simulationYaw = (System.currentTimeMillis() % 12_000L) / 12_000.0F * 360.0F;
+            float orbitX = (float) Math.sin(System.currentTimeMillis() / 1600.0D) * 18.0F;
+            float orbitY = -8.0F;
             int scale = Math.max(28, Math.min(72, height / 2));
             int mobX = width >= 230 ? left + width * 2 / 5 : centerX;
-            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX - scale, top + 22, mobX + scale,
-                    floorBottom - 3, scale, 0.0F, orbitX, orbitY, entity);
+            entity.tickCount++;
+            entity.setYRot(simulationYaw);
+            entity.setYHeadRot(simulationYaw);
+            entity.setYBodyRot(simulationYaw);
+            entity.walkAnimation.update(0.65F, 1.0F);
+            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX, floorBottom - 3, scale, orbitX, orbitY, entity);
             if (width >= 230 && Minecraft.getInstance().player != null) {
-                int playerX = left + width * 3 / 4;
-                int playerScale = Math.max(24, scale * 3 / 4);
-                InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, playerX - playerScale, top + 22,
-                        playerX + playerScale, floorBottom - 3, playerScale, 0.0F, orbitX, orbitY, Minecraft.getInstance().player);
+                InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, left + width * 3 / 4, floorBottom - 3,
+                        Math.max(24, scale * 3 / 4), orbitX, orbitY, Minecraft.getInstance().player);
             }
             guiGraphics.disableScissor();
         } else {
