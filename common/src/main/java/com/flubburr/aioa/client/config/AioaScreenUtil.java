@@ -1,6 +1,8 @@
 package com.flubburr.aioa.client.config;
 
+import com.flubburr.aioa.compat.AioaEntityHelper;
 import com.flubburr.aioa.config.AioaSpawnEntry;
+import com.flubburr.aioa.config.AioaConfigManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -8,13 +10,18 @@ import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.util.RandomSource;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.SpawnEggItem;
@@ -36,24 +43,39 @@ import java.util.function.DoubleFunction;
 import java.util.stream.Collectors;
 
 public final class AioaScreenUtil {
-    private static final float UI_LAYER_Z = 200.0F;
 
     private static final Map<ResourceLocation, LivingEntity> PREVIEW_ENTITY_CACHE = new HashMap<>();
+    private static final RandomSource UI_SOUND_RANDOM = RandomSource.create();
+    private static final ResourceLocation UI_CLICK_SOUND = new ResourceLocation("aioa", "ui.click");
+    private static final ResourceLocation UI_HOVER_SOUND = new ResourceLocation("aioa", "ui.hover");
+    private static final ResourceLocation UI_SLIDER_SOUND = new ResourceLocation("aioa", "ui.slider");
+    private static final ResourceLocation MENU_MUSIC_SOUND = new ResourceLocation("aioa", "music.menu");
+    private static MenuLoopSound menuMusic;
 
     static final int BUTTON_HEIGHT = 24;
-    static final int PANEL_BACKGROUND = 0xFF111714;
+    static final int PANEL_BACKGROUND = 0xE0101010;
     static final int PANEL_BORDER = 0xFF000000;
     static final int PANEL_ACCENT = 0xFF01BF63;
-    static final int PANEL_SOFT = 0xFF18211D;
+    static final int PANEL_SOFT = 0xC0121A16;
     static final int PANEL_SOFT_BORDER = 0xFF000000;
-    static final int PANEL_SELECTED = 0xFF0D5A37;
-    static final int PANEL_CARD = 0xFF0F1713;
-    static final int TEXT_MAIN = 0xFFB8FFD9;
-    static final int TEXT_SUB = 0xFF75D7A6;
-    static final int TEXT_MUTED = 0xFF3E8A64;
+    static final int PANEL_SELECTED = 0xD001BF63;
+    static final int PANEL_CARD = 0xDD0F1713;
+    static final int TEXT_MAIN = 0x6BF250;
+    static final int TEXT_SUB = 0xFF9AD6AE;
+    static final int TEXT_MUTED = 0xFF9AD6AE;
+    static final int BUTTON_TEXT = 0xFF6EFFBA;
     static final int ROWS_PER_PAGE = 7;
 
     private AioaScreenUtil() {
+    }
+
+    private static int lerpColor(int from, int to, float amount) {
+        float t = Math.max(0.0F, Math.min(1.0F, amount));
+        int a = Math.round(((from >>> 24) & 0xFF) + ((((to >>> 24) & 0xFF) - ((from >>> 24) & 0xFF)) * t));
+        int r = Math.round(((from >>> 16) & 0xFF) + ((((to >>> 16) & 0xFF) - ((from >>> 16) & 0xFF)) * t));
+        int g = Math.round(((from >>> 8) & 0xFF) + ((((to >>> 8) & 0xFF) - ((from >>> 8) & 0xFF)) * t));
+        int b = Math.round((from & 0xFF) + (((to & 0xFF) - (from & 0xFF)) * t));
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
     static Button button(int x, int y, int width, String label, Button.OnPress onPress) {
@@ -89,15 +111,6 @@ public final class AioaScreenUtil {
         guiGraphics.enableScissor(left, top, right, bottom);
         contentRenderer.run();
         guiGraphics.disableScissor();
-    }
-
-    static void pushUiLayer(GuiGraphics guiGraphics) {
-        guiGraphics.pose().pushPose();
-        guiGraphics.pose().translate(0.0F, 0.0F, UI_LAYER_Z);
-    }
-
-    static void popUiLayer(GuiGraphics guiGraphics) {
-        guiGraphics.pose().popPose();
     }
 
     static int drawWrappedCenteredText(GuiGraphics guiGraphics, Font font, Component text, int centerX, int top, int maxWidth, int color) {
@@ -150,7 +163,7 @@ public final class AioaScreenUtil {
     static void drawScrollBar(GuiGraphics guiGraphics, int x, int top, int height, int scrollOffset, int maxScroll) {
         drawInsetPanel(guiGraphics, x, top, x + 8, top + height, false);
         if (maxScroll <= 0) {
-            guiGraphics.fill(x + 1, top + 1, x + 7, top + height - 1, 0xFF294437);
+            guiGraphics.fill(x + 1, top + 1, x + 7, top + height - 1, 0x6601BF63);
             return;
         }
 
@@ -158,6 +171,34 @@ public final class AioaScreenUtil {
         int range = Math.max(1, height - thumbHeight - 2);
         int thumbTop = top + 1 + (int) Math.round((scrollOffset / (double) maxScroll) * range);
         guiGraphics.fill(x + 1, thumbTop, x + 7, thumbTop + thumbHeight, PANEL_ACCENT);
+    }
+
+    public static void tickMenuAudio(Minecraft minecraft) {
+        if (minecraft == null) {
+            return;
+        }
+
+        if (menuMusic != null && menuMusic.isStopped()) {
+            menuMusic = null;
+        }
+
+        if (minecraft.screen instanceof AioaAnimatedScreen) {
+            SoundEvent soundEvent = BuiltInRegistries.SOUND_EVENT.get(MENU_MUSIC_SOUND);
+            if (soundEvent == null) {
+                return;
+            }
+
+            if (menuMusic == null || !minecraft.getSoundManager().isActive(menuMusic)) {
+                menuMusic = new MenuLoopSound(soundEvent);
+                minecraft.getSoundManager().play(menuMusic);
+            }
+            return;
+        }
+
+        if (menuMusic != null) {
+            minecraft.getSoundManager().stop(menuMusic);
+            menuMusic = null;
+        }
     }
 
     static List<ResourceLocation> allEntityIds() {
@@ -177,14 +218,12 @@ public final class AioaScreenUtil {
     static List<ResourceLocation> allBiomeIds() {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level != null) {
-            return new ArrayList<>(minecraft.level.registryAccess().lookupOrThrow(Registries.BIOME).listElementIds()
-                    .map(resourceKey -> resourceKey.location())
+            return new ArrayList<>(minecraft.level.registryAccess().registryOrThrow(Registries.BIOME).keySet().stream()
                     .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString))
                     .toList());
         }
         if (minecraft.getConnection() != null) {
-            return new ArrayList<>(minecraft.getConnection().registryAccess().lookupOrThrow(Registries.BIOME).listElementIds()
-                    .map(resourceKey -> resourceKey.location())
+            return new ArrayList<>(minecraft.getConnection().registryAccess().registryOrThrow(Registries.BIOME).keySet().stream()
                     .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString))
                     .toList());
         }
@@ -266,7 +305,7 @@ public final class AioaScreenUtil {
     }
 
     static String entityDisplayName(ResourceLocation id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
         if (type == null) {
             return id.toString();
         }
@@ -275,13 +314,13 @@ public final class AioaScreenUtil {
     }
 
     static String entityLine(ResourceLocation id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
         String category = type == null ? "unknown" : type.getCategory().getName();
         return entityDisplayName(id) + " [" + category + "] - " + id;
     }
 
     static String categoryLabel(ResourceLocation id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
         return type == null ? "unknown" : humanizeEnum(type.getCategory().getName());
     }
 
@@ -343,11 +382,11 @@ public final class AioaScreenUtil {
     }
 
     static ItemStack entityPreviewItem(ResourceLocation id) {
-        ResourceLocation eggId = ResourceLocation.tryParse(id.getNamespace() + ":" + id.getPath() + "_spawn_egg");
+        ResourceLocation eggId = AioaEntityHelper.parseResourceLocation(id.getNamespace() + ":" + id.getPath() + "_spawn_egg");
         if (eggId == null) {
             return new ItemStack(Items.BARRIER);
         }
-        var item = BuiltInRegistries.ITEM.getValue(eggId);
+        var item = BuiltInRegistries.ITEM.get(eggId);
         if (item instanceof SpawnEggItem) {
             return new ItemStack(item);
         }
@@ -380,23 +419,65 @@ public final class AioaScreenUtil {
         drawInsetPanel(guiGraphics, modelLeft, modelTop, left + width - padding, modelBottom, false);
         LivingEntity previewEntity = previewEntity(id);
         if (previewEntity != null) {
+            int modelCenterX = modelLeft + ((left + width - padding - modelLeft) / 2);
+            int modelAnchorY = modelBottom - 10;
             int scale = Math.max(24, Math.min(42, (modelBottom - modelTop) / 2));
-            InventoryScreen.renderEntityInInventoryFollowsMouse(
-                    guiGraphics,
-                    modelLeft,
-                    modelTop,
-                    left + width - padding,
-                    modelBottom,
-                    scale,
-                    0.0F,
-                    0.0F,
-                    0.0F,
-                    previewEntity
-            );
+            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, modelCenterX, modelAnchorY, scale, 0.0F, 0.0F, previewEntity);
         } else {
             int itemX = modelLeft + (((left + width - padding) - modelLeft) / 2) - 8;
             int itemY = modelTop + ((modelBottom - modelTop) / 2) - 8;
             guiGraphics.renderItem(entityPreviewItem(id), itemX, itemY);
+        }
+    }
+
+    static void drawEntityViewport(GuiGraphics guiGraphics, Font font, int left, int top, int width, int height,
+                                   ResourceLocation id, int mouseX, int mouseY, String state) {
+        drawInsetPanel(guiGraphics, left, top, left + width, top + height, true);
+        guiGraphics.fill(left + 2, top + 20, left + width - 2, top + height - 2, 0xFF080D0A);
+        guiGraphics.fill(left + 2, top + 2, left + width - 2, top + 20, 0xFF17271E);
+        guiGraphics.drawString(font, "3D VIEWPORT", left + 8, top + 7, TEXT_MAIN);
+        String clippedState = font.plainSubstrByWidth(state, Math.max(20, width - 100));
+        guiGraphics.drawString(font, clippedState, left + width - font.width(clippedState) - 8, top + 7, TEXT_SUB);
+
+        int floorTop = top + Math.max(36, height / 2);
+        int floorBottom = top + height - 4;
+        for (int row = 0; row <= 5; row++) {
+            double t = row / 5.0D;
+            int y = floorTop + (int) Math.round(t * t * (floorBottom - floorTop));
+            guiGraphics.fill(left + 4, y, left + width - 4, y + 1, 0x3A4ACB78);
+        }
+        int centerX = left + width / 2;
+        for (int column = -4; column <= 4; column++) {
+            int nearX = centerX + column * Math.max(8, width / 9);
+            int farX = centerX + column * Math.max(2, width / 32);
+            drawViewportLine(guiGraphics, nearX, floorBottom, farX, floorTop, 0x334ACB78);
+        }
+
+        LivingEntity entity = previewEntity(id);
+        if (entity != null) {
+            guiGraphics.enableScissor(left + 2, top + 21, left + width - 2, top + height - 2);
+            float orbitX = (mouseX - centerX) * 0.55F;
+            float orbitY = (mouseY - (top + height / 2)) * 0.35F;
+            int scale = Math.max(28, Math.min(72, height / 2));
+            int mobX = width >= 230 ? left + width * 2 / 5 : centerX;
+            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX, floorBottom - 3, scale, orbitX, orbitY, entity);
+            if (width >= 230 && Minecraft.getInstance().player != null) {
+                InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, left + width * 3 / 4, floorBottom - 3,
+                        Math.max(24, scale * 3 / 4), orbitX, orbitY, Minecraft.getInstance().player);
+            }
+            guiGraphics.disableScissor();
+        } else {
+            guiGraphics.renderItem(entityPreviewItem(id), centerX - 8, top + height / 2 - 8);
+        }
+    }
+
+    private static void drawViewportLine(GuiGraphics graphics, int x1, int y1, int x2, int y2, int color) {
+        int steps = Math.max(1, Math.abs(y2 - y1));
+        for (int i = 0; i <= steps; i++) {
+            double t = i / (double) steps;
+            int x = (int) Math.round(x1 + (x2 - x1) * t);
+            int y = (int) Math.round(y1 + (y2 - y1) * t);
+            graphics.fill(x, y, x + 1, y + 1, color);
         }
     }
 
@@ -476,14 +557,14 @@ public final class AioaScreenUtil {
             return null;
         }
 
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
         if (type == null) {
             return null;
         }
 
         Entity entity;
         try {
-            entity = type.create(minecraft.level, EntitySpawnReason.COMMAND);
+            entity = type.create(minecraft.level);
         } catch (Exception ignored) {
             return null;
         }
@@ -538,6 +619,52 @@ public final class AioaScreenUtil {
         return biomeDisplayName(id).toLowerCase(Locale.ROOT);
     }
 
+    private static void playUiSound(ResourceLocation soundId, float volume, float pitch) {
+        Minecraft minecraft = Minecraft.getInstance();
+        float configuredVolume = (float) AioaConfigManager.getConfig().clientUi.uiSoundVolume;
+        if (configuredVolume <= 0.0F) return;
+        minecraft.getSoundManager().play(new SimpleSoundInstance(
+                soundId,
+                SoundSource.MASTER,
+                volume * configuredVolume,
+                pitch,
+                UI_SOUND_RANDOM,
+                false,
+                0,
+                SoundInstance.Attenuation.NONE,
+                0.0D,
+                0.0D,
+                0.0D,
+                true
+        ));
+    }
+
+    private static float randomPitch(float min, float max) {
+        return min + (UI_SOUND_RANDOM.nextFloat() * (max - min));
+    }
+
+    private static final class MenuLoopSound extends AbstractTickableSoundInstance {
+
+        private MenuLoopSound(SoundEvent soundEvent) {
+            super(soundEvent, SoundSource.MASTER, UI_SOUND_RANDOM);
+            this.looping = true;
+            this.delay = 0;
+            this.attenuation = SoundInstance.Attenuation.NONE;
+            this.relative = true;
+            this.volume = configuredMenuVolume();
+            this.pitch = 1.0F;
+        }
+
+        @Override
+        public void tick() {
+            this.volume = configuredMenuVolume();
+        }
+
+        private static float configuredMenuVolume() {
+            return (float) AioaConfigManager.getConfig().clientUi.menuSfxVolume;
+        }
+    }
+
     static final class AioaSlider extends AbstractSliderButton {
 
         private final double min;
@@ -545,6 +672,9 @@ public final class AioaScreenUtil {
         private final double step;
         private final DoubleFunction<String> labelFactory;
         private final DoubleConsumer consumer;
+        private boolean wasHovered;
+        private float hoverProgress;
+        private double lastSoundValue = Double.NaN;
 
         AioaSlider(
                 int x,
@@ -593,15 +723,38 @@ public final class AioaScreenUtil {
         }
 
         @Override
+        public void playDownSound(net.minecraft.client.sounds.SoundManager soundManager) {
+            playUiSound(UI_SLIDER_SOUND, 0.55F, randomPitch(0.82F, 0.96F));
+            this.lastSoundValue = this.actualValue();
+        }
+
+        @Override
+        protected void onDrag(double mouseX, double mouseY, double dragX, double dragY) {
+            super.onDrag(mouseX, mouseY, dragX, dragY);
+            this.playSliderStepIfChanged();
+        }
+
+        @Override
+        public void onRelease(double mouseX, double mouseY) {
+            super.onRelease(mouseX, mouseY);
+            this.lastSoundValue = Double.NaN;
+        }
+
+        @Override
         public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             int left = this.getX();
             int top = this.getY();
             int right = left + this.width;
             int bottom = top + this.height;
             boolean hovered = this.isHoveredOrFocused();
+            this.hoverProgress += ((hovered ? 1.0F : 0.0F) - this.hoverProgress) * 0.24F;
+            if (hovered && !this.wasHovered && this.active) {
+                playUiSound(UI_HOVER_SOUND, 0.45F, randomPitch(1.05F, 1.22F));
+            }
+            this.wasHovered = hovered;
 
-            drawInsetPanel(guiGraphics, left, top, right, bottom, hovered);
-            guiGraphics.fill(left + 2, top + 2, right - 2, top + 4, hovered ? 0xFF08110D : 0xFF0D1712);
+            drawInsetPanel(guiGraphics, left, top, right, bottom, this.hoverProgress > 0.45F);
+            guiGraphics.fill(left + 2, top + 2, right - 2, top + 4, hovered ? 0x88000000 : 0x55000000);
 
             int trackLeft = left + 12;
             int trackRight = right - 12;
@@ -625,8 +778,8 @@ public final class AioaScreenUtil {
                 guiGraphics.fill(trackLeft + 1, trackTop + 1, Math.min(trackLeft + progressWidth, trackRight - 1), trackBottom - 1, PANEL_ACCENT);
             }
 
-            int knobRadius = hovered ? 6 : 5;
-            guiGraphics.fill(knobCenterX - knobRadius, trackTop - 4, knobCenterX + knobRadius, trackBottom + 4, this.active ? 0xFFB8FFD9 : TEXT_MUTED);
+            int knobRadius = 5 + Math.round(this.hoverProgress);
+            guiGraphics.fill(knobCenterX - knobRadius, trackTop - 4, knobCenterX + knobRadius, trackBottom + 4, this.active ? TEXT_MAIN : TEXT_MUTED);
             guiGraphics.fill(knobCenterX - 2, trackTop - 1, knobCenterX + 2, trackBottom + 1, 0xFF0C1711);
 
             String valueText = this.valueText();
@@ -659,12 +812,32 @@ public final class AioaScreenUtil {
             String raw = String.format(Locale.ROOT, "%.3f", actual);
             return raw.indexOf('.') >= 0 ? raw.replaceAll("0+$", "").replaceAll("\\.$", "") : raw;
         }
+
+        private void playSliderStepIfChanged() {
+            double currentValue = this.actualValue();
+            if (!Double.isNaN(this.lastSoundValue) && Math.abs(currentValue - this.lastSoundValue) < 1.0E-6D) {
+                return;
+            }
+
+            this.lastSoundValue = currentValue;
+            playUiSound(UI_SLIDER_SOUND, 0.5F, randomPitch(0.9F, 1.15F));
+        }
     }
 
     static final class AioaButton extends Button {
 
+        private boolean wasHovered;
+        private float hoverProgress;
+        private float pressPulse;
+
         AioaButton(int x, int y, int width, int height, Component message, OnPress onPress) {
             super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
+        }
+
+        @Override
+        public void playDownSound(net.minecraft.client.sounds.SoundManager soundManager) {
+            playUiSound(UI_CLICK_SOUND, 0.65F, randomPitch(0.75F, 1.08F));
+            this.pressPulse = 1.0F;
         }
 
         @Override
@@ -674,18 +847,32 @@ public final class AioaScreenUtil {
             int right = left + this.width;
             int bottom = top + this.height;
             boolean hovered = this.isHoveredOrFocused();
-            boolean sectionButton = this.getMessage().getString().startsWith("[+") || this.getMessage().getString().startsWith("[-]");
-            int fill = !this.active ? 0xFF0B0B0B : hovered ? 0xFF03D772 : 0xFF01BF63;
-            int text = !this.active ? TEXT_MUTED : sectionButton ? 0xFF7F0000 : 0xFF1C5427;
+            this.hoverProgress += ((hovered ? 1.0F : 0.0F) - this.hoverProgress) * 0.28F;
+            this.pressPulse *= 0.72F;
+            if (hovered && !this.wasHovered && this.active) {
+                playUiSound(UI_HOVER_SOUND, 0.45F, randomPitch(1.05F, 1.22F));
+            }
+            this.wasHovered = hovered;
+            int pressInset = Math.round(this.pressPulse * 2.0F);
+            left += pressInset;
+            top += pressInset;
+            right -= pressInset;
+            bottom -= pressInset;
+            int fill = !this.active ? 0xAA0B0B0B : lerpColor(0xE001BF63, 0xFF03D772, this.hoverProgress);
+            int text = !this.active ? TEXT_MUTED : BUTTON_TEXT;
 
             guiGraphics.fill(left, top, right, bottom, fill);
             guiGraphics.fill(left, top, right, top + 1, PANEL_BORDER);
             guiGraphics.fill(left, bottom - 1, right, bottom, PANEL_BORDER);
             guiGraphics.fill(left, top, left + 1, bottom, PANEL_BORDER);
             guiGraphics.fill(right - 1, top, right, bottom, PANEL_BORDER);
-            guiGraphics.fill(left + 2, top + 2, right - 2, top + 4, hovered ? 0xFF08110D : 0xFF0D1712);
+            guiGraphics.fill(left + 2, top + 2, right - 2, top + 4, hovered ? 0x88000000 : 0x55000000);
+            int sweepWidth = Math.round((right - left - 4) * this.hoverProgress);
+            if (sweepWidth > 0) {
+                guiGraphics.fill(left + 2, bottom - 3, left + 2 + sweepWidth, bottom - 1, 0xCCB4FFD4);
+            }
 
-            guiGraphics.drawCenteredString(Minecraft.getInstance().font, this.getMessage(), left + this.width / 2, top + (this.height - 8) / 2, text);
+            guiGraphics.drawCenteredString(Minecraft.getInstance().font, this.getMessage(), (left + right) / 2, (top + bottom - 8) / 2, text);
         }
     }
 
@@ -706,8 +893,11 @@ public final class AioaScreenUtil {
             int right = left + this.getWidth();
             int bottom = top + this.getHeight();
             drawInsetPanel(guiGraphics, left, top, right, bottom, this.isFocused());
-            guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, 0xFF0D1712);
+            guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, 0x55000000);
+            guiGraphics.pose().pushPose();
+            guiGraphics.pose().translate(6.0F, 2.0F, 0.0F);
             super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
+            guiGraphics.pose().popPose();
         }
     }
 }

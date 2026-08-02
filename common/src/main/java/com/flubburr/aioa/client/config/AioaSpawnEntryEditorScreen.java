@@ -108,7 +108,7 @@ final class AioaSpawnEntryEditorScreen extends AioaScrollableScreen {
         }
         this.refreshSectionVisibility();
 
-        this.addScrollable(AioaScreenUtil.button(centerX - 172, 0, 164, "Done", b -> {
+        this.addScrollable(AioaScreenUtil.button(centerX - 82, 0, 164, "Done", b -> {
             int weight = Math.max(1, this.cachedWeight);
             double chance = AioaScreenUtil.clampChance(this.cachedChance);
             int min = Math.max(1, this.cachedMin);
@@ -122,9 +122,8 @@ final class AioaSpawnEntryEditorScreen extends AioaScrollableScreen {
                     min,
                     max
             ));
-            this.minecraft.setScreen(this.parent);
+            this.transitionTo(this.parent);
         }), y);
-        this.addScrollable(AioaScreenUtil.button(centerX + 8, 0, 164, "Cancel", b -> this.minecraft.setScreen(this.parent)), y);
         this.finishScrollLayout(y + AioaScreenUtil.BUTTON_HEIGHT + 110);
         this.setInitialFocus(this.weightSlider);
     }
@@ -143,37 +142,38 @@ final class AioaSpawnEntryEditorScreen extends AioaScrollableScreen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        AioaScreenUtil.pushUiLayer(guiGraphics);
+        this.beginUiRender(guiGraphics);
+        AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
         AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal(AioaScreenUtil.entityLine(this.entityId)), this.width / 2, 49, this.panelWidth - 48, AioaScreenUtil.TEXT_SUB);
+        AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom,
+                () -> AioaSpawnEntryEditorScreen.super.render(guiGraphics, mouseX, mouseY, partialTick));
         if (this.height >= 280) {
-            AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom, () ->
-                    AioaScreenUtil.drawMobPreview(
-                            guiGraphics,
-                            this.font,
-                            this.width / 2 - 110,
-                            this.height - 166,
-                            220,
-                            118,
-                            this.entityId,
-                            this.enabled,
-                            List.of(
-                                    Component.literal("Weight: " + this.cachedWeight),
-                                    Component.literal("Chance: " + Math.round(this.cachedChance * 100.0D) + "%"),
-                                    Component.literal("Group: " + this.cachedMin + " - " + this.cachedMax),
-                                    Component.literal(this.enabled ? "Status: entry enabled" : "Status: entry disabled")
-                            )
-                    ));
+            AioaScreenUtil.drawMobPreview(
+                    guiGraphics,
+                    this.font,
+                    this.width / 2 - 110,
+                    this.height - 166,
+                    220,
+                    118,
+                    this.entityId,
+                    this.enabled,
+                    List.of(
+                            Component.literal("Weight: " + this.cachedWeight),
+                            Component.literal("Chance: " + Math.round(this.cachedChance * 100.0D) + "%"),
+                            Component.literal("Group: " + this.cachedMin + " - " + this.cachedMax),
+                            Component.literal(this.enabled ? "Status: entry enabled" : "Status: entry disabled")
+                    )
+            );
         }
-        AioaSpawnEntryEditorScreen.super.render(guiGraphics, mouseX, mouseY, partialTick);
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
-        AioaScreenUtil.popUiLayer(guiGraphics);
+        this.finishUiRender(guiGraphics);
     }
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(this.parent);
+        this.transitionTo(this.parent);
     }
 
     private static final class ButtonLikeHeaders {

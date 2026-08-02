@@ -9,7 +9,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-final class AioaZombieAiScreen extends Screen {
+final class AioaZombieAiScreen extends AioaAnimatedScreen {
 
     private final Screen parent;
     private final AioaConfig editableConfig;
@@ -72,7 +72,7 @@ final class AioaZombieAiScreen extends Screen {
         y += step + 8;
 
         this.addScrollable(AioaScreenUtil.button(leftX, 0, width, "Choose Refined AI Mobs", b ->
-                this.minecraft.setScreen(AioaEntityToggleScreen.forAllEntities(
+                this.transitionTo(AioaEntityToggleScreen.forAllEntities(
                         this,
                         "Refined AI Mobs",
                         "Pick every mob that should use the apocalypse chase/pathfinding behavior.",
@@ -81,7 +81,7 @@ final class AioaZombieAiScreen extends Screen {
                 ))), y);
         y += step;
         this.addScrollable(AioaScreenUtil.button(leftX, 0, width, "Choose Wall Climbers", b ->
-                this.minecraft.setScreen(AioaEntityToggleScreen.forAllEntities(
+                this.transitionTo(AioaEntityToggleScreen.forAllEntities(
                         this,
                         "Wall Climbing Mobs",
                         "Choose mobs that may climb walls while chasing targets.",
@@ -90,7 +90,7 @@ final class AioaZombieAiScreen extends Screen {
                 ))), y);
         y += step;
         this.addScrollable(AioaScreenUtil.button(leftX, 0, width, "Players-Only Overrides", b ->
-                this.minecraft.setScreen(AioaEntityToggleScreen.forAllEntities(
+                this.transitionTo(AioaEntityToggleScreen.forAllEntities(
                         this,
                         "Players Only Overrides",
                         "These mobs ignore the default target mode and only hunt players.",
@@ -99,7 +99,7 @@ final class AioaZombieAiScreen extends Screen {
                 ))), y);
         y += step;
         this.addScrollable(AioaScreenUtil.button(leftX, 0, width, "Animals-Only Overrides", b ->
-                this.minecraft.setScreen(AioaEntityToggleScreen.forAllEntities(
+                this.transitionTo(AioaEntityToggleScreen.forAllEntities(
                         this,
                         "Animals Only Overrides",
                         "These mobs ignore the default target mode and only target animals.",
@@ -108,7 +108,7 @@ final class AioaZombieAiScreen extends Screen {
                 ))), y);
         y += step;
         this.addScrollable(AioaScreenUtil.button(leftX, 0, width, "Other-Mobs Overrides", b ->
-                this.minecraft.setScreen(AioaEntityToggleScreen.forAllEntities(
+                this.transitionTo(AioaEntityToggleScreen.forAllEntities(
                         this,
                         "Other Mobs Overrides",
                         "These mobs ignore the default target mode and target non-player mobs.",
@@ -117,7 +117,7 @@ final class AioaZombieAiScreen extends Screen {
                 ))), y);
         y += step;
         this.addScrollable(AioaScreenUtil.button(leftX, 0, width, "Everything Overrides", b ->
-                this.minecraft.setScreen(AioaEntityToggleScreen.forAllEntities(
+                this.transitionTo(AioaEntityToggleScreen.forAllEntities(
                         this,
                         "Everything Overrides",
                         "These mobs ignore the default target mode and attack almost anything alive.",
@@ -126,14 +126,13 @@ final class AioaZombieAiScreen extends Screen {
                 ))), y);
 
         y += step + 8;
-        this.addScrollable(AioaScreenUtil.button(centerX - 172, 0, 164, "Done", b -> {
+        this.addScrollable(AioaScreenUtil.button(centerX - 82, 0, 164, "Done", b -> {
             this.editableConfig.daySurfaceSpawns.zombieTargetMode = this.zombieTargetMode;
             this.editableConfig.daySurfaceSpawns.zombiesCanClimbWalls = this.zombiesCanClimbWalls;
             this.editableConfig.daySurfaceSpawns.refinedZombieAi = this.refinedZombieAi;
             this.editableConfig.daySurfaceSpawns.coordinatedHordeAi = this.coordinatedHordeAi;
-            this.minecraft.setScreen(this.parent);
+            this.transitionTo(this.parent);
         }), y);
-        this.addScrollable(AioaScreenUtil.button(centerX + 8, 0, 164, "Cancel", b -> this.minecraft.setScreen(this.parent)), y);
         this.maxScroll = Math.max(0, (y + AioaScreenUtil.BUTTON_HEIGHT) - (this.contentBottom - this.contentTop));
         this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, this.maxScroll));
         this.updateScrollLayout();
@@ -141,7 +140,8 @@ final class AioaZombieAiScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        AioaScreenUtil.pushUiLayer(guiGraphics);
+        this.beginUiRender(guiGraphics);
+        AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
         int panelWidth = AioaScreenUtil.panelWidth(this.width, 700);
         int panelLeft = AioaScreenUtil.panelLeft(this.width, panelWidth);
         AioaScreenUtil.drawPanel(guiGraphics, panelLeft, 24, panelLeft + panelWidth, this.height - 40);
@@ -151,15 +151,15 @@ final class AioaZombieAiScreen extends Screen {
         super.render(guiGraphics, mouseX, mouseY, partialTick);
         guiGraphics.disableScissor();
         AioaScreenUtil.drawScrollBar(guiGraphics, panelLeft + panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
-        AioaScreenUtil.popUiLayer(guiGraphics);
+        this.finishUiRender(guiGraphics);
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
         if (this.maxScroll <= 0) {
-            return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+            return super.mouseScrolled(mouseX, mouseY, delta);
         }
-        this.scrollOffset = Math.max(0, Math.min(this.maxScroll, this.scrollOffset - ((int) verticalAmount * 24)));
+        this.scrollOffset = Math.max(0, Math.min(this.maxScroll, this.scrollOffset - ((int) delta * 24)));
         this.updateScrollLayout();
         return true;
     }
@@ -182,6 +182,6 @@ final class AioaZombieAiScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(this.parent);
+        this.transitionTo(this.parent);
     }
 }
