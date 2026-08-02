@@ -31,7 +31,7 @@ public final class AioaFabricClient implements ClientModInitializer {
                 "key.aioa.open_spawn_studio",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_F7,
-                "key.categories." + AioaConstants.MOD_ID
+                KeyMapping.Category.MISC
         ));
         AioaClientNetworking.registerSender(request -> {
             ClientPlayNetworking.send(new AioaFabricSpawnPayload(request));
