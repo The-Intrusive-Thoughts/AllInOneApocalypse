@@ -265,7 +265,7 @@ public final class AioaBehaviorRuntime {
     }
 
     private static void equipItem(AioaBehaviorGraph.Node node, Mob mob) {
-        ResourceLocation id = AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("item", "minecraft:air"));
+        Identifier id = AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("item", "minecraft:air"));
         if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) return;
         EquipmentSlot slot;
         try {
