@@ -53,17 +53,17 @@ final class AioaBehaviorEngineSettingsScreen extends AioaScrollableScreen {
         this.libraryDirectory.setValue(this.draft.graphLibraryDirectory);
         this.libraryDirectory.setHint(Component.literal("Relative to config, e.g. aioa/graphs"));
         this.addScrollable(this.libraryDirectory, y); y += step + 8;
-        this.addScrollable(AioaScreenUtil.button(this.width / 2 - 172, 0, 164, "Done", b -> {
+        this.addScrollable(AioaScreenUtil.button(this.width / 2 - 82, 0, 164, "Done", b -> {
             this.draft.graphLibraryDirectory = this.libraryDirectory.getValue().trim();
             this.editableConfig.behaviorEngine = this.draft;
-            this.minecraft.setScreen(this.parent);
+            this.transitionTo(this.parent);
         }), y);
-        this.addScrollable(AioaScreenUtil.button(this.width / 2 + 8, 0, 164, "Cancel", b -> this.minecraft.setScreen(this.parent)), y);
         this.finishScrollLayout(y + AioaScreenUtil.BUTTON_HEIGHT);
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        this.beginUiRender(graphics);
         AioaScreenUtil.drawScreenBackground(graphics, this.width, this.height);
         AioaScreenUtil.drawPanel(graphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         graphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
@@ -72,10 +72,11 @@ final class AioaBehaviorEngineSettingsScreen extends AioaScrollableScreen {
                 this.width / 2, 50, this.panelWidth - 64, AioaScreenUtil.TEXT_SUB);
         AioaScreenUtil.drawClippedContent(graphics, this.panelLeft + 8, 82, this.panelLeft + this.panelWidth - 20, Math.max(150, this.height - 64),
                 () -> AioaBehaviorEngineSettingsScreen.super.render(graphics, mouseX, mouseY, partialTick));
+        this.finishUiRender(graphics);
     }
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(this.parent);
+        this.transitionTo(this.parent);
     }
 }

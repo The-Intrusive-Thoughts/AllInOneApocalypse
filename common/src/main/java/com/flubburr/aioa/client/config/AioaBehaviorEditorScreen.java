@@ -4,6 +4,7 @@ import com.flubburr.aioa.behavior.AioaBehaviorGraph;
 import com.flubburr.aioa.behavior.AioaBehaviorValidator;
 import com.flubburr.aioa.behavior.AioaGraphLibrary;
 import com.flubburr.aioa.config.AioaConfig;
+import com.flubburr.aioa.config.AioaConfigManager;
 import com.flubburr.aioa.behavior.AioaGraphUpdateHandler;
 import com.flubburr.aioa.network.AioaClientNetworking;
 import com.flubburr.aioa.compat.AioaEntityHelper;
@@ -12,11 +13,9 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Mob;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.math.Axis;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -35,6 +34,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
 
     private final Screen parent;
     private final AioaConfig editableConfig;
+    private final boolean saveOnApply;
     private final List<AioaBehaviorGraph> graphs = new ArrayList<>();
     private final Deque<AioaBehaviorGraph> undo = new ArrayDeque<>();
     private final Deque<AioaBehaviorGraph> redo = new ArrayDeque<>();
@@ -42,13 +42,33 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private int graphIndex;
     private int viewportX;
     private int viewportY;
-    private int viewportWidth = 178;
-    private int viewportHeight = 118;
+    private int viewportWidth = 320;
+    private int viewportHeight = 220;
     private AioaBehaviorGraph.Node selected;
     private AioaBehaviorGraph.Node linkStart;
     private String linkOutput = "next";
     private int windowX;
     private int windowY;
+    private int workspaceWidth = WINDOW_WIDTH;
+    private int workspaceHeight = WINDOW_HEIGHT;
+    private boolean configuredScaleApplied;
+    private boolean resizingWorkspace;
+    private int paletteX;
+    private int paletteY;
+    private int paletteWidth = PALETTE_WIDTH;
+    private int paletteHeight = 390;
+    private int inspectorX;
+    private int inspectorY;
+    private int inspectorWidth = INSPECTOR_WIDTH;
+    private int inspectorHeight = 292;
+    private int parametersX;
+    private int parametersY;
+    private int parametersWidth = 210;
+    private int parametersHeight = 132;
+    private boolean paletteCollapsed;
+    private boolean inspectorCollapsed;
+    private boolean parametersCollapsed;
+    private FloatingWindow draggingFloatingWindow;
     private int canvasPanX;
     private int canvasPanY;
     private double canvasZoom = 1.0D;
@@ -84,10 +104,11 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private EditBox parameterValue;
     private Button scopeButton;
 
-    private AioaBehaviorEditorScreen(Screen parent, AioaConfig editableConfig) {
+    private AioaBehaviorEditorScreen(Screen parent, AioaConfig editableConfig, boolean saveOnApply) {
         super(Component.literal("AIOA Behavior Graph Studio"));
         this.parent = parent;
         this.editableConfig = editableConfig;
+        this.saveOnApply = saveOnApply;
         if (editableConfig.behaviorGraphs.isEmpty()) {
             this.graphs.add(AioaBehaviorGraph.createStarter());
         } else {
@@ -97,14 +118,33 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     }
 
     public static Screen create(Screen parent, AioaConfig editableConfig) {
-        return new AioaBehaviorEditorScreen(parent, editableConfig);
+        return new AioaBehaviorEditorScreen(parent, editableConfig, false);
+    }
+
+    public static Screen createForWorld(Screen parent) {
+        return new AioaBehaviorEditorScreen(parent, AioaConfigManager.getConfigCopy(), true);
     }
 
     @Override
     protected void init() {
         this.clearWidgets();
+        if (!this.configuredScaleApplied) {
+            double uiScale = this.editableConfig.clientUi.editorScalePercent / 100.0D;
+            this.workspaceWidth = Math.max(620, (int) Math.round(WINDOW_WIDTH * uiScale));
+            this.workspaceHeight = Math.max(360, (int) Math.round(WINDOW_HEIGHT * uiScale));
+            this.canvasZoom = clampZoom(uiScale);
+            this.configuredScaleApplied = true;
+        }
         this.windowX = this.windowX == 0 ? Math.max(8, (this.width - Math.min(WINDOW_WIDTH, this.width - 16)) / 2) : this.windowX;
         this.windowY = this.windowY == 0 ? Math.max(8, (this.height - Math.min(WINDOW_HEIGHT, this.height - 16)) / 2) : this.windowY;
+        this.workspaceWidth = Math.min(this.workspaceWidth, this.width - 16);
+        this.workspaceHeight = Math.min(this.workspaceHeight, this.height - 16);
+        this.paletteX = this.paletteX == 0 ? this.windowX + 10 : this.paletteX;
+        this.paletteY = this.paletteY == 0 ? this.windowY + 66 : this.paletteY;
+        this.inspectorX = this.inspectorX == 0 ? this.windowX + windowWidth() - this.inspectorWidth - 10 : this.inspectorX;
+        this.inspectorY = this.inspectorY == 0 ? this.windowY + 66 : this.inspectorY;
+        this.parametersX = this.parametersX == 0 ? this.inspectorX : this.parametersX;
+        this.parametersY = this.parametersY == 0 ? this.inspectorY + this.inspectorHeight + 8 : this.parametersY;
         this.helpX = this.helpX == 0 ? this.windowX + PALETTE_WIDTH + 18 : this.helpX;
         this.helpY = this.helpY == 0 ? this.windowY + windowHeight() - 118 : this.helpY;
         this.viewportX = this.viewportX == 0 ? this.canvasRight() - this.viewportWidth - 8 : this.viewportX;
@@ -112,11 +152,11 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         rebuildEditorWidgets();
     }
 
-    private int windowWidth() { return Math.min(WINDOW_WIDTH, this.width - 16); }
-    private int windowHeight() { return Math.min(WINDOW_HEIGHT, this.height - 16); }
-    private int inspectorLeft() { return this.windowX + windowWidth() - INSPECTOR_WIDTH; }
-    private int canvasLeft() { return this.windowX + PALETTE_WIDTH; }
-    private int canvasRight() { return inspectorLeft(); }
+    private int windowWidth() { return Math.max(620, Math.min(this.workspaceWidth, this.width - this.windowX)); }
+    private int windowHeight() { return Math.max(360, Math.min(this.workspaceHeight, this.height - this.windowY)); }
+    private int inspectorLeft() { return this.inspectorX; }
+    private int canvasLeft() { return this.windowX + 8; }
+    private int canvasRight() { return this.windowX + windowWidth() - 8; }
     private int canvasTop() { return this.windowY + 58; }
     private int canvasBottom() { return this.windowY + windowHeight() - 28; }
 
@@ -152,35 +192,39 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 this.transitionTo(new AioaDocsScreen(this))));
 
         int right = this.windowX + windowWidth() - 8;
-        this.addRenderableWidget(AioaScreenUtil.button(right - 152, toolbarY, 72, "Apply", button -> applyAndClose()));
-        this.addRenderableWidget(AioaScreenUtil.button(right - 76, toolbarY, 72, "Close", button -> this.onClose()));
+        this.addRenderableWidget(AioaScreenUtil.button(right - 88, toolbarY, 80, "Done", button -> applyAndClose()));
 
-        int inspectorX = inspectorLeft() + 10;
-        int inspectorWidth = INSPECTOR_WIDTH - 20;
-        this.graphName = new EditBox(this.font, inspectorX, this.windowY + 78, inspectorWidth, 22, Component.literal("Graph name"));
+        int inspectorX = this.inspectorX + 10;
+        int inspectorWidth = this.inspectorWidth - 20;
+        int inspectorContentY = this.inspectorY + 28;
+        this.graphName = new EditBox(this.font, inspectorX, inspectorContentY, inspectorWidth, 22, Component.literal("Graph name"));
         this.graphName.setValue(this.graph.name);
-        this.addRenderableWidget(this.graphName);
-        this.scopeButton = this.addRenderableWidget(AioaScreenUtil.button(inspectorX, this.windowY + 106, inspectorWidth,
+        if (!this.inspectorCollapsed) this.addRenderableWidget(this.graphName);
+        Button newScopeButton = AioaScreenUtil.button(inspectorX, inspectorContentY + 28, inspectorWidth,
                 "Scope: " + friendly(this.graph.scope), button -> {
                     snapshot();
                     this.graph.scope = next(this.graph.scope, AioaBehaviorGraph.Scope.values());
                     button.setMessage(Component.literal("Scope: " + friendly(this.graph.scope)));
-                }));
-        this.selector = new EditBox(this.font, inspectorX, this.windowY + 136, inspectorWidth, 22, Component.literal("Scope selector"));
+                });
+        this.scopeButton = newScopeButton;
+        if (!this.inspectorCollapsed) this.addRenderableWidget(newScopeButton);
+        this.selector = new EditBox(this.font, inspectorX, inspectorContentY + 58, inspectorWidth, 22, Component.literal("Scope selector"));
         this.selector.setValue(this.graph.selector);
         this.selector.setHint(Component.literal("entity id, tag, or UUID"));
-        this.addRenderableWidget(this.selector);
+        if (!this.inspectorCollapsed) this.addRenderableWidget(this.selector);
 
-        this.parameterKey = new EditBox(this.font, inspectorX, this.windowY + 218, inspectorWidth, 22, Component.literal("Parameter name"));
+        int parameterContentX = this.parametersX + 10;
+        int parameterContentWidth = this.parametersWidth - 20;
+        this.parameterKey = new EditBox(this.font, parameterContentX, this.parametersY + 28, parameterContentWidth, 22, Component.literal("Parameter name"));
         this.parameterKey.setHint(Component.literal("range / speed / ticks..."));
-        this.addRenderableWidget(this.parameterKey);
-        this.parameterValue = new EditBox(this.font, inspectorX, this.windowY + 246, inspectorWidth, 22, Component.literal("Parameter value"));
+        if (!this.parametersCollapsed) this.addRenderableWidget(this.parameterKey);
+        this.parameterValue = new EditBox(this.font, parameterContentX, this.parametersY + 56, parameterContentWidth, 22, Component.literal("Parameter value"));
         this.parameterValue.setHint(Component.literal("value"));
-        this.addRenderableWidget(this.parameterValue);
-        this.addRenderableWidget(AioaScreenUtil.button(inspectorX, this.windowY + 274, inspectorWidth, "Set parameter", button -> setParameter()));
-        this.addRenderableWidget(AioaScreenUtil.button(inspectorX, this.windowY + 306, inspectorWidth, "Spawn a mob...", button ->
+        if (!this.parametersCollapsed) this.addRenderableWidget(this.parameterValue);
+        if (!this.parametersCollapsed) this.addRenderableWidget(AioaScreenUtil.button(parameterContentX, this.parametersY + 84, parameterContentWidth, "Done", button -> setParameter()));
+        if (!this.inspectorCollapsed) this.addRenderableWidget(AioaScreenUtil.button(inspectorX, inspectorContentY + 88, inspectorWidth, "Spawn a mob...", button ->
                 this.transitionTo(AioaSpawnStudioScreen.create(this))));
-        this.addRenderableWidget(AioaScreenUtil.button(inspectorX, this.windowY + 338, inspectorWidth, "Browse mob types...", button ->
+        if (!this.inspectorCollapsed) this.addRenderableWidget(AioaScreenUtil.button(inspectorX, inspectorContentY + 120, inspectorWidth, "Browse mob types...", button ->
                 this.transitionTo(new AioaEntityPickerScreen(this, "Select Behavior Mob", AioaScreenUtil.allEntityIds(),
                         "Choose an entity type for this graph or a node parameter.", "Use Selected Mob", id -> {
                     snapshot();
@@ -197,31 +241,33 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                         this.status = "Graph mob set to " + AioaScreenUtil.entityDisplayName(id) + ".";
                     }
                 }))));
-        this.addRenderableWidget(AioaScreenUtil.button(inspectorX, this.windowY + 370, inspectorWidth, "Pick in world (right-click)", button ->
+        if (!this.inspectorCollapsed) this.addRenderableWidget(AioaScreenUtil.button(inspectorX, inspectorContentY + 152, inspectorWidth, "Pick in world (right-click)", button ->
                 AioaMobSelectionController.arm(this)));
-        this.addRenderableWidget(AioaScreenUtil.button(inspectorX, this.windowY + 402, (inspectorWidth - 6) / 2, "< Graph", button -> switchGraph(-1)));
-        this.addRenderableWidget(AioaScreenUtil.button(inspectorX + (inspectorWidth + 6) / 2, this.windowY + 402, (inspectorWidth - 6) / 2, "Graph >", button -> switchGraph(1)));
-        this.addRenderableWidget(AioaScreenUtil.button(inspectorX, this.windowY + 434, (inspectorWidth - 6) / 2, "Export", button -> exportGraph()));
-        this.addRenderableWidget(AioaScreenUtil.button(inspectorX + (inspectorWidth + 6) / 2, this.windowY + 434, (inspectorWidth - 6) / 2, "Load Newest", button -> loadNewestGraph()));
+        if (!this.inspectorCollapsed) this.addRenderableWidget(AioaScreenUtil.button(inspectorX, inspectorContentY + 184, (inspectorWidth - 6) / 2, "< Graph", button -> switchGraph(-1)));
+        if (!this.inspectorCollapsed) this.addRenderableWidget(AioaScreenUtil.button(inspectorX + (inspectorWidth + 6) / 2, inspectorContentY + 184, (inspectorWidth - 6) / 2, "Graph >", button -> switchGraph(1)));
+        if (!this.inspectorCollapsed) this.addRenderableWidget(AioaScreenUtil.button(inspectorX, inspectorContentY + 216, (inspectorWidth - 6) / 2, "Export", button -> exportGraph()));
+        if (!this.inspectorCollapsed) this.addRenderableWidget(AioaScreenUtil.button(inspectorX + (inspectorWidth + 6) / 2, inspectorContentY + 216, (inspectorWidth - 6) / 2, "Load Newest", button -> loadNewestGraph()));
 
-        int paletteX = this.windowX + 10;
-        int paletteY = this.windowY + 82;
+        int paletteX = this.paletteX + 10;
+        int paletteY = this.paletteY + 28;
         AioaBehaviorGraph.NodeType[] types = AioaBehaviorGraph.NodeType.values();
-        int pageSize = Math.max(4, (windowHeight() - 150) / 30);
+        int pageSize = Math.max(3, (this.paletteHeight - 74) / 30);
         int start = this.palettePage * pageSize;
-        for (int i = start; i < Math.min(types.length, start + pageSize); i++) {
+        for (int i = start; !this.paletteCollapsed && i < Math.min(types.length, start + pageSize); i++) {
             AioaBehaviorGraph.NodeType type = types[i];
-            this.addRenderableWidget(AioaScreenUtil.button(paletteX, paletteY, PALETTE_WIDTH - 20, type.name().replace('_', ' '), button -> addNode(type)));
+            this.addRenderableWidget(AioaScreenUtil.button(paletteX, paletteY, this.paletteWidth - 20, type.name().replace('_', ' '), button -> addNode(type)));
             paletteY += 30;
         }
-        this.addRenderableWidget(AioaScreenUtil.button(paletteX, this.windowY + windowHeight() - 56, 70, "< Prev", button -> {
+        if (!this.paletteCollapsed) this.addRenderableWidget(AioaScreenUtil.button(paletteX, this.paletteY + this.paletteHeight - 30, 70, "< Prev", button -> {
             this.palettePage = Math.max(0, this.palettePage - 1); rebuildEditorWidgets();
         }));
-        this.addRenderableWidget(AioaScreenUtil.button(paletteX + 76, this.windowY + windowHeight() - 56, 70, "Next >", button -> {
+        if (!this.paletteCollapsed) this.addRenderableWidget(AioaScreenUtil.button(paletteX + 76, this.paletteY + this.paletteHeight - 30, 70, "Next >", button -> {
             if ((this.palettePage + 1) * pageSize < types.length) this.palettePage++;
             rebuildEditorWidgets();
         }));
     }
+
+    private enum FloatingWindow { PALETTE, INSPECTOR, PARAMETERS }
 
     private void newGraph() {
         syncFields();
@@ -262,6 +308,19 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         this.undo.clear();
         this.redo.clear();
         this.status = "Opened graph tab: " + this.graph.name;
+        rebuildEditorWidgets();
+    }
+
+    private void closeGraph(int index) {
+        if (this.graphs.size() <= 1 || index < 0 || index >= this.graphs.size()) return;
+        syncFields();
+        String removed = this.graphs.remove(index).name;
+        this.graphIndex = Math.max(0, Math.min(this.graphs.size() - 1, index > this.graphIndex ? this.graphIndex : this.graphIndex - 1));
+        this.graph = this.graphs.get(this.graphIndex);
+        this.selected = null;
+        this.undo.clear();
+        this.redo.clear();
+        this.status = "Closed graph tab: " + removed;
         rebuildEditorWidgets();
     }
 
@@ -375,6 +434,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
 
     private void loadSelectedParameter(boolean advance) {
         if (this.selected == null || this.selected.parameters.isEmpty()) return;
+        if (advance) this.parametersCollapsed = false;
         List<String> keys = new ArrayList<>(this.selected.parameters.keySet());
         this.parameterIndex = advance ? (this.parameterIndex + 1) % keys.size() : 0;
         String key = keys.get(this.parameterIndex);
@@ -455,6 +515,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         }
         this.editableConfig.behaviorGraphs = this.graphs.stream().map(AioaBehaviorGraph::copy)
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        if (this.saveOnApply) AioaConfigManager.save(this.editableConfig);
         if (this.minecraft != null && this.minecraft.getConnection() != null) {
             for (AioaBehaviorGraph savedGraph : this.graphs) {
                 AioaClientNetworking.sendGraphUpdate(AioaGraphUpdateHandler.createRequest(savedGraph));
@@ -464,10 +525,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        double mouseX = event.x();
-        double mouseY = event.y();
-        int button = event.button();
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (this.showContextMenu && contextMenuClicked(mouseX, mouseY, button)) return true;
         this.showContextMenu = false;
         int visibleHelpWidth = Math.min(this.helpWidth, this.width - this.helpX);
@@ -477,11 +535,23 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             int visibleTabs = Math.min(5, this.graphs.size());
             for (int i = 0; i < visibleTabs; i++) {
                 if (mouseX >= tabStart + i * 92 && mouseX < tabStart + i * 92 + 88) {
+                    if (mouseX >= tabStart + i * 92 + 72 && this.graphs.size() > 1) {
+                        closeGraph(i);
+                        return true;
+                    }
                     selectGraph(i);
                     return true;
                 }
             }
         }
+        if (button == 0 && mouseX >= this.windowX + windowWidth() - 14 && mouseX <= this.windowX + windowWidth()
+                && mouseY >= this.windowY + windowHeight() - 14 && mouseY <= this.windowY + windowHeight()) {
+            this.resizingWorkspace = true;
+            return true;
+        }
+        if (button == 0 && floatingHeaderClicked(mouseX, mouseY, FloatingWindow.PARAMETERS)) return true;
+        if (button == 0 && floatingHeaderClicked(mouseX, mouseY, FloatingWindow.INSPECTOR)) return true;
+        if (button == 0 && floatingHeaderClicked(mouseX, mouseY, FloatingWindow.PALETTE)) return true;
         if (button == 0 && mouseX >= this.viewportX + this.viewportWidth - 12 && mouseX <= this.viewportX + this.viewportWidth
                 && mouseY >= this.viewportY + this.viewportHeight - 12 && mouseY <= this.viewportY + this.viewportHeight) {
             this.resizingViewport = true;
@@ -551,14 +621,14 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 }
                 this.selected = hit;
                 long now = System.currentTimeMillis();
-                boolean nodeDoubleClick = doubleClick || (hit.id.equals(this.lastNodeClickId) && now - this.lastNodeClickAt <= 360L);
+                boolean doubleClick = hit.id.equals(this.lastNodeClickId) && now - this.lastNodeClickAt <= 360L;
                 this.lastNodeClickId = hit.id;
                 this.lastNodeClickAt = now;
                 this.draggingNode = true;
                 this.dragOffsetX = (int) mouseX - screenNodeX(hit);
                 this.dragOffsetY = (int) mouseY - screenNodeY(hit);
                 this.status = hit.type.help;
-                loadSelectedParameter(nodeDoubleClick);
+                loadSelectedParameter(doubleClick);
                 return true;
             }
             if (button == 1) {
@@ -575,14 +645,11 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 return true;
             }
         }
-        return super.mouseClicked(event, doubleClick);
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
-    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
-        double mouseX = event.x();
-        double mouseY = event.y();
-        int button = event.button();
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
         if (this.draggingLink) {
             this.linkMouseX = mouseX;
             this.linkMouseY = mouseY;
@@ -594,8 +661,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             return true;
         }
         if (this.resizingViewport) {
-            this.viewportWidth = Math.max(120, Math.min(300, (int) mouseX - this.viewportX));
-            this.viewportHeight = Math.max(90, Math.min(220, (int) mouseY - this.viewportY));
+            this.viewportWidth = Math.max(160, Math.min(520, (int) mouseX - this.viewportX));
+            this.viewportHeight = Math.max(120, Math.min(360, (int) mouseY - this.viewportY));
             return true;
         }
         if (this.draggingHelp) {
@@ -606,6 +673,17 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         if (this.resizingHelp) {
             this.helpWidth = Math.max(240, Math.min(this.width - this.helpX, (int) mouseX - this.helpX));
             this.helpHeight = Math.max(96, Math.min(this.height - this.helpY, (int) mouseY - this.helpY));
+            return true;
+        }
+        if (this.resizingWorkspace) {
+            this.workspaceWidth = Math.max(620, Math.min(this.width - this.windowX, (int) mouseX - this.windowX));
+            this.workspaceHeight = Math.max(360, Math.min(this.height - this.windowY, (int) mouseY - this.windowY));
+            rebuildEditorWidgets();
+            return true;
+        }
+        if (this.draggingFloatingWindow != null) {
+            moveFloatingWindow(this.draggingFloatingWindow, (int) mouseX - this.dragOffsetX, (int) mouseY - this.dragOffsetY);
+            rebuildEditorWidgets();
             return true;
         }
         if (this.draggingWindow) {
@@ -624,13 +702,11 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             this.canvasPanY = (int) mouseY - this.dragOffsetY;
             return true;
         }
-        return super.mouseDragged(event, dragX, dragY);
+        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
     }
 
     @Override
-    public boolean mouseReleased(MouseButtonEvent event) {
-        double mouseX = event.x();
-        double mouseY = event.y();
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (this.draggingLink) {
             connect(this.linkStart, nodeAt(mouseX, mouseY));
             this.draggingLink = false;
@@ -645,33 +721,76 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         this.resizingHelp = false;
         this.draggingViewport = false;
         this.resizingViewport = false;
-        return super.mouseReleased(event);
+        this.resizingWorkspace = false;
+        this.draggingFloatingWindow = null;
+        return super.mouseReleased(mouseX, mouseY, button);
     }
 
+    private boolean floatingHeaderClicked(double mouseX, double mouseY, FloatingWindow window) {
+        int x = floatingX(window);
+        int y = floatingY(window);
+        int width = floatingWidth(window);
+        if (mouseX < x || mouseX > x + width || mouseY < y || mouseY > y + 20) return false;
+        if (mouseX >= x + width - 22) {
+            switch (window) {
+                case PALETTE -> this.paletteCollapsed = !this.paletteCollapsed;
+                case INSPECTOR -> this.inspectorCollapsed = !this.inspectorCollapsed;
+                case PARAMETERS -> this.parametersCollapsed = !this.parametersCollapsed;
+            }
+            rebuildEditorWidgets();
+        } else {
+            this.draggingFloatingWindow = window;
+            this.dragOffsetX = (int) mouseX - x;
+            this.dragOffsetY = (int) mouseY - y;
+        }
+        return true;
+    }
+
+    private void moveFloatingWindow(FloatingWindow window, int x, int y) {
+        x = Math.max(0, Math.min(this.width - floatingWidth(window), x));
+        y = Math.max(0, Math.min(this.height - 20, y));
+        switch (window) {
+            case PALETTE -> { this.paletteX = x; this.paletteY = y; }
+            case INSPECTOR -> { this.inspectorX = x; this.inspectorY = y; }
+            case PARAMETERS -> { this.parametersX = x; this.parametersY = y; }
+        }
+    }
+
+    private int floatingX(FloatingWindow window) { return switch (window) {
+        case PALETTE -> this.paletteX; case INSPECTOR -> this.inspectorX; case PARAMETERS -> this.parametersX;
+    }; }
+    private int floatingY(FloatingWindow window) { return switch (window) {
+        case PALETTE -> this.paletteY; case INSPECTOR -> this.inspectorY; case PARAMETERS -> this.parametersY;
+    }; }
+    private int floatingWidth(FloatingWindow window) { return switch (window) {
+        case PALETTE -> this.paletteWidth; case INSPECTOR -> this.inspectorWidth; case PARAMETERS -> this.parametersWidth;
+    }; }
+
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (mouseX >= this.windowX && mouseX < canvasLeft() && mouseY >= canvasTop() && mouseY <= canvasBottom()) {
-            int pageSize = Math.max(4, (windowHeight() - 150) / 30);
+    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        if (!this.paletteCollapsed && mouseX >= this.paletteX && mouseX < this.paletteX + this.paletteWidth
+                && mouseY >= this.paletteY && mouseY <= this.paletteY + this.paletteHeight) {
+            int pageSize = Math.max(3, (this.paletteHeight - 74) / 30);
             int pageCount = Math.max(1, (AioaBehaviorGraph.NodeType.values().length + pageSize - 1) / pageSize);
-            this.palettePage = Math.max(0, Math.min(pageCount - 1, this.palettePage + (verticalAmount < 0 ? 1 : -1)));
+            this.palettePage = Math.max(0, Math.min(pageCount - 1, this.palettePage + (delta < 0 ? 1 : -1)));
             rebuildEditorWidgets();
             return true;
         }
         if (insideCanvas(mouseX, mouseY)) {
-            if (!shiftDown()) {
+            if (!Screen.hasShiftDown()) {
                 double oldZoom = this.canvasZoom;
                 double graphX = (mouseX - canvasLeft() - this.canvasPanX) / oldZoom;
                 double graphY = (mouseY - canvasTop() - this.canvasPanY) / oldZoom;
-                this.canvasZoom = clampZoom(oldZoom + Math.copySign(0.1D, verticalAmount));
+                this.canvasZoom = clampZoom(oldZoom + Math.copySign(0.1D, delta));
                 this.canvasPanX = (int) Math.round(mouseX - canvasLeft() - graphX * this.canvasZoom);
                 this.canvasPanY = (int) Math.round(mouseY - canvasTop() - graphY * this.canvasZoom);
                 this.status = "Zoom " + zoomPercent() + "% - the wheel follows the cursor.";
             } else {
-                this.canvasPanX += (int) Math.copySign(28, verticalAmount);
+                this.canvasPanX += (int) Math.copySign(28, delta);
             }
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        return super.mouseScrolled(mouseX, mouseY, delta);
     }
 
     private boolean insideCanvas(double x, double y) {
@@ -696,13 +815,12 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private static double clampZoom(double value) { return Math.max(0.5D, Math.min(1.75D, value)); }
 
     @Override
-    public boolean keyPressed(KeyEvent event) {
-        int keyCode = event.key();
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (keyCode == 257 && this.selected != null && (this.parameterKey.isFocused() || this.parameterValue.isFocused())) {
             setParameter();
             return true;
         }
-        if (controlDown()) {
+        if (Screen.hasControlDown()) {
             if (keyCode == 90) { undo(); return true; }
             if (keyCode == 89) { redo(); return true; }
             if (keyCode == 83) { applyAndClose(); return true; }
@@ -713,21 +831,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         if (keyCode == 261) { deleteSelected(); return true; }
         if (keyCode == 72) { this.showHelp = !this.showHelp; return true; }
         if (keyCode == 70) { fitGraph(); return true; }
-        return super.keyPressed(event);
-    }
-
-    private boolean controlDown() {
-        if (this.minecraft == null) return false;
-        long window = this.minecraft.getWindow().handle();
-        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
-    }
-
-    private boolean shiftDown() {
-        if (this.minecraft == null) return false;
-        long window = this.minecraft.getWindow().handle();
-        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override
@@ -739,7 +843,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         AioaScreenUtil.drawPanel(guiGraphics, this.windowX, this.windowY, right, bottom);
         guiGraphics.fill(this.windowX + 1, this.windowY + 1, right - 1, this.windowY + 24, 0xFF18231D);
         guiGraphics.drawString(this.font, "AIOA Behavior Graph Studio - drag this title bar", this.windowX + 10, this.windowY + 8, AioaScreenUtil.TEXT_MAIN);
-        drawGraphTabs(guiGraphics);
+        drawGraphTabs(guiGraphics, mouseX, mouseY);
         guiGraphics.fill(this.canvasLeft(), this.canvasTop(), this.canvasRight(), this.canvasBottom(), 0xF0090D0B);
         drawGrid(guiGraphics);
         drawGraph(guiGraphics);
@@ -747,21 +851,22 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             drawBezier(guiGraphics, screenNodeX(this.linkStart) + nodeWidth(), screenNodeY(this.linkStart) + nodeHeight() / 2,
                     (int) this.linkMouseX, (int) this.linkMouseY, 0xFF92F5B8);
         }
-        drawViewport(guiGraphics);
-        guiGraphics.fill(this.windowX + 1, this.canvasTop(), this.canvasLeft() - 1, bottom - 1, 0xE0101713);
-        guiGraphics.fill(this.inspectorLeft() + 1, this.canvasTop(), right - 1, bottom - 1, 0xE0101713);
-        guiGraphics.drawString(this.font, "NODE PALETTE", this.windowX + 12, this.windowY + 66, AioaScreenUtil.TEXT_SUB);
-        guiGraphics.drawString(this.font, "GRAPH / INSPECTOR", this.inspectorLeft() + 10, this.windowY + 66, AioaScreenUtil.TEXT_SUB);
-        guiGraphics.drawString(this.font, this.selected == null ? "No node selected" : friendly(this.selected.type), this.inspectorLeft() + 10, this.windowY + 174, AioaScreenUtil.TEXT_MAIN);
-        if (this.selected != null) {
+        drawViewport(guiGraphics, mouseX, mouseY);
+        drawFloatingPanel(guiGraphics, FloatingWindow.PALETTE, "NODE PALETTE", this.paletteCollapsed ? 20 : this.paletteHeight);
+        drawFloatingPanel(guiGraphics, FloatingWindow.INSPECTOR, "INSPECTOR", this.inspectorCollapsed ? 20 : this.inspectorHeight);
+        drawFloatingPanel(guiGraphics, FloatingWindow.PARAMETERS, "NODE PARAMETERS", this.parametersCollapsed ? 20 : this.parametersHeight);
+        if (!this.inspectorCollapsed) guiGraphics.drawString(this.font, this.selected == null ? "No node selected" : friendly(this.selected.type), this.inspectorX + 10, this.inspectorY + 116, AioaScreenUtil.TEXT_MAIN);
+        if (!this.inspectorCollapsed && this.selected != null) {
             AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal(this.selected.type.help),
-                    this.inspectorLeft() + INSPECTOR_WIDTH / 2, this.windowY + 188, INSPECTOR_WIDTH - 24, AioaScreenUtil.TEXT_SUB);
+                    this.inspectorX + this.inspectorWidth / 2, this.inspectorY + 132, this.inspectorWidth - 24, AioaScreenUtil.TEXT_SUB);
         }
         drawPaletteScrollBar(guiGraphics);
         guiGraphics.fill(this.windowX + 1, bottom - 27, right - 1, bottom - 1, 0xFF111A15);
         guiGraphics.drawString(this.font, this.status, this.windowX + 10, bottom - 18, AioaScreenUtil.TEXT_SUB);
-        String workspace = "Scale 2 | " + zoomPercent() + "% | Wheel zoom | Drag empty grid to pan";
+        String workspace = "UI " + this.editableConfig.clientUi.editorScalePercent + "% | Graph " + zoomPercent() + "% | Wheel zoom | Drag grid to pan";
         guiGraphics.drawString(this.font, workspace, Math.max(this.windowX + 10, right - this.font.width(workspace) - 10), bottom - 18, 0xFF76B991);
+        guiGraphics.fill(right - 12, bottom - 2, right, bottom, 0xFF6EFFBA);
+        guiGraphics.fill(right - 2, bottom - 12, right, bottom, 0xFF6EFFBA);
         super.render(guiGraphics, mouseX, mouseY, partialTick);
         if (this.showHelp) drawHelp(guiGraphics);
         if (this.showContextMenu) drawContextMenu(guiGraphics);
@@ -818,32 +923,56 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         int reach = Math.max(36, Math.abs(x2 - x1) / 2);
         double previousX = x1;
         double previousY = y1;
-        for (int step = 1; step <= 28; step++) {
-            double t = step / 28.0D;
+        for (int step = 1; step <= 48; step++) {
+            double t = step / 48.0D;
             double inverse = 1.0D - t;
             double x = inverse * inverse * inverse * x1 + 3 * inverse * inverse * t * (x1 + reach)
                     + 3 * inverse * t * t * (x2 - reach) + t * t * t * x2;
             double y = inverse * inverse * inverse * y1 + 3 * inverse * inverse * t * y1
                     + 3 * inverse * t * t * y2 + t * t * t * y2;
-            int minX = (int) Math.floor(Math.min(previousX, x));
-            int minY = (int) Math.floor(Math.min(previousY, y));
-            int maxX = (int) Math.ceil(Math.max(previousX, x));
-            int maxY = (int) Math.ceil(Math.max(previousY, y));
-            graphics.fill(minX, minY, Math.max(minX + 2, maxX + 2), Math.max(minY + 2, maxY + 2), color);
+            drawThinSegment(graphics, previousX, previousY, x, y, color);
             previousX = x;
             previousY = y;
         }
     }
 
+    private static void drawThinSegment(GuiGraphics graphics, double x1, double y1, double x2, double y2, int color) {
+        double dx = x2 - x1;
+        double dy = y2 - y1;
+        int length = Math.max(1, (int) Math.ceil(Math.sqrt(dx * dx + dy * dy)) + 1);
+        graphics.pose().pushPose();
+        graphics.pose().translate(x1, y1, 0.0D);
+        graphics.pose().mulPose(Axis.ZP.rotation((float) Math.atan2(dy, dx)));
+        graphics.fill(0, -1, length, 1, color);
+        graphics.pose().popPose();
+    }
+
     private void drawPaletteScrollBar(GuiGraphics graphics) {
-        int pageSize = Math.max(4, (windowHeight() - 150) / 30);
+        if (this.paletteCollapsed) return;
+        int pageSize = Math.max(3, (this.paletteHeight - 74) / 30);
         int pages = Math.max(1, (AioaBehaviorGraph.NodeType.values().length + pageSize - 1) / pageSize);
-        int top = this.windowY + 82;
-        int height = Math.max(30, windowHeight() - 154);
+        int top = this.paletteY + 28;
+        int height = Math.max(30, this.paletteHeight - 64);
         int thumb = Math.max(18, height / pages);
         int y = top + (pages <= 1 ? 0 : (height - thumb) * this.palettePage / (pages - 1));
-        graphics.fill(canvasLeft() - 5, top, canvasLeft() - 2, top + height, 0xFF23342A);
-        graphics.fill(canvasLeft() - 6, y, canvasLeft() - 1, y + thumb, 0xFF5ACB88);
+        graphics.fill(this.paletteX + this.paletteWidth - 5, top, this.paletteX + this.paletteWidth - 2, top + height, 0xFF23342A);
+        graphics.fill(this.paletteX + this.paletteWidth - 6, y, this.paletteX + this.paletteWidth - 1, y + thumb, 0xFF5ACB88);
+    }
+
+    private void drawFloatingPanel(GuiGraphics graphics, FloatingWindow window, String title, int height) {
+        int x = floatingX(window);
+        int y = floatingY(window);
+        int width = floatingWidth(window);
+        graphics.fill(x, y, x + width, y + height, 0xF2101713);
+        graphics.fill(x, y, x + width, y + 20, 0xFF1A2B21);
+        graphics.fill(x, y, x + 2, y + height, 0xFF396B4D);
+        graphics.drawString(this.font, title + "  ::", x + 8, y + 6, AioaScreenUtil.TEXT_MAIN);
+        boolean collapsed = switch (window) {
+            case PALETTE -> this.paletteCollapsed;
+            case INSPECTOR -> this.inspectorCollapsed;
+            case PARAMETERS -> this.parametersCollapsed;
+        };
+        graphics.drawString(this.font, collapsed ? "+" : "-", x + width - 16, y + 6, 0xFF92F5B8);
     }
 
     private void drawContextMenu(GuiGraphics graphics) {
@@ -900,25 +1029,27 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         graphics.fill(left + width - 2, top + height - 10, left + width, top + height, 0xFF6EFFBA);
     }
 
-    private void drawViewport(GuiGraphics graphics) {
+    private void drawViewport(GuiGraphics graphics, int mouseX, int mouseY) {
         ResourceLocation entityId = previewEntityId();
         int width = Math.min(this.viewportWidth, Math.max(120, this.width - this.viewportX));
         int height = Math.min(this.viewportHeight, Math.max(90, this.height - this.viewportY));
-        AioaScreenUtil.drawMobPreview(graphics, this.font, this.viewportX, this.viewportY, width, height, entityId, true,
-                List.of(Component.literal("LIVE VIEWPORT"), Component.literal(this.selected == null ? "Select a node" : friendly(this.selected.type))));
+        AioaScreenUtil.drawEntityViewport(graphics, this.font, this.viewportX, this.viewportY, width, height, entityId, mouseX, mouseY,
+                this.selected == null ? "IDLE" : friendly(this.selected.type));
         graphics.fill(this.viewportX + width - 10, this.viewportY + height - 2, this.viewportX + width, this.viewportY + height, 0xFF6EFFBA);
         graphics.fill(this.viewportX + width - 2, this.viewportY + height - 10, this.viewportX + width, this.viewportY + height, 0xFF6EFFBA);
     }
 
-    private void drawGraphTabs(GuiGraphics graphics) {
+    private void drawGraphTabs(GuiGraphics graphics, int mouseX, int mouseY) {
         int tabStart = this.windowX + 330;
         int visibleTabs = Math.min(5, this.graphs.size());
         for (int i = 0; i < visibleTabs; i++) {
             int x = tabStart + i * 92;
             int color = i == this.graphIndex ? 0xFF315A42 : 0xFF1E3026;
             graphics.fill(x, this.windowY + 2, x + 88, this.windowY + 22, color);
-            String name = this.font.plainSubstrByWidth(this.graphs.get(i).name, 78);
+            boolean hovered = mouseX >= x && mouseX < x + 88 && mouseY >= this.windowY + 2 && mouseY <= this.windowY + 22;
+            String name = this.font.plainSubstrByWidth(this.graphs.get(i).name, hovered ? 62 : 78);
             graphics.drawString(this.font, name, x + 6, this.windowY + 8, i == this.graphIndex ? 0xFFFFFFFF : AioaScreenUtil.TEXT_SUB);
+            if (hovered && this.graphs.size() > 1) graphics.drawString(this.font, "x", x + 74, this.windowY + 8, 0xFFFF9A9A);
         }
     }
 
@@ -942,7 +1073,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             ResourceLocation parsed = AioaEntityHelper.parseResourceLocation(this.selected.parameters.get("entity"));
             if (parsed != null) return parsed;
         }
-        return ResourceLocation.fromNamespaceAndPath("minecraft", "zombie");
+        return new ResourceLocation("minecraft", "zombie");
     }
 
     private AioaBehaviorGraph.Node findNode(String id) {
