@@ -13,8 +13,11 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Mob;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -524,7 +527,10 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean eventDoubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
         if (this.showContextMenu && contextMenuClicked(mouseX, mouseY, button)) return true;
         this.showContextMenu = false;
         int visibleHelpWidth = Math.min(this.helpWidth, this.width - this.helpX);
@@ -644,11 +650,14 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, eventDoubleClick);
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
         if (this.draggingLink) {
             this.linkMouseX = mouseX;
             this.linkMouseY = mouseY;
@@ -701,11 +710,13 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             this.canvasPanY = (int) mouseY - this.dragOffsetY;
             return true;
         }
-        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+        return super.mouseDragged(event, dragX, dragY);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean mouseReleased(MouseButtonEvent event) {
+        double mouseX = event.x();
+        double mouseY = event.y();
         if (this.draggingLink) {
             connect(this.linkStart, nodeAt(mouseX, mouseY));
             this.draggingLink = false;
@@ -722,7 +733,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         this.resizingViewport = false;
         this.resizingWorkspace = false;
         this.draggingFloatingWindow = null;
-        return super.mouseReleased(mouseX, mouseY, button);
+        return super.mouseReleased(event);
     }
 
     private boolean floatingHeaderClicked(double mouseX, double mouseY, FloatingWindow window) {
@@ -776,7 +787,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             return true;
         }
         if (insideCanvas(mouseX, mouseY)) {
-            if (!Screen.hasShiftDown()) {
+            if (!shiftDown()) {
                 double oldZoom = this.canvasZoom;
                 double graphX = (mouseX - canvasLeft() - this.canvasPanX) / oldZoom;
                 double graphY = (mouseY - canvasTop() - this.canvasPanY) / oldZoom;
@@ -814,12 +825,13 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private static double clampZoom(double value) { return Math.max(0.5D, Math.min(1.75D, value)); }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyEvent event) {
+        int keyCode = event.key();
         if (keyCode == 257 && this.selected != null && (this.parameterKey.isFocused() || this.parameterValue.isFocused())) {
             setParameter();
             return true;
         }
-        if (Screen.hasControlDown()) {
+        if (controlDown()) {
             if (keyCode == 90) { undo(); return true; }
             if (keyCode == 89) { redo(); return true; }
             if (keyCode == 83) { applyAndClose(); return true; }
@@ -830,7 +842,21 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         if (keyCode == 261) { deleteSelected(); return true; }
         if (keyCode == 72) { this.showHelp = !this.showHelp; return true; }
         if (keyCode == 70) { fitGraph(); return true; }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
+    }
+
+    private boolean controlDown() {
+        if (this.minecraft == null) return false;
+        long window = this.minecraft.getWindow().handle();
+        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
+                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+    }
+
+    private boolean shiftDown() {
+        if (this.minecraft == null) return false;
+        long window = this.minecraft.getWindow().handle();
+        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
+                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
     }
 
     @Override

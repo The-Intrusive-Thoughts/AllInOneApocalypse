@@ -8,6 +8,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.input.MouseButtonEvent;
 
 public final class AioaConfigScreen extends AioaScrollableScreen {
 
@@ -219,7 +220,10 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
         if (button == 0 && this.editableConfig.clientUi.showDocsHint) {
             int hintWidth = Math.min(390, this.width - 30);
             int hintX = this.width - hintWidth - 14;
@@ -229,6 +233,6 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
                 return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 }

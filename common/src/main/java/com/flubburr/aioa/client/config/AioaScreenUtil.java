@@ -10,6 +10,7 @@ import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -736,14 +737,14 @@ public final class AioaScreenUtil {
         }
 
         @Override
-        protected void onDrag(double mouseX, double mouseY, double dragX, double dragY) {
-            super.onDrag(mouseX, mouseY, dragX, dragY);
+        protected void onDrag(MouseButtonEvent event, double dragX, double dragY) {
+            super.onDrag(event, dragX, dragY);
             this.playSliderStepIfChanged();
         }
 
         @Override
-        public void onRelease(double mouseX, double mouseY) {
-            super.onRelease(mouseX, mouseY);
+        public void onRelease(MouseButtonEvent event) {
+            super.onRelease(event);
             this.lastSoundValue = Double.NaN;
         }
 
