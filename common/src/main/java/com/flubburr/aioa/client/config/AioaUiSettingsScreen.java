@@ -28,7 +28,7 @@ final class AioaUiSettingsScreen extends AioaScrollableScreen {
         int width = this.panelWidth - 48;
         int y = 0;
         int step = AioaScreenUtil.BUTTON_HEIGHT + 12;
-        this.addScrollable(AioaScreenUtil.intSlider(x, 0, width, "Editor scale", 60, 140, 5, this.scale,
+        this.addScrollable(AioaScreenUtil.intSlider(x, 0, width, "Editor scale", 25, 500, 5, this.scale,
                 value -> this.scale = value), y); y += step;
         this.addScrollable(AioaScreenUtil.decimalSlider(x, 0, width, "Menu mob / ambience volume", 0.0D, 1.0D, 0.05D,
                 this.menuVolume, value -> "Menu mob / ambience: " + Math.round(value * 100.0D) + "%",
