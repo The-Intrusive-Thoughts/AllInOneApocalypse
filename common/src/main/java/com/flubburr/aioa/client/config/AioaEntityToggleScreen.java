@@ -8,6 +8,7 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,7 +37,6 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
     private Button selectAllButton;
     private Button clearButton;
     private Button doneButton;
-    private Button cancelButton;
     private Button overworldHeader;
     private Button netherHeader;
     private Button endHeader;
@@ -162,10 +162,8 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         y += AioaScreenUtil.BUTTON_HEIGHT + 8;
         this.doneButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Done", b -> {
             this.saveConsumer.accept(new ArrayList<>(this.selectedIds));
-            this.minecraft.setScreen(this.parent);
+            this.closeToParent();
         }), y);
-        y += AioaScreenUtil.BUTTON_HEIGHT + 8;
-        this.cancelButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Cancel", b -> this.minecraft.setScreen(this.parent)), y);
 
         this.refreshList();
         this.setInitialFocus(this.searchBox);
@@ -173,7 +171,9 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
 
     @Override
     public void tick() {
-        super.tick();
+        if (this.searchBox != null) {
+            this.searchBox.tick();
+        }
     }
 
     private void refreshList() {
@@ -220,11 +220,10 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         this.setScrollableRelativeY(this.selectAllButton, y + 6);
         this.setScrollableRelativeY(this.clearButton, y + 38);
         this.setScrollableRelativeY(this.doneButton, y + 70);
-        this.setScrollableRelativeY(this.cancelButton, y + 102);
         boolean hasVisibleOptions = this.visibleButtonOptions.stream().anyMatch(option -> option != null);
         this.selectAllButton.active = hasVisibleOptions;
         this.clearButton.active = hasVisibleOptions;
-        this.finishScrollLayout(y + 134);
+        this.finishScrollLayout(y + 102);
     }
 
     private int layoutGroup(Button header, String label, boolean expanded, List<ResourceLocation> entries, int y, int slotStart) {
@@ -283,7 +282,8 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+        this.beginUiRender(guiGraphics);
+        AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 34, AioaScreenUtil.TEXT_MAIN);
         AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal(this.description), this.width / 2, 49, this.panelWidth - 72, AioaScreenUtil.TEXT_SUB);
@@ -308,11 +308,21 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         });
 
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
+        this.finishUiRender(guiGraphics);
     }
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(this.parent);
+        this.closeToParent();
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+            this.closeToParent();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     private int previewHeight() {
@@ -330,5 +340,11 @@ final class AioaEntityToggleScreen extends AioaScrollableScreen {
         lines.add(Component.literal("ID: " + this.focusedOption));
         lines.add(Component.literal(selected ? "Status: included in the hostile allow-list" : "Status: currently excluded"));
         return lines;
+    }
+
+    private void closeToParent() {
+        if (this.minecraft != null) {
+            this.minecraft.setScreen(this.parent);
+        }
     }
 }

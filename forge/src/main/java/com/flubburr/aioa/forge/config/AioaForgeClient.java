@@ -24,7 +24,7 @@ public final class AioaForgeClient {
             "key.categories." + AioaConstants.MOD_ID
     );
     private static final KeyMapping OPEN_SPAWN_STUDIO_KEY = new KeyMapping(
-            "key.aioa.open_spawn_studio", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F7,
+            "key.aioa.open_behavior_graph", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F7,
             "key.categories." + AioaConstants.MOD_ID
     );
 
