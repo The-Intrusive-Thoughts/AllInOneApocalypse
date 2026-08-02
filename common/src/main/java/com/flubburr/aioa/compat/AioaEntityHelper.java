@@ -72,6 +72,10 @@ public final class AioaEntityHelper {
         return Optional.empty();
     }
 
+    public static ResourceLocation parseResourceLocation(String raw) {
+        return raw == null ? null : ResourceLocation.tryParse(raw.trim());
+    }
+
     public static String describeEntity(ResourceLocation entityId) {
         return toFriendlyName(entityId) + " (" + entityId + ")";
     }

@@ -10,7 +10,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
@@ -35,7 +35,7 @@ public final class AioaSpawnStudioHandler {
         }
 
         ServerLevel level = player.serverLevel();
-        if (position.y < level.getMinBuildHeight() || position.y >= level.getMaxBuildHeight()) {
+        if (position.y < level.getMinY() || position.y >= level.getMaxY()) {
             return;
         }
 
@@ -45,7 +45,7 @@ public final class AioaSpawnStudioHandler {
             return;
         }
 
-        Entity entity = resolved.get().create(level);
+        Entity entity = resolved.get().create(level, EntitySpawnReason.COMMAND);
         if (!(entity instanceof Mob mob)) {
             player.displayClientMessage(Component.literal("That entity is not a spawnable mob."), true);
             return;
@@ -60,7 +60,7 @@ public final class AioaSpawnStudioHandler {
             mob.setPersistenceRequired();
         }
         mob.addTag(AioaConstants.STUDIO_SPAWN_TAG);
-        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(mob.blockPosition()), MobSpawnType.COMMAND, null);
+        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(mob.blockPosition()), EntitySpawnReason.COMMAND, null);
 
         if (!level.noCollision(mob)) {
             mob.discard();
