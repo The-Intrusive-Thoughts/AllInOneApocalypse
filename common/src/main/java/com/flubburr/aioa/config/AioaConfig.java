@@ -1,15 +1,19 @@
 package com.flubburr.aioa.config;
 
+import com.flubburr.aioa.behavior.AioaBehaviorGraph;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public final class AioaConfig {
 
-    public static final int CURRENT_SCHEMA_VERSION = 3;
+    public static final int CURRENT_SCHEMA_VERSION = 5;
 
     public int schemaVersion = CURRENT_SCHEMA_VERSION;
     public HostileSpawnControl hostileSpawnControl = new HostileSpawnControl();
     public DaySurfaceSpawns daySurfaceSpawns = new DaySurfaceSpawns();
+    public BehaviorEngine behaviorEngine = new BehaviorEngine();
+    public List<AioaBehaviorGraph> behaviorGraphs = new ArrayList<>(List.of(AioaBehaviorGraph.createStarter()));
 
     public static AioaConfig createDefault() {
         return new AioaConfig().sanitize();
@@ -20,6 +24,10 @@ public final class AioaConfig {
         copy.schemaVersion = this.schemaVersion;
         copy.hostileSpawnControl = this.hostileSpawnControl.copy();
         copy.daySurfaceSpawns = this.daySurfaceSpawns.copy();
+        copy.behaviorEngine = this.behaviorEngine.copy();
+        copy.behaviorGraphs = this.behaviorGraphs == null
+                ? new ArrayList<>()
+                : new ArrayList<>(this.behaviorGraphs.stream().map(AioaBehaviorGraph::copy).toList());
         return copy;
     }
 
@@ -31,9 +39,18 @@ public final class AioaConfig {
         if (this.daySurfaceSpawns == null) {
             this.daySurfaceSpawns = new DaySurfaceSpawns();
         }
+        if (this.behaviorEngine == null) {
+            this.behaviorEngine = new BehaviorEngine();
+        }
 
         this.hostileSpawnControl.sanitize();
         this.daySurfaceSpawns.sanitize();
+        this.behaviorEngine.sanitize();
+        if (this.behaviorGraphs == null) {
+            this.behaviorGraphs = new ArrayList<>();
+        }
+        this.behaviorGraphs.removeIf(graph -> graph == null);
+        this.behaviorGraphs.forEach(AioaBehaviorGraph::sanitize);
         return this;
     }
 
@@ -74,6 +91,33 @@ public final class AioaConfig {
         BALANCED,
         CINEMATIC,
         HORDE
+    }
+
+    public static final class BehaviorEngine {
+        public boolean enabled = true;
+        public int tickInterval = 1;
+        public int maxGraphsPerMob = 8;
+        public int maxStepsPerGraph = 64;
+        public boolean allowWorldNodes = true;
+        public int maxNodeSpawnedMobsNearby = 16;
+
+        private BehaviorEngine copy() {
+            BehaviorEngine copy = new BehaviorEngine();
+            copy.enabled = this.enabled;
+            copy.tickInterval = this.tickInterval;
+            copy.maxGraphsPerMob = this.maxGraphsPerMob;
+            copy.maxStepsPerGraph = this.maxStepsPerGraph;
+            copy.allowWorldNodes = this.allowWorldNodes;
+            copy.maxNodeSpawnedMobsNearby = this.maxNodeSpawnedMobsNearby;
+            return copy;
+        }
+
+        private void sanitize() {
+            this.tickInterval = Math.max(1, Math.min(20, this.tickInterval));
+            this.maxGraphsPerMob = Math.max(1, Math.min(32, this.maxGraphsPerMob));
+            this.maxStepsPerGraph = Math.max(8, Math.min(256, this.maxStepsPerGraph));
+            this.maxNodeSpawnedMobsNearby = Math.max(1, Math.min(64, this.maxNodeSpawnedMobsNearby));
+        }
     }
 
     public static final class HostileSpawnControl {
