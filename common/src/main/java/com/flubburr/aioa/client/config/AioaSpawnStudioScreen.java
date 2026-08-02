@@ -13,7 +13,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public final class AioaSpawnStudioScreen extends AioaAnimatedScreen {
     private final Screen parent;
-    private ResourceLocation entityId = new ResourceLocation("minecraft", "zombie");
+    private ResourceLocation entityId = ResourceLocation.fromNamespaceAndPath("minecraft", "zombie");
     private Button mobButton;
     private boolean noAi;
     private boolean facePlayer = true;
