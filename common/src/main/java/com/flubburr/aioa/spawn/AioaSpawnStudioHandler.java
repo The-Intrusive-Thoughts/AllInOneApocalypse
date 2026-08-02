@@ -34,7 +34,7 @@ public final class AioaSpawnStudioHandler {
             return;
         }
 
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = (ServerLevel) player.level();
         if (position.y < level.getMinY() || position.y >= level.getMaxY()) {
             return;
         }
