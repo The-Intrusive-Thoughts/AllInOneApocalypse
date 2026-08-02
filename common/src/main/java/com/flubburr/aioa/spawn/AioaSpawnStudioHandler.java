@@ -54,7 +54,7 @@ public final class AioaSpawnStudioHandler {
         float yaw = request.facePlayer()
                 ? (float) (Mth.atan2(player.getZ() - position.z, player.getX() - position.x) * (180.0D / Math.PI)) - 90.0F
                 : player.getYRot();
-        mob.moveTo(position.x, position.y, position.z, yaw, 0.0F);
+        mob.snapTo(position.x, position.y, position.z, yaw, 0.0F);
         mob.setNoAi(request.noAi());
         if (request.persistent()) {
             mob.setPersistenceRequired();
