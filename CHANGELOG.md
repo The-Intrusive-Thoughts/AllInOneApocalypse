@@ -14,6 +14,10 @@
 - Rebuilt Graph Studio as a stretchable workspace with independently draggable and collapsible Node Palette, Inspector, Parameters, 3D Viewport, and Quick Guide windows; double-clicking a node now opens its dedicated parameter window.
 - Replaced blocky graph links with thin, rotated 48-segment Bezier rendering and added browser-style hover close controls for graph document tabs.
 - Upgraded the viewport into a full live 3D workspace with perspective floor grid, mouse orbit, real entity rendering, and side-by-side player targeting previews when space permits.
+- Changed the viewport into a self-running simulation preview: models no longer track the cursor, automatically rotate, advance walk animation, and preview the mob/player scene on a perspective floor.
+- Added Every Seconds, Delay Ticks, Say in Chat, Particle Pattern, safe Script, Body Rotation, and Head Rotation nodes, including server-side execution, validation, defaults, and a dedicated scripting documentation tab.
+- Replaced raw mob registry-id entry in Spawn Studio and graph targeting with translated, searchable mob pickers and live previews.
+- Made node parameters a double-click-only floating inspector, removed graph navigation controls from the inspector, displayed the active graph name prominently, and expanded UI/graph scaling from 25% to 500% with graph zoom from 10% to 800%.
 - Added persistent first-run onboarding with guided steps and a skip control, plus a closable helper card and arrow that continues to point to Documentation until dismissed.
 - Added Interface & Menu Audio settings for compact editor scale, menu mob/ambience volume, and UI sound volume; settings persist in config schema 6 and no longer inherit Minecraft GUI scale behavior.
 - Reorganized the configuration home around Quick Presets, Behavior Graph Studio, Spawn Studio, Docs, and grouped advanced settings, and standardized editing flows on one clear `Done` action.

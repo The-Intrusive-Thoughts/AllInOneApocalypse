@@ -28,7 +28,8 @@ final class AioaDocsScreen extends AioaAnimatedScreen {
                 Component.translatable("aioa.docs.tab.editor").getString(),
                 Component.translatable("aioa.docs.tab.nodes").getString(),
                 Component.translatable("aioa.docs.tab.spawning").getString(),
-                Component.translatable("aioa.docs.tab.multiplayer").getString()
+                Component.translatable("aioa.docs.tab.multiplayer").getString(),
+                "Scripts"
         };
         int tabWidth = Math.max(72, (panelWidth - 32) / tabs.length);
         for (int i = 0; i < tabs.length; i++) {
@@ -64,6 +65,7 @@ final class AioaDocsScreen extends AioaAnimatedScreen {
             case 2 -> drawNodeDocs(graphics, left, top, panelWidth);
             case 3 -> drawSpawnDocs(graphics, left, top, panelWidth);
             case 4 -> drawMultiplayerDocs(graphics, left, top, panelWidth);
+            case 5 -> drawScriptDocs(graphics, left, top, panelWidth);
             default -> drawStartDocs(graphics, left, top, panelWidth);
         }
         super.render(graphics, mouseX, mouseY, partialTick);
@@ -110,6 +112,13 @@ final class AioaDocsScreen extends AioaAnimatedScreen {
         card(g, left + 20, top, width - 40, "SERVER AUTHORITY", "Behavior and spawn requests are validated by the server. Players without permission cannot push graphs or create mob instances. Mob behavior runs server-side so all clients observe the same result.");
         card(g, left + 20, top + 82, width - 40, "COMPATIBILITY", "AIOA uses standard mob navigation, registry IDs, goals, and bounded network payloads. Scope graphs narrowly when combining it with other AI mods. If another mod owns the same mob goal, use AIOA graph actions instead of enabling both global controllers.");
         card(g, left + 20, top + 164, width - 40, "LANGUAGES & ACCESSIBILITY", "Labels use Minecraft's language system and fall back to English when a translation is unavailable. The fixed compact editor, high contrast ports, text status feedback, and instant open/close behavior are designed for recording and live content creation.");
+    }
+
+    private void drawScriptDocs(GuiGraphics g, int left, int top, int width) {
+        card(g, left + 20, top, width - 40, "SAFE CREATOR SCRIPT NODE", "Scripts are short semicolon-separated commands, not unrestricted Java. Double-click a Script node and edit its script value. Unknown commands are ignored and validation limits scripts to 1,024 characters.");
+        card(g, left + 20, top + 76, (width - 50) / 2, "COMMANDS", "say=message; rotate=degrees; glow=true/false; aggressive=true/false; stop. Use {mob} inside say messages to insert the selected mob's display name.");
+        card(g, left + 30 + (width - 50) / 2, top + 76, (width - 50) / 2, "TIMING", "Place Every Seconds or Delay Ticks before Script. Connect ready to the script and waiting to the loop. Every Seconds accepts decimals; Delay Ticks uses exact game ticks (20 ticks = 1 second)." );
+        card(g, left + 20, top + 152, width - 40, "EXAMPLE", "say={mob} enters phase two; rotate=90; glow=true; stop   — combine this with Particle Pattern for circles/spirals and separate Body Rotation or Head Rotation nodes for staged animations.");
     }
 
     private void card(GuiGraphics g, int x, int y, int width, String title, String body) {
