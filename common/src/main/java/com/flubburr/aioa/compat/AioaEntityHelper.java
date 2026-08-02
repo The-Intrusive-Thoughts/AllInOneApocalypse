@@ -35,10 +35,6 @@ public final class AioaEntityHelper {
         return resolveEntityType(id.get());
     }
 
-    public static ResourceLocation parseResourceLocation(String raw) {
-        return raw == null ? null : ResourceLocation.tryParse(raw.trim());
-    }
-
     public static Optional<EntityType<?>> resolveEntityType(ResourceLocation entityId) {
         return BuiltInRegistries.ENTITY_TYPE.containsKey(entityId)
                 ? Optional.ofNullable(BuiltInRegistries.ENTITY_TYPE.getValue(entityId))
@@ -76,7 +72,7 @@ public final class AioaEntityHelper {
         return Optional.empty();
     }
 
-    private static ResourceLocation parseResourceLocation(String rawId) {
+    public static ResourceLocation parseResourceLocation(String rawId) {
         ResourceLocation parsed = ResourceLocation.tryParse(rawId);
         if (parsed != null) {
             return parsed;
