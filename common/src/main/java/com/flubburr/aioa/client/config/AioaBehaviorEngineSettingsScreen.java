@@ -3,12 +3,14 @@ package com.flubburr.aioa.client.config;
 import com.flubburr.aioa.config.AioaConfig;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 
 final class AioaBehaviorEngineSettingsScreen extends AioaScrollableScreen {
     private final Screen parent;
     private final AioaConfig editableConfig;
     private AioaConfig.BehaviorEngine draft;
+    private EditBox libraryDirectory;
 
     AioaBehaviorEngineSettingsScreen(Screen parent, AioaConfig editableConfig) {
         super(Component.literal("Behavior Engine Limits & Safety"));
@@ -28,6 +30,7 @@ final class AioaBehaviorEngineSettingsScreen extends AioaScrollableScreen {
             this.draft.maxStepsPerGraph = source.maxStepsPerGraph;
             this.draft.allowWorldNodes = source.allowWorldNodes;
             this.draft.maxNodeSpawnedMobsNearby = source.maxNodeSpawnedMobsNearby;
+            this.draft.graphLibraryDirectory = source.graphLibraryDirectory;
         }
         int x = this.panelLeft + 20;
         int width = this.panelWidth - 40;
@@ -46,7 +49,12 @@ final class AioaBehaviorEngineSettingsScreen extends AioaScrollableScreen {
         }), y); y += step;
         this.addScrollable(AioaScreenUtil.intSlider(x, 0, width, "Spawn node nearby cap", 1, 64, 1,
                 this.draft.maxNodeSpawnedMobsNearby, value -> this.draft.maxNodeSpawnedMobsNearby = value), y); y += step + 8;
+        this.libraryDirectory = new EditBox(this.font, x, 0, width, AioaScreenUtil.BUTTON_HEIGHT, Component.literal("Graph library directory"));
+        this.libraryDirectory.setValue(this.draft.graphLibraryDirectory);
+        this.libraryDirectory.setHint(Component.literal("Relative to config, e.g. aioa/graphs"));
+        this.addScrollable(this.libraryDirectory, y); y += step + 8;
         this.addScrollable(AioaScreenUtil.button(this.width / 2 - 172, 0, 164, "Done", b -> {
+            this.draft.graphLibraryDirectory = this.libraryDirectory.getValue().trim();
             this.editableConfig.behaviorEngine = this.draft;
             this.minecraft.setScreen(this.parent);
         }), y);
