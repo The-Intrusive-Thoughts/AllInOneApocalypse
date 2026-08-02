@@ -1,6 +1,6 @@
 package com.flubburr.aioa.mixin;
 
-import com.flubburr.aioa.config.AioaConfigManager;
+import com.flubburr.aioa.behavior.AioaBehaviorRuntime;
 import com.flubburr.aioa.spawn.AioaZombieBehaviour;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -16,7 +16,7 @@ public abstract class LivingEntityMixin {
     private void aioa$allowZombieWallClimbing(CallbackInfoReturnable<Boolean> cir) {
         LivingEntity self = (LivingEntity) (Object) this;
         if (self instanceof Mob mob
-                && AioaZombieBehaviour.usesWallClimbing(mob, AioaConfigManager.getConfig().daySurfaceSpawns)
+                && AioaBehaviorRuntime.allowsWallClimbing(mob)
                 && AioaZombieBehaviour.shouldClimb(mob)) {
             cir.setReturnValue(true);
         }

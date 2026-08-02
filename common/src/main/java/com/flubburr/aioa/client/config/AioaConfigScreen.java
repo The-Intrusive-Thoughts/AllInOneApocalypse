@@ -47,11 +47,15 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
                 this.minecraft.setScreen(new AioaDaySettingsScreen(this, this.editableConfig))), singleColumn ? y + step : y);
         y += singleColumn ? step * 2 : step;
 
-        this.addScrollable(AioaScreenUtil.button(leftX, 0, columnWidth, "Zombie AI and Targeting", b ->
-                this.minecraft.setScreen(new AioaZombieAiScreen(this, this.editableConfig))), y);
+        this.addScrollable(AioaScreenUtil.button(leftX, 0, columnWidth, "Behavior Graph Studio", b ->
+                this.minecraft.setScreen(AioaBehaviorEditorScreen.create(this, this.editableConfig))), y);
         this.addScrollable(AioaScreenUtil.button(rightX, 0, columnWidth, "Choose Allowed Hostiles", b ->
                 this.minecraft.setScreen(AioaEntityToggleScreen.forHostiles(this, this.editableConfig))), singleColumn ? y + step : y);
         y += singleColumn ? step * 2 : step;
+
+        this.addScrollable(AioaScreenUtil.button(leftX, 0, singleColumn ? columnWidth : this.panelWidth - 44, "Behavior Engine Limits & Safety", b ->
+                this.minecraft.setScreen(new AioaBehaviorEngineSettingsScreen(this, this.editableConfig))), y);
+        y += step;
 
         this.addScrollable(AioaScreenUtil.button(leftX, 0, columnWidth, "Edit Day Spawn Pool", b ->
                 this.minecraft.setScreen(new AioaSpawnPoolScreen(this, this.editableConfig))), y);
