@@ -469,7 +469,7 @@ public final class AioaScreenUtil {
             entity.setYRot(simulationYaw);
             entity.setYHeadRot(simulationYaw);
             entity.setYBodyRot(simulationYaw);
-            entity.walkAnimation.update(0.65F, 1.0F);
+            entity.walkAnimation.update(0.65F, 1.0F, 1.0F);
             InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX - scale, top + 22, mobX + scale, floorBottom - 3, scale, 0.0F, orbitX, orbitY, entity);
             if (width >= 230 && Minecraft.getInstance().player != null) {
                 int playerX = left + width * 3 / 4;
