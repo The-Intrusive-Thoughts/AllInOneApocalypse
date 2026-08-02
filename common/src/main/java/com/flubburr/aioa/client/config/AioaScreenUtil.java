@@ -72,6 +72,10 @@ final class AioaScreenUtil {
         guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, PANEL_ACCENT);
     }
 
+    static void drawScreenBackground(GuiGraphics guiGraphics, int width, int height) {
+        guiGraphics.fillGradient(0, 0, width, height, 0xF0101010, 0xFF080808);
+    }
+
     static void drawInsetPanel(GuiGraphics guiGraphics, int left, int top, int right, int bottom, boolean selected) {
         guiGraphics.fill(left, top, right, bottom, selected ? PANEL_SELECTED : PANEL_SOFT);
         guiGraphics.fill(left, top, right, top + 1, selected ? PANEL_ACCENT : PANEL_SOFT_BORDER);
