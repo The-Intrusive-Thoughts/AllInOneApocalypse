@@ -78,6 +78,8 @@ public final class AioaBehaviorGraph {
         ON_TICK("Events", "Runs the graph once per AI tick."),
         ON_FIRST_TICK("Events", "Runs only when a newly created mob begins ticking."),
         EVERY_TICKS("Events", "Continues at a configurable tick interval."),
+        EVERY_SECONDS("Events", "Continues at a configurable real-time interval measured in seconds."),
+        DELAY_TICKS("Flow", "Waits for a precise number of ticks before continuing."),
         RANDOM_CHANCE("Flow", "Continues through success or fail using a percentage chance."),
         FIND_NEAREST_PLAYER("Sensing", "Finds the nearest valid player."),
         FIND_NEAREST_ANIMAL("Sensing", "Finds the nearest animal."),
@@ -119,6 +121,11 @@ public final class AioaBehaviorGraph {
         EQUIP_ITEM("Equipment", "Equips a registered item into a chosen equipment slot."),
         SPAWN_MOB("World", "Safely spawns another configured mob nearby with a cooldown."),
         PLAY_SOUND("Effects", "Plays a registered sound at the mob."),
+        SAY_IN_CHAT("Presentation", "Sends a formatted creator message to nearby players."),
+        PARTICLE_PATTERN("Presentation", "Draws a circle, burst, or spiral particle pattern around the mob."),
+        SCRIPT("Scripting", "Runs a safe creator script made from documented wait, say, rotate, glow, and stop commands."),
+        SET_BODY_ROTATION("Model", "Separately changes the mob body's display rotation."),
+        SET_HEAD_ROTATION("Model", "Separately changes the mob head's display rotation."),
         COMMENT("Organization", "A note for creators; it does not execute.");
 
         public final String category;
