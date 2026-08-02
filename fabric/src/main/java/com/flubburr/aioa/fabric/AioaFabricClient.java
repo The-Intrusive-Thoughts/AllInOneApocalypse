@@ -3,6 +3,7 @@ package com.flubburr.aioa.fabric;
 import com.flubburr.aioa.AioaConstants;
 import com.flubburr.aioa.client.config.AioaConfigScreen;
 import com.flubburr.aioa.client.config.AioaSpawnStudioScreen;
+import com.flubburr.aioa.client.config.AioaMobSelectionController;
 import com.flubburr.aioa.network.AioaClientNetworking;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
@@ -35,8 +36,10 @@ public final class AioaFabricClient implements ClientModInitializer {
         AioaClientNetworking.registerSender(request -> {
             ClientPlayNetworking.send(new AioaFabricSpawnPayload(request));
         });
+        AioaClientNetworking.registerGraphSender(request -> ClientPlayNetworking.send(new AioaFabricGraphPayload(request)));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            AioaMobSelectionController.tick(client);
             while (openConfigKey.consumeClick()) {
                 if (client.player != null && client.player.isCreative()) {
                     if (client.hasSingleplayerServer() || client.getCurrentServer() == null) {
@@ -47,6 +50,10 @@ public final class AioaFabricClient implements ClientModInitializer {
                 }
             }
             while (openSpawnStudioKey.consumeClick()) {
+                if (AioaMobSelectionController.isArmed()) {
+                    AioaMobSelectionController.cancel(client, "AIOA mob selection cancelled.");
+                    continue;
+                }
                 if (client.player != null && client.player.isCreative()) {
                     client.setScreen(AioaSpawnStudioScreen.create(client.screen));
                 }
