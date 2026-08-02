@@ -11,6 +11,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Mob;
 
@@ -315,7 +316,10 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
         int visibleHelpWidth = Math.min(this.helpWidth, this.width - this.helpX);
         int visibleHelpHeight = Math.min(this.helpHeight, this.height - this.helpY);
         if (this.showHelp && mouseX >= this.helpX + visibleHelpWidth - 12 && mouseX <= this.helpX + visibleHelpWidth
@@ -371,11 +375,14 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
         if (this.draggingHelp) {
             this.helpX = Math.max(0, Math.min(this.width - 180, (int) mouseX - this.dragOffsetX));
             this.helpY = Math.max(0, Math.min(this.height - 86, (int) mouseY - this.dragOffsetY));
@@ -397,16 +404,16 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             this.selected.y = (int) mouseY - this.dragOffsetY - canvasTop() - this.canvasPanY;
             return true;
         }
-        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+        return super.mouseDragged(event, dragX, dragY);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean mouseReleased(MouseButtonEvent event) {
         this.draggingWindow = false;
         this.draggingNode = false;
         this.draggingHelp = false;
         this.resizingHelp = false;
-        return super.mouseReleased(mouseX, mouseY, button);
+        return super.mouseReleased(event);
     }
 
     @Override

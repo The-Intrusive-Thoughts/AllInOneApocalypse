@@ -2,6 +2,7 @@ package com.flubburr.aioa.client.config;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 
 abstract class AioaAnimatedScreen extends Screen {
@@ -100,11 +101,11 @@ abstract class AioaAnimatedScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyEvent event) {
         if (this.closingTicks >= 0) {
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
 
     private float closeProgress() {

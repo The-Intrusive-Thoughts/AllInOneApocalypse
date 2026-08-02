@@ -32,7 +32,7 @@ public final class AioaMobSelectionController {
             return;
         }
         if (minecraft.screen != null) return;
-        boolean rightDown = GLFW.glfwGetMouseButton(minecraft.getWindow().getWindow(), GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS;
+        boolean rightDown = GLFW.glfwGetMouseButton(minecraft.getWindow().handle(), GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS;
         if (rightDown && !wasRightDown && minecraft.hitResult instanceof EntityHitResult hit && hit.getEntity() instanceof Mob mob) {
             AioaBehaviorEditorScreen editor = pendingEditor;
             pendingEditor = null;
