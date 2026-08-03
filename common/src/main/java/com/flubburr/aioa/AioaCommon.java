@@ -8,7 +8,6 @@ import net.minecraft.server.level.ServerLevel;
 public final class AioaCommon {
 
     private static boolean initialized;
-
     private AioaCommon() {
     }
 
