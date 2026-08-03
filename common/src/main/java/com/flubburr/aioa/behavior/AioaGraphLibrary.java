@@ -27,7 +27,7 @@ public final class AioaGraphLibrary {
         if (slug.isBlank()) slug = "behavior";
         Path target = directory.resolve(slug + ".aioagraph");
         try (Writer writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-            GSON.toJson(new GraphFile("aioa-behavior-graph", 1, graph.copy()), writer);
+            GSON.toJson(new GraphFile("aioa-behavior-graph", 2, graph.copy()), writer);
         }
         return target;
     }
@@ -43,7 +43,8 @@ public final class AioaGraphLibrary {
         if (newest.isEmpty()) return Optional.empty();
         try (Reader reader = Files.newBufferedReader(newest.get(), StandardCharsets.UTF_8)) {
             GraphFile file = GSON.fromJson(reader, GraphFile.class);
-            if (file == null || !"aioa-behavior-graph".equals(file.format) || file.version != 1 || file.graph == null) return Optional.empty();
+            if (file == null || !"aioa-behavior-graph".equals(file.format)
+                    || file.version < 1 || file.version > 2 || file.graph == null) return Optional.empty();
             return Optional.of(file.graph.sanitize());
         }
     }

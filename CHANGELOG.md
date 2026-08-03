@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.1 (Unreleased)
+
+- Rebuilt behavior links with persistent link IDs, explicit source outputs and destination inputs, strict port validation, selectable curved links, `Delete` disconnection, and drag-to-reroute support while migrating existing `.aioagraph` files.
+- Fixed branch execution so `next` links no longer run incorrectly when a node returns `false`, `missing`, `waiting`, or another named output.
+- Added atomic workspace synchronization so closing graph tabs removes them on the server and all valid graph changes are applied together instead of as incomplete per-graph upserts.
+- Added debounced local autosaving and validated server autosync. Invalid work-in-progress graphs remain recoverable as local drafts without replacing the last valid server runtime.
+- Fixed world mob binding to persist the exact UUID and detected mob type, and made graph targeting controls scope-aware instead of hiding a stale raw selector behind a button.
+- Made variables, event state, delays, intervals, and spawn cooldowns persist per graph and per mob, with stale runtime state cleanup.
+- Added explicit floating-window z-order and occlusion-aware controls so lower Inspector, Parameters, and Palette widgets no longer bleed through the active window.
+- Added scrollable layered graph tabs that keep the active document visible when more graphs are open than fit in the workspace.
+- Reworked the viewport into a play/pause, variable-speed graph timeline preview using the selected mob type, target presence, movement, combat, rotation, glow, and active-node state without cursor-following behavior.
+- Added 25 boss and creator nodes covering cooldowns, four-lane sequences, target/player/weather conditions, attacker targeting, orbit/dash/target teleport, direct and area damage, fire, launch, armor, follow range, knockback resistance, status effects, lightning, explosions, action bars, persistent phases, phase routing, and despawning.
+- Expanded node configuration with immediate validation feedback, safer field limits, contextual effect/equipment/phase/sound controls, and preserved parameter edits during editor window rebuilds.
+- Updated the portable graph format to version 2 while retaining version 1 import compatibility.
+
 ## 0.2.0
 
 - Replaced the old fixed zombie-AI editor with Behavior Graph Studio: a Scratch/Blueprint-style node editor for one mob, entity types, entity tags, managed apocalypse mobs, or every mob.

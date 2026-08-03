@@ -28,6 +28,7 @@ import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.Mob;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -431,12 +432,12 @@ public final class AioaScreenUtil {
     }
 
     static void drawEntityViewport(GuiGraphics guiGraphics, Font font, int left, int top, int width, int height,
-                                   ResourceLocation id, int mouseX, int mouseY, String state) {
+                                   ResourceLocation id, ViewportFrame frame) {
         drawInsetPanel(guiGraphics, left, top, left + width, top + height, true);
         guiGraphics.fill(left + 2, top + 20, left + width - 2, top + height - 2, 0xFF080D0A);
         guiGraphics.fill(left + 2, top + 2, left + width - 2, top + 20, 0xFF17271E);
         guiGraphics.drawString(font, "3D VIEWPORT", left + 8, top + 7, TEXT_MAIN);
-        String clippedState = font.plainSubstrByWidth(state, Math.max(20, width - 100));
+        String clippedState = font.plainSubstrByWidth(frame.label(), Math.max(20, width - 120));
         guiGraphics.drawString(font, clippedState, left + width - font.width(clippedState) - 8, top + 7, TEXT_SUB);
 
         int floorTop = top + Math.max(36, height / 2);
@@ -456,24 +457,32 @@ public final class AioaScreenUtil {
         LivingEntity entity = previewEntity(id);
         if (entity != null) {
             guiGraphics.enableScissor(left + 2, top + 21, left + width - 2, top + height - 2);
-            float simulationYaw = (System.currentTimeMillis() % 12_000L) / 12_000.0F * 360.0F;
-            float orbitX = (float) Math.sin(System.currentTimeMillis() / 1600.0D) * 18.0F;
-            float orbitY = -8.0F;
+            float orbitX = (float) Math.sin(Math.toRadians(frame.yaw())) * 28.0F;
+            float orbitY = -8.0F + frame.pitch() * 0.12F;
             int scale = Math.max(28, Math.min(72, height / 2));
             int mobX = width >= 230 ? left + width * 2 / 5 : centerX;
             entity.tickCount++;
-            entity.setYRot(simulationYaw);
-            entity.setYHeadRot(simulationYaw);
-            entity.setYBodyRot(simulationYaw);
-            entity.walkAnimation.update(0.65F, 1.0F);
+            entity.setYRot(frame.yaw());
+            entity.setYHeadRot(frame.headYaw());
+            entity.setYBodyRot(frame.yaw());
+            if (entity instanceof Mob previewMob) previewMob.setAggressive(frame.attacking());
+            entity.setGlowingTag(frame.glowing());
+            entity.walkAnimation.update(frame.walkAmount(), frame.walkAmount());
             InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX, floorBottom - 3, scale, orbitX, orbitY, entity);
-            if (width >= 230 && Minecraft.getInstance().player != null) {
+            if (frame.showTarget() && width >= 230 && Minecraft.getInstance().player != null) {
                 InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, left + width * 3 / 4, floorBottom - 3,
-                        Math.max(24, scale * 3 / 4), orbitX, orbitY, Minecraft.getInstance().player);
+                        Math.max(24, scale * 3 / 4), -orbitX, orbitY, Minecraft.getInstance().player);
             }
             guiGraphics.disableScissor();
         } else {
             guiGraphics.renderItem(entityPreviewItem(id), centerX - 8, top + height / 2 - 8);
+        }
+    }
+
+    record ViewportFrame(String label, float yaw, float headYaw, float pitch, float walkAmount,
+                         boolean attacking, boolean glowing, boolean showTarget) {
+        static ViewportFrame idle() {
+            return new ViewportFrame("IDLE", 25.0F, 25.0F, 0.0F, 0.0F, false, false, false);
         }
     }
 
