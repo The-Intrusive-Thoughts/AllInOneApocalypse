@@ -75,7 +75,7 @@ public final class AioaGraphUpdateHandler {
         }
 
         AioaConfig config = AioaConfigManager.getConfigCopy();
-        if (player.hasPermissions(2)) {
+        if (player.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER)) {
             config.behaviorGraphs = graphs.stream().map(AioaBehaviorGraph::copy)
                     .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
         } else {

@@ -863,7 +863,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         AioaBehaviorGraph.Node base = this.graph.nodes.stream()
                 .filter(node -> node.type == AioaBehaviorGraph.NodeType.MOB_BASE).findFirst().orElse(null);
         if (base != null) {
-            ResourceLocation mobId = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+            Identifier mobId = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
             base.parameters.put("entity", mobId == null ? "auto" : mobId.toString());
         }
         this.status = "Bound graph to " + mob.getDisplayName().getString() + ".";

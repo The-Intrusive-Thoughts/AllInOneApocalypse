@@ -250,7 +250,7 @@ public final class AioaBehaviorRuntime {
             case AREA_DAMAGE -> areaDamage(node, mob);
             case SET_FIRE_TARGET -> {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
-                if (target != null) target.setSecondsOnFire((int) number(node, "seconds", 4, 0, 60));
+                if (target != null) target.igniteForSeconds((int) number(node, "seconds", 4, 0, 60));
             }
             case LAUNCH_TARGET -> launchTarget(node, mob, context);
             case SET_AGGRESSIVE -> mob.setAggressive(flag(node, "value", true));
@@ -328,7 +328,7 @@ public final class AioaBehaviorRuntime {
         double strength = number(node, "strength", 1.25, 0.1, 4);
         mob.setDeltaMovement(direction.x * strength, direction.y * strength + number(node, "lift", 0.15, -1, 2),
                 direction.z * strength);
-        mob.hasImpulse = true;
+        mob.hurtMarked = true;
     }
 
     private static void damageTarget(AioaBehaviorGraph.Node node, Mob mob, ExecutionContext context) {
@@ -353,7 +353,7 @@ public final class AioaBehaviorRuntime {
         Vec3 outward = target.position().subtract(mob.position()).multiply(1, 0, 1).normalize();
         double horizontal = number(node, "horizontal", 0.7, 0, 4);
         target.setDeltaMovement(outward.x * horizontal, number(node, "vertical", 0.65, -1, 4), outward.z * horizontal);
-        target.hasImpulse = true;
+        target.hurtMarked = true;
     }
 
     private static void applyEffect(AioaBehaviorGraph.Node node, Mob source, LivingEntity target) {

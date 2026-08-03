@@ -112,7 +112,7 @@ public final class AioaBehaviorValidator {
             case SET_KNOCKBACK_RESISTANCE -> number(node, "value", 0, 1, issues);
             case PLAY_SOUND -> { number(node, "volume", 0, 4, issues); number(node, "pitch", 0.25, 2, issues); }
             case APPLY_EFFECT_SELF, APPLY_EFFECT_TARGET -> {
-                ResourceLocation id = AioaEntityHelper.parseResourceLocation(node.parameters.get("effect"));
+                Identifier id = AioaEntityHelper.parseResourceLocation(node.parameters.get("effect"));
                 if (id == null || !BuiltInRegistries.MOB_EFFECT.containsKey(id)) issues.add(node.type + " needs a valid effect id.");
                 number(node, "duration", 1, 72000, issues); number(node, "amplifier", 0, 255, issues);
             }
