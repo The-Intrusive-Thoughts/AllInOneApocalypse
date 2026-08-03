@@ -12,6 +12,9 @@ def modrinthVersionType = providers.gradleProperty('modrinth_version_type').orEl
 def modrinthChangelogFile = rootProject.file(providers.gradleProperty('modrinth_changelog_file').orElse('CHANGELOG.md').get())
 def forgeReleaseName = "${mod_name} ${version} for Minecraft ${minecraft_version} (Forge)"
 def forgeVersionNumber = "${version}+mc${minecraft_version}-forge"
+def modrinthGameVersions = providers.gradleProperty('modrinth_forge_game_versions')
+        .orElse(providers.gradleProperty('modrinth_game_versions'))
+        .orElse(minecraft_version).get().split(',').collect { it.trim() }.findAll { !it.isEmpty() }
 
 def requireModrinthPublishConfig = {
     if (!modrinthProjectId.get().trim()) {
@@ -184,7 +187,7 @@ modrinth {
             ? modrinthChangelogFile.getText('UTF-8')
             : "Release ${forgeVersionNumber}"
     uploadFile = tasks.named('jar')
-    gameVersions = [minecraft_version]
+    gameVersions = modrinthGameVersions
     loaders = ['forge']
 
     dependencies {
