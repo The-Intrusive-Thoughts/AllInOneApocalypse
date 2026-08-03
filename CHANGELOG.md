@@ -23,6 +23,7 @@
 - Added visible and interactive resize grips to every movable editor window and expanded viewport/graph zoom limits for large recording and multi-monitor layouts.
 - Rebuilt Node Parameters with previous/next field navigation and contextual tools for entity selection, scripts, booleans, particle patterns, variable math, comparisons, and recommended defaults.
 - Added Heal Self, Set Velocity, Add Tag, Remove Tag, Has Tag, Set Variable, Math Variable, and Compare Variable nodes with runtime execution, validation, defaults, branching, and documentation.
+- Added layered overlapping graph tabs with title/accent bars, moved selected-node information into the inspector header/description area, added a dedicated color-guided multi-command Script editor, and added an online-player picker for the new Find Player Name node.
 - Added persistent first-run onboarding with guided steps and a skip control, plus a closable helper card and arrow that continues to point to Documentation until dismissed.
 - Added Interface & Menu Audio settings for compact editor scale, menu mob/ambience volume, and UI sound volume; settings persist in config schema 6 and no longer inherit Minecraft GUI scale behavior.
 - Reorganized the configuration home around Quick Presets, Behavior Graph Studio, Spawn Studio, Docs, and grouped advanced settings, and standardized editing flows on one clear `Done` action.
