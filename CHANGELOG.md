@@ -2,6 +2,9 @@
 
 ## 0.2.1 (Unreleased)
 
+- Fixed the Forge 1.20.1 `NoSuchFieldError: SOUND_EVENT` startup crash by moving custom sound registration into each loader and using a version-safe common registry lookup.
+- Fixed daytime apocalypse mobs failing to spawn by broadening surface searches and adding a conservative ground-placement fallback when loader-specific vanilla placement checks reject otherwise valid EVENT spawns.
+- Fixed the first-run tutorial and Quick Presets documentation hint returning after dismissal by persisting Skip and close actions immediately.
 - Rebuilt behavior links with persistent link IDs, explicit source outputs and destination inputs, strict port validation, selectable curved links, `Delete` disconnection, and drag-to-reroute support while migrating existing `.aioagraph` files.
 - Fixed branch execution so `next` links no longer run incorrectly when a node returns `false`, `missing`, `waiting`, or another named output.
 - Added atomic workspace synchronization so closing graph tabs removes them on the server and all valid graph changes are applied together instead of as incomplete per-graph upserts.

@@ -1,6 +1,7 @@
 package com.flubburr.aioa.client.config;
 
 import com.flubburr.aioa.compat.AioaEntityHelper;
+import com.flubburr.aioa.compat.AioaRegistryCompat;
 import com.flubburr.aioa.config.AioaSpawnEntry;
 import com.flubburr.aioa.config.AioaConfigManager;
 import net.minecraft.client.Minecraft;
@@ -187,7 +188,7 @@ public final class AioaScreenUtil {
         }
 
         if (minecraft.screen instanceof AioaAnimatedScreen) {
-            SoundEvent soundEvent = BuiltInRegistries.SOUND_EVENT.getValue(MENU_MUSIC_SOUND);
+            SoundEvent soundEvent = AioaRegistryCompat.getSoundEvent(MENU_MUSIC_SOUND);
             if (soundEvent == null) {
                 return;
             }
