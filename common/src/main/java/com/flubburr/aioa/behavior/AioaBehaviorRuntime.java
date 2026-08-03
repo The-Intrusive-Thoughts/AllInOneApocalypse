@@ -214,6 +214,15 @@ public final class AioaBehaviorRuntime {
             case PLAY_SOUND -> playSound(node, mob);
             case SAY_IN_CHAT -> sayInChat(node, mob);
             case PARTICLE_PATTERN -> particlePattern(node, mob);
+            case HEAL_SELF -> mob.heal((float) number(node, "amount", 4, 0, 2048));
+            case SET_VELOCITY -> mob.setDeltaMovement(number(node, "x", 0, -8, 8),
+                    number(node, "y", 0, -8, 8), number(node, "z", 0, -8, 8));
+            case ADD_TAG -> mob.addTag(node.parameters.getOrDefault("tag", "aioa_custom"));
+            case REMOVE_TAG -> mob.removeTag(node.parameters.getOrDefault("tag", "aioa_custom"));
+            case HAS_TAG -> { return mob.getTags().contains(node.parameters.getOrDefault("tag", "aioa_custom")) ? "true" : "false"; }
+            case SET_VARIABLE -> context.variables.put(variableName(node), number(node, "value", 0, -1_000_000, 1_000_000));
+            case MATH_VARIABLE -> applyVariableMath(node, context);
+            case COMPARE_VARIABLE -> { return compareVariable(node, context) ? "true" : "false"; }
             case SCRIPT -> runCreatorScript(node, mob);
             case SET_BODY_ROTATION -> mob.setYBodyRot((float) number(node, "degrees", mob.yBodyRot, -360, 360));
             case SET_HEAD_ROTATION -> mob.setYHeadRot((float) number(node, "degrees", mob.getYHeadRot(), -360, 360));
@@ -261,6 +270,39 @@ public final class AioaBehaviorRuntime {
                 default -> { }
             }
         }
+    }
+
+    private static String variableName(AioaBehaviorGraph.Node node) {
+        String name = node.parameters.getOrDefault("name", "value").trim();
+        return name.isEmpty() ? "value" : name.substring(0, Math.min(48, name.length()));
+    }
+
+    private static void applyVariableMath(AioaBehaviorGraph.Node node, ExecutionContext context) {
+        String name = variableName(node);
+        double current = context.variables.getOrDefault(name, 0.0D);
+        double operand = number(node, "value", 1, -1_000_000, 1_000_000);
+        double result = switch (node.parameters.getOrDefault("operation", "add").toLowerCase(java.util.Locale.ROOT)) {
+            case "subtract" -> current - operand;
+            case "multiply" -> current * operand;
+            case "divide" -> operand == 0.0D ? current : current / operand;
+            case "min" -> Math.min(current, operand);
+            case "max" -> Math.max(current, operand);
+            default -> current + operand;
+        };
+        context.variables.put(name, Math.max(-1_000_000, Math.min(1_000_000, result)));
+    }
+
+    private static boolean compareVariable(AioaBehaviorGraph.Node node, ExecutionContext context) {
+        double current = context.variables.getOrDefault(variableName(node), 0.0D);
+        double value = number(node, "value", 0, -1_000_000, 1_000_000);
+        return switch (node.parameters.getOrDefault("comparison", ">=").trim()) {
+            case ">" -> current > value;
+            case "<" -> current < value;
+            case "<=" -> current <= value;
+            case "==" -> Math.abs(current - value) < 1.0E-9D;
+            case "!=" -> Math.abs(current - value) >= 1.0E-9D;
+            default -> current >= value;
+        };
     }
 
     private static LivingEntity findEntityType(AioaBehaviorGraph.Node node, Mob mob, double range) {
@@ -337,6 +379,7 @@ public final class AioaBehaviorRuntime {
 
     private static final class ExecutionContext {
         private LivingEntity target;
+        private final Map<String, Double> variables = new HashMap<>();
 
         private ExecutionContext(LivingEntity target) {
             this.target = target;
