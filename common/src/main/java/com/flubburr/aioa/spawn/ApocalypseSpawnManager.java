@@ -6,6 +6,7 @@ import com.flubburr.aioa.config.AioaConfig;
 import com.flubburr.aioa.config.AioaConfigManager;
 import com.flubburr.aioa.config.AioaSpawnEntry;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -148,7 +149,7 @@ public final class ApocalypseSpawnManager {
             AioaConfig.DaySurfaceSpawns settings,
             RandomSource random
     ) {
-        for (int attempt = 0; attempt < 8; attempt++) {
+        for (int attempt = 0; attempt < 32; attempt++) {
             int x = player.getBlockX() + randomOffset(random, settings.minSpawnDistance, settings.maxSpawnDistance);
             int z = player.getBlockZ() + randomOffset(random, settings.minSpawnDistance, settings.maxSpawnDistance);
             BlockPos surface = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, new BlockPos(x, 0, z));
@@ -245,12 +246,27 @@ public final class ApocalypseSpawnManager {
     }
 
     private static boolean isPotentialSpawnPosition(ServerLevel level, BlockPos spawnPosition, EntityType<?> entityType) {
-        if (!SpawnPlacements.checkSpawnRules(entityType, level, MobSpawnType.EVENT, spawnPosition, level.getRandom())) {
-            return false;
+        BlockState state = level.getBlockState(spawnPosition);
+        if (SpawnPlacements.checkSpawnRules(entityType, level, MobSpawnType.EVENT, spawnPosition, level.getRandom())
+                && NaturalSpawner.isValidEmptySpawnBlock(level, spawnPosition, state, state.getFluidState(), entityType)) {
+            return true;
         }
 
-        BlockState state = level.getBlockState(spawnPosition);
-        return NaturalSpawner.isValidEmptySpawnBlock(level, spawnPosition, state, state.getFluidState(), entityType);
+        // Daytime apocalypse spawns use EVENT and intentionally bypass vanilla
+        // darkness rules. Keep a conservative ground-placement fallback so a
+        // mapping/loader-specific NaturalSpawner check cannot silently disable
+        // every configured zombie spawn.
+        if (!state.getFluidState().isEmpty()
+                || !state.getCollisionShape(level, spawnPosition).isEmpty()) {
+            return false;
+        }
+        BlockPos above = spawnPosition.above();
+        BlockState aboveState = level.getBlockState(above);
+        if (!aboveState.getFluidState().isEmpty() || !aboveState.getCollisionShape(level, above).isEmpty()) {
+            return false;
+        }
+        BlockPos floor = spawnPosition.below();
+        return level.getBlockState(floor).isFaceSturdy(level, floor, Direction.UP);
     }
 
     private static boolean isAllowedBiome(ServerLevel level, BlockPos pos, AioaConfig.DaySurfaceSpawns settings) {
