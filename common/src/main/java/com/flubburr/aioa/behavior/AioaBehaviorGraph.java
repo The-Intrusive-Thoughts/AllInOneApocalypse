@@ -58,6 +58,7 @@ public final class AioaBehaviorGraph {
         this.nodes.removeIf(node -> node == null || node.id == null || node.type == null);
         this.nodes.forEach(Node::sanitize);
         this.edges.removeIf(edge -> edge == null || edge.from == null || edge.to == null);
+        this.edges.forEach(Edge::sanitize);
         if (this.nodes.stream().noneMatch(node -> node.type == NodeType.MOB_BASE)) {
             Node base = new Node("base_" + UUID.randomUUID().toString().substring(0, 8), NodeType.MOB_BASE, -140, 70)
                     .parameter("entity", "auto").parameter("health", "20").parameter("damage", "3").parameter("speed", "0.23");
@@ -84,6 +85,8 @@ public final class AioaBehaviorGraph {
         EVERY_SECONDS("Events", "Continues at a configurable real-time interval measured in seconds."),
         DELAY_TICKS("Flow", "Waits for a precise number of ticks before continuing."),
         RANDOM_CHANCE("Flow", "Continues through success or fail using a percentage chance."),
+        COOLDOWN("Flow", "Continues through ready only after its per-mob cooldown has elapsed."),
+        SEQUENCE("Flow", "Fires four ordered output lanes for multi-stage actions and boss patterns."),
         FIND_NEAREST_PLAYER("Sensing", "Finds the nearest valid player."),
         FIND_PLAYER_NAME("Sensing", "Finds the nearest online player whose name matches the selected player."),
         FIND_NEAREST_ANIMAL("Sensing", "Finds the nearest animal."),
@@ -96,8 +99,12 @@ public final class AioaBehaviorGraph {
         IS_DAYTIME("Conditions", "Branches based on world daytime."),
         IS_ON_GROUND("Conditions", "Branches based on whether the mob is grounded."),
         WAS_HURT("Conditions", "Branches while the mob's hurt animation is active."),
+        TARGET_IS_PLAYER("Conditions", "Branches based on whether the current or sensed target is a player."),
+        TARGET_HEALTH_BELOW("Conditions", "Branches when the target's health is below a percentage."),
+        IS_RAINING("Conditions", "Branches based on rain at the mob's position."),
         SET_TARGET("Targeting", "Uses the sensed entity as this mob's attack target."),
         CLEAR_TARGET("Targeting", "Clears the current attack target."),
+        TARGET_ATTACKER("Targeting", "Targets the last living entity that hurt this mob."),
         MOVE_TO_TARGET("Movement", "Pathfinds toward the current or sensed target."),
         FLEE_TARGET("Movement", "Moves away from the current or sensed target."),
         WALL_CLIMB("Movement", "Lets the mob climb while pursuing a target above it."),
@@ -108,8 +115,15 @@ public final class AioaBehaviorGraph {
         JUMP("Movement", "Makes the mob jump."),
         TELEPORT_RELATIVE("Movement", "Teleports by a clamped relative offset."),
         LOOK_AT_TARGET("Movement", "Turns the mob toward the target."),
+        TELEPORT_TO_TARGET("Movement", "Teleports near the target with a configurable offset."),
+        ORBIT_TARGET("Movement", "Moves around the target at a configurable orbit radius."),
+        DASH_TO_TARGET("Movement", "Launches the mob toward its target for boss lunges."),
         ATTACK_TARGET("Combat", "Immediately performs a normal mob attack."),
         KNOCKBACK_TARGET("Combat", "Pushes the current target away."),
+        DAMAGE_TARGET("Combat", "Deals configurable direct mob damage to the target."),
+        AREA_DAMAGE("Combat", "Damages nearby living entities with safe radius and target filters."),
+        SET_FIRE_TARGET("Combat", "Sets the current target on fire for a limited duration."),
+        LAUNCH_TARGET("Combat", "Launches the target with vertical and outward force."),
         SET_AGGRESSIVE("Combat", "Changes the mob's aggressive state."),
         SHARE_TARGET("Interaction", "Shares the current target with nearby graph mobs."),
         STOP_MOVING("Movement", "Stops the mob's current navigation."),
@@ -122,10 +136,19 @@ public final class AioaBehaviorGraph {
         SET_MAX_HEALTH("Attributes", "Changes maximum health and safely clamps current health."),
         SET_ATTACK_DAMAGE("Attributes", "Changes base melee attack damage when the mob supports it."),
         SET_MOVEMENT_SPEED("Attributes", "Changes the mob's base movement speed."),
+        SET_ARMOR("Attributes", "Changes the mob's base armor value."),
+        SET_FOLLOW_RANGE("Attributes", "Changes the mob's base follow range."),
+        SET_KNOCKBACK_RESISTANCE("Attributes", "Changes base knockback resistance."),
         EQUIP_ITEM("Equipment", "Equips a registered item into a chosen equipment slot."),
         SPAWN_MOB("World", "Safely spawns another configured mob nearby with a cooldown."),
         PLAY_SOUND("Effects", "Plays a registered sound at the mob."),
+        APPLY_EFFECT_SELF("Effects", "Applies a registered status effect to the graph mob."),
+        APPLY_EFFECT_TARGET("Effects", "Applies a registered status effect to the current target."),
+        CLEAR_EFFECTS_SELF("Effects", "Clears all status effects from the graph mob."),
+        SUMMON_LIGHTNING("Effects", "Summons visual or damaging lightning at the mob or target."),
+        EXPLOSION("Effects", "Creates a clamped explosion with configurable block interaction."),
         SAY_IN_CHAT("Presentation", "Sends a formatted creator message to nearby players."),
+        ACTION_BAR("Presentation", "Shows a short creator message in nearby players' action bars."),
         PARTICLE_PATTERN("Presentation", "Draws a circle, burst, or spiral particle pattern around the mob."),
         HEAL_SELF("Combat", "Heals the graph mob by a configurable amount."),
         SET_VELOCITY("Movement", "Sets an exact X/Y/Z movement vector for launches, slides, and scripted motion."),
@@ -135,9 +158,12 @@ public final class AioaBehaviorGraph {
         SET_VARIABLE("Values", "Stores a named numeric value for later value nodes in this execution."),
         MATH_VARIABLE("Values", "Adds, subtracts, multiplies, divides, minimums, or maximums a stored value."),
         COMPARE_VARIABLE("Conditions", "Branches by comparing a stored value with a numeric threshold."),
+        SET_PHASE("Values", "Stores a persistent boss phase from one through four."),
+        PHASE_BRANCH("Conditions", "Routes execution through one of four persistent boss phase outputs."),
         SCRIPT("Scripting", "Runs a safe creator script made from documented wait, say, rotate, glow, and stop commands."),
         SET_BODY_ROTATION("Model", "Separately changes the mob body's display rotation."),
         SET_HEAD_ROTATION("Model", "Separately changes the mob head's display rotation."),
+        DESPAWN_SELF("State", "Safely removes the graph mob from the world."),
         COMMENT("Organization", "A note for creators; it does not execute.");
 
         public final String category;
@@ -185,9 +211,11 @@ public final class AioaBehaviorGraph {
     }
 
     public static final class Edge {
+        public String id = UUID.randomUUID().toString();
         public String from;
         public String to;
         public String output = "next";
+        public String input = "exec";
 
         public Edge() {
         }
@@ -198,8 +226,23 @@ public final class AioaBehaviorGraph {
             this.output = output;
         }
 
+        public Edge(String id, String from, String output, String to, String input) {
+            this.id = id;
+            this.from = from;
+            this.output = output;
+            this.to = to;
+            this.input = input;
+            sanitize();
+        }
+
+        private void sanitize() {
+            if (this.id == null || this.id.isBlank()) this.id = UUID.randomUUID().toString();
+            if (this.output == null || this.output.isBlank()) this.output = "next";
+            if (this.input == null || this.input.isBlank()) this.input = "exec";
+        }
+
         public Edge copy() {
-            return new Edge(this.from, this.to, this.output);
+            return new Edge(this.id, this.from, this.output, this.to, this.input);
         }
     }
 

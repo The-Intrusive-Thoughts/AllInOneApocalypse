@@ -22,8 +22,8 @@ public final class AioaBehaviorValidator {
         if (graph.selector.length() > 160) issues.add("Graph selectors are limited to 160 characters.");
         if (graph.nodes.size() > 128) issues.add("Graph exceeds the 128-node safety limit.");
         if (graph.edges.size() > 256) issues.add("Graph exceeds the 256-link safety limit.");
-        long entries = graph.nodes.stream().filter(node -> node.type == AioaBehaviorGraph.NodeType.ON_TICK).count();
-        if (entries == 0) issues.add("Add an On Tick event node.");
+        long entries = graph.nodes.stream().filter(node -> "Events".equals(node.type.category)).count();
+        if (entries == 0) issues.add("Add at least one event node.");
         long bases = graph.nodes.stream().filter(node -> node.type == AioaBehaviorGraph.NodeType.MOB_BASE).count();
         if (bases != 1) issues.add("Every graph needs exactly one Base Mob node.");
         if (!graph.nodes.isEmpty() && graph.nodes.get(0).type != AioaBehaviorGraph.NodeType.MOB_BASE) issues.add("Base Mob must be the first node.");
@@ -34,9 +34,19 @@ public final class AioaBehaviorValidator {
             if (node.parameters.size() > 32) issues.add("A node cannot have more than 32 parameters.");
             validateParameters(node, issues);
         }
+        Set<String> edgeIds = new HashSet<>();
         for (AioaBehaviorGraph.Edge edge : graph.edges) {
             if (!ids.contains(edge.from) || !ids.contains(edge.to)) issues.add("A link points to a missing node.");
             if (edge.from.equals(edge.to)) issues.add("A node cannot link to itself: " + edge.from);
+            if (edge.id == null || edge.id.isBlank() || !edgeIds.add(edge.id)) issues.add("Every link needs a unique id.");
+            AioaBehaviorGraph.Node source = graph.nodes.stream().filter(node -> node.id.equals(edge.from)).findFirst().orElse(null);
+            AioaBehaviorGraph.Node target = graph.nodes.stream().filter(node -> node.id.equals(edge.to)).findFirst().orElse(null);
+            if (source != null && !AioaNodeSchema.emits(source.type, edge.output)) {
+                issues.add(source.type.name().replace('_', ' ') + " has no output port named '" + edge.output + "'.");
+            }
+            if (target != null && !AioaNodeSchema.accepts(target.type, edge.input)) {
+                issues.add(target.type.name().replace('_', ' ') + " has no input port named '" + edge.input + "'.");
+            }
         }
         validateReachability(graph, issues);
         if (graph.edges.stream().noneMatch(edge -> graph.nodes.stream().anyMatch(node -> node.id.equals(edge.from)
@@ -76,12 +86,12 @@ public final class AioaBehaviorValidator {
                     number(node, "nearbyCap", 1, 64, issues);
                 }
             }
-            case EVERY_TICKS, DELAY_TICKS -> number(node, "ticks", 1, 12000, issues);
+            case EVERY_TICKS, DELAY_TICKS, COOLDOWN -> number(node, "ticks", 1, 12000, issues);
             case EVERY_SECONDS -> number(node, "seconds", 0.05, 600, issues);
             case RANDOM_CHANCE -> number(node, "chance", 0, 1, issues);
             case FIND_NEAREST_PLAYER, FIND_PLAYER_NAME, FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB -> number(node, "range", 1, 64, issues);
             case TARGET_IN_RANGE, ATTACK_TARGET -> number(node, "range", 1, 64, issues);
-            case HEALTH_BELOW -> number(node, "percent", 0, 1, issues);
+            case HEALTH_BELOW, TARGET_HEALTH_BELOW -> number(node, "percent", 0, 1, issues);
             case MOVE_TO_TARGET -> number(node, "speed", 0.1, 3, issues);
             case FLEE_TARGET -> { number(node, "distance", 2, 32, issues); number(node, "speed", 0.1, 3, issues); }
             case WALK_BLOCKS -> { number(node, "blocks", 0.25, 32, issues); number(node, "speed", 0.1, 3, issues); }
@@ -90,13 +100,30 @@ public final class AioaBehaviorValidator {
             case STRAFE -> { number(node, "forward", -1, 1, issues); number(node, "sideways", -1, 1, issues); }
             case JUMP -> number(node, "strength", 0.1, 1.5, issues);
             case KNOCKBACK_TARGET -> number(node, "strength", 0, 4, issues);
+            case TELEPORT_TO_TARGET -> { number(node, "offsetX", -16, 16, issues); number(node, "offsetY", -16, 16, issues); number(node, "offsetZ", -16, 16, issues); }
+            case ORBIT_TARGET -> { number(node, "radius", 1, 24, issues); number(node, "degrees", -180, 180, issues); number(node, "speed", 0.1, 3, issues); }
+            case DASH_TO_TARGET -> { number(node, "strength", 0.1, 4, issues); number(node, "lift", -1, 2, issues); }
+            case DAMAGE_TARGET -> number(node, "amount", 0, 2048, issues);
+            case AREA_DAMAGE -> { number(node, "radius", 0.5, 32, issues); number(node, "amount", 0, 2048, issues); }
+            case SET_FIRE_TARGET -> number(node, "seconds", 0, 60, issues);
+            case LAUNCH_TARGET -> { number(node, "horizontal", 0, 4, issues); number(node, "vertical", -1, 4, issues); }
+            case SET_ARMOR -> number(node, "value", 0, 2048, issues);
+            case SET_FOLLOW_RANGE -> number(node, "value", 1, 2048, issues);
+            case SET_KNOCKBACK_RESISTANCE -> number(node, "value", 0, 1, issues);
             case PLAY_SOUND -> { number(node, "volume", 0, 4, issues); number(node, "pitch", 0.25, 2, issues); }
+            case APPLY_EFFECT_SELF, APPLY_EFFECT_TARGET -> {
+                ResourceLocation id = AioaEntityHelper.parseResourceLocation(node.parameters.get("effect"));
+                if (id == null || !BuiltInRegistries.MOB_EFFECT.containsKey(id)) issues.add(node.type + " needs a valid effect id.");
+                number(node, "duration", 1, 72000, issues); number(node, "amplifier", 0, 255, issues);
+            }
+            case EXPLOSION -> number(node, "power", 0, 12, issues);
             case SAY_IN_CHAT -> number(node, "range", 1, 256, issues);
             case PARTICLE_PATTERN -> { number(node, "points", 3, 64, issues); number(node, "radius", 0.1, 8, issues); }
             case HEAL_SELF -> number(node, "amount", 0, 2048, issues);
             case SET_VELOCITY -> { number(node, "x", -8, 8, issues); number(node, "y", -8, 8, issues); number(node, "z", -8, 8, issues); }
             case SET_VARIABLE, MATH_VARIABLE, COMPARE_VARIABLE -> number(node, "value", -1_000_000, 1_000_000, issues);
             case SET_BODY_ROTATION, SET_HEAD_ROTATION -> number(node, "degrees", -360, 360, issues);
+            case SET_PHASE -> number(node, "phase", 1, 4, issues);
             case SCRIPT -> {
                 String script = node.parameters.getOrDefault("script", "");
                 if (script.length() > 1024) issues.add("Script nodes are limited to 1,024 characters.");
@@ -108,14 +135,14 @@ public final class AioaBehaviorValidator {
     private static Set<String> allowedParameters(AioaBehaviorGraph.NodeType type) {
         return switch (type) {
             case MOB_BASE -> Set.of("entity", "health", "damage", "speed");
-            case EVERY_TICKS, DELAY_TICKS -> Set.of("ticks");
+            case EVERY_TICKS, DELAY_TICKS, COOLDOWN -> Set.of("ticks");
             case EVERY_SECONDS -> Set.of("seconds");
             case RANDOM_CHANCE -> Set.of("chance");
             case FIND_NEAREST_PLAYER, FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB -> Set.of("range");
             case FIND_PLAYER_NAME -> Set.of("name", "range");
             case FIND_ENTITY_TYPE -> Set.of("entity", "range");
             case TARGET_IN_RANGE, ATTACK_TARGET -> Set.of("range");
-            case HEALTH_BELOW -> Set.of("percent");
+            case HEALTH_BELOW, TARGET_HEALTH_BELOW -> Set.of("percent");
             case MOVE_TO_TARGET -> Set.of("speed");
             case FLEE_TARGET -> Set.of("distance", "speed");
             case WALK_BLOCKS -> Set.of("blocks", "speed");
@@ -124,13 +151,23 @@ public final class AioaBehaviorValidator {
             case STRAFE -> Set.of("forward", "sideways");
             case JUMP, KNOCKBACK_TARGET -> Set.of("strength");
             case TELEPORT_RELATIVE -> Set.of("x", "y", "z");
+            case TELEPORT_TO_TARGET -> Set.of("offsetX", "offsetY", "offsetZ");
+            case ORBIT_TARGET -> Set.of("radius", "degrees", "speed");
+            case DASH_TO_TARGET -> Set.of("strength", "lift");
+            case DAMAGE_TARGET -> Set.of("amount");
+            case AREA_DAMAGE -> Set.of("radius", "amount", "includeAllies");
+            case SET_FIRE_TARGET -> Set.of("seconds");
+            case LAUNCH_TARGET -> Set.of("horizontal", "vertical");
             case SET_AGGRESSIVE, SET_NO_AI, SET_PERSISTENT, SET_GLOWING, SET_SILENT, SET_INVULNERABLE -> Set.of("value");
             case SET_CUSTOM_NAME -> Set.of("name", "visible");
-            case SET_MAX_HEALTH, SET_ATTACK_DAMAGE, SET_MOVEMENT_SPEED -> Set.of("value");
+            case SET_MAX_HEALTH, SET_ATTACK_DAMAGE, SET_MOVEMENT_SPEED, SET_ARMOR, SET_FOLLOW_RANGE, SET_KNOCKBACK_RESISTANCE -> Set.of("value");
             case EQUIP_ITEM -> Set.of("item", "slot", "dropChance");
             case SPAWN_MOB -> Set.of("entity", "cooldown", "nearbyCap", "capRadius", "offsetX", "offsetY", "offsetZ");
             case PLAY_SOUND -> Set.of("sound", "volume", "pitch");
-            case SAY_IN_CHAT -> Set.of("message", "range");
+            case APPLY_EFFECT_SELF, APPLY_EFFECT_TARGET -> Set.of("effect", "duration", "amplifier", "ambient", "particles");
+            case SUMMON_LIGHTNING -> Set.of("atTarget", "visualOnly");
+            case EXPLOSION -> Set.of("power", "atTarget", "breakBlocks", "fire");
+            case SAY_IN_CHAT, ACTION_BAR -> Set.of("message", "range");
             case PARTICLE_PATTERN -> Set.of("pattern", "points", "radius");
             case HEAL_SELF -> Set.of("amount");
             case SET_VELOCITY -> Set.of("x", "y", "z");
@@ -139,6 +176,7 @@ public final class AioaBehaviorValidator {
             case MATH_VARIABLE -> Set.of("name", "operation", "value");
             case COMPARE_VARIABLE -> Set.of("name", "comparison", "value");
             case SET_BODY_ROTATION, SET_HEAD_ROTATION -> Set.of("degrees");
+            case SET_PHASE -> Set.of("phase");
             case SCRIPT -> Set.of("script");
             case COMMENT -> Set.of("text");
             default -> Set.of();
