@@ -18,10 +18,14 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -33,8 +37,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class AioaBehaviorRuntime {
+    private static final Map<RuntimeKey, RuntimeState> STATES = new ConcurrentHashMap<>();
+    private static long lastCleanupTick;
+
     private AioaBehaviorRuntime() {
     }
 
@@ -44,10 +53,14 @@ public final class AioaBehaviorRuntime {
             return;
         }
         int executed = 0;
+        cleanupStates(mob.level().getGameTime());
         for (AioaBehaviorGraph graph : AioaConfigManager.getConfig().behaviorGraphs) {
             if (executed >= engine.maxGraphsPerMob) break;
             if (graph.enabled && matches(graph, mob)) {
-                execute(graph, mob, engine.maxStepsPerGraph);
+                RuntimeKey key = new RuntimeKey(graph.id, mob.getUUID());
+                RuntimeState state = STATES.computeIfAbsent(key, ignored -> new RuntimeState());
+                state.lastTouchedTick = mob.level().getGameTime();
+                execute(graph, mob, engine.maxStepsPerGraph, state);
                 executed++;
             }
         }
@@ -72,7 +85,7 @@ public final class AioaBehaviorRuntime {
         };
     }
 
-    private static void execute(AioaBehaviorGraph graph, Mob mob, int maxSteps) {
+    private static void execute(AioaBehaviorGraph graph, Mob mob, int maxSteps, RuntimeState state) {
         Map<String, AioaBehaviorGraph.Node> nodes = new HashMap<>();
         graph.nodes.forEach(node -> nodes.put(node.id, node));
         Map<String, List<AioaBehaviorGraph.Edge>> outgoing = graph.edges.stream()
@@ -81,15 +94,18 @@ public final class AioaBehaviorRuntime {
         graph.nodes.stream().filter(node -> node.type == AioaBehaviorGraph.NodeType.MOB_BASE).forEach(queue::add);
         if (queue.isEmpty()) graph.nodes.stream().filter(node -> node.type == AioaBehaviorGraph.NodeType.ON_TICK).forEach(queue::add);
         Set<String> visited = new HashSet<>();
-        ExecutionContext context = new ExecutionContext(mob.getTarget());
+        ExecutionContext context = new ExecutionContext(mob.getTarget(), state);
         int steps = 0;
 
         while (!queue.isEmpty() && steps++ < maxSteps) {
             AioaBehaviorGraph.Node node = queue.removeFirst();
             if (!visited.add(node.id)) continue;
             String output = runNode(node, mob, context);
+            Set<String> emitted = node.type == AioaBehaviorGraph.NodeType.SEQUENCE
+                    ? AioaNodeSchema.branchOutputs(node.type)
+                    : Set.of(AioaNodeSchema.normalizeOutput(output));
             for (AioaBehaviorGraph.Edge edge : outgoing.getOrDefault(node.id, List.of())) {
-                if (edge.output == null || edge.output.equals("next") || edge.output.equals(output)) {
+                if (emitted.contains(AioaNodeSchema.normalizeOutput(edge.output))) {
                     AioaBehaviorGraph.Node next = nodes.get(edge.to);
                     if (next != null) queue.addLast(next);
                 }
@@ -108,11 +124,18 @@ public final class AioaBehaviorRuntime {
                 return "next";
             }
             case ON_TICK, COMMENT -> { return "next"; }
-            case ON_FIRST_TICK -> { return mob.tickCount <= 1 ? "ready" : "waiting"; }
-            case EVERY_TICKS -> { return mob.tickCount % (int) number(node, "ticks", 20, 1, 12000) == 0 ? "ready" : "waiting"; }
-            case EVERY_SECONDS -> { return mob.tickCount % Math.max(1, (int) Math.round(number(node, "seconds", 1, 0.05, 600) * 20)) == 0 ? "ready" : "waiting"; }
-            case DELAY_TICKS -> { return mob.tickCount % (int) number(node, "ticks", 20, 1, 12000) == 0 ? "ready" : "waiting"; }
+            case ON_FIRST_TICK -> {
+                if (context.state.firedOnce.add(node.id)) return "ready";
+                return "waiting";
+            }
+            case EVERY_TICKS -> { return timerReady(node, mob, context.state, (long) number(node, "ticks", 20, 1, 12000), false) ? "ready" : "waiting"; }
+            case EVERY_SECONDS -> { return timerReady(node, mob, context.state,
+                    Math.max(1L, Math.round(number(node, "seconds", 1, 0.05, 600) * 20.0D)), false) ? "ready" : "waiting"; }
+            case DELAY_TICKS -> { return timerReady(node, mob, context.state, (long) number(node, "ticks", 20, 1, 12000), true) ? "ready" : "waiting"; }
             case RANDOM_CHANCE -> { return mob.getRandom().nextDouble() <= number(node, "chance", 0.5, 0, 1) ? "success" : "fail"; }
+            case COOLDOWN -> { return timerReady(node, mob, context.state,
+                    (long) number(node, "ticks", 100, 1, 12000), true) ? "ready" : "waiting"; }
+            case SEQUENCE -> { return "then_1"; }
             case HAS_TARGET -> { return mob.getTarget() != null && mob.getTarget().isAlive() ? "true" : "false"; }
             case TARGET_IN_RANGE -> {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
@@ -126,6 +149,16 @@ public final class AioaBehaviorRuntime {
             case IS_DAYTIME -> { return mob.level().isDay() ? "true" : "false"; }
             case IS_ON_GROUND -> { return mob.onGround() ? "true" : "false"; }
             case WAS_HURT -> { return mob.hurtTime > 0 ? "true" : "false"; }
+            case TARGET_IS_PLAYER -> {
+                LivingEntity target = context.target != null ? context.target : mob.getTarget();
+                return target instanceof Player ? "true" : "false";
+            }
+            case TARGET_HEALTH_BELOW -> {
+                LivingEntity target = context.target != null ? context.target : mob.getTarget();
+                return target != null && target.getHealth() / Math.max(1.0F, target.getMaxHealth())
+                        <= number(node, "percent", 0.5, 0, 1) ? "true" : "false";
+            }
+            case IS_RAINING -> { return mob.level().isRainingAt(mob.blockPosition()) ? "true" : "false"; }
             case FIND_NEAREST_PLAYER -> context.target = nearest(mob, Player.class, range, candidate -> !candidate.isSpectator());
             case FIND_PLAYER_NAME -> {
                 String playerName = node.parameters.getOrDefault("name", "");
@@ -139,6 +172,13 @@ public final class AioaBehaviorRuntime {
                 if (context.target != null && AioaZombieBehaviour.canTarget(mob, context.target)) mob.setTarget(context.target);
             }
             case CLEAR_TARGET -> { mob.setTarget(null); context.target = null; }
+            case TARGET_ATTACKER -> {
+                LivingEntity attacker = mob.getLastHurtByMob();
+                if (attacker != null && attacker.isAlive() && AioaZombieBehaviour.canTarget(mob, attacker)) {
+                    context.target = attacker;
+                    mob.setTarget(attacker);
+                }
+            }
             case MOVE_TO_TARGET -> {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
                 if (target != null && mob instanceof PathfinderMob pathfinder) {
@@ -185,6 +225,14 @@ public final class AioaBehaviorRuntime {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
                 if (target != null) mob.getLookControl().setLookAt(target, 30.0F, 30.0F);
             }
+            case TELEPORT_TO_TARGET -> {
+                LivingEntity target = context.target != null ? context.target : mob.getTarget();
+                if (target != null) mob.teleportTo(target.getX() + number(node, "offsetX", 0, -16, 16),
+                        target.getY() + number(node, "offsetY", 0, -16, 16),
+                        target.getZ() + number(node, "offsetZ", 0, -16, 16));
+            }
+            case ORBIT_TARGET -> orbitTarget(node, mob, context);
+            case DASH_TO_TARGET -> dashToTarget(node, mob, context);
             case ATTACK_TARGET -> {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
                 if (target != null && mob.distanceToSqr(target) <= number(node, "range", 3, 1, 8) * number(node, "range", 3, 1, 8)) mob.doHurtTarget(target);
@@ -193,6 +241,13 @@ public final class AioaBehaviorRuntime {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
                 if (target != null) target.knockback(number(node, "strength", 0.6, 0, 4), mob.getX() - target.getX(), mob.getZ() - target.getZ());
             }
+            case DAMAGE_TARGET -> damageTarget(node, mob, context);
+            case AREA_DAMAGE -> areaDamage(node, mob);
+            case SET_FIRE_TARGET -> {
+                LivingEntity target = context.target != null ? context.target : mob.getTarget();
+                if (target != null) target.setSecondsOnFire((int) number(node, "seconds", 4, 0, 60));
+            }
+            case LAUNCH_TARGET -> launchTarget(node, mob, context);
             case SET_AGGRESSIVE -> mob.setAggressive(flag(node, "value", true));
             case SHARE_TARGET -> AioaZombieBehaviour.coordinateNearbyMobs(mob, AioaConfigManager.getConfig().daySurfaceSpawns);
             case STOP_MOVING -> mob.getNavigation().stop();
@@ -211,12 +266,24 @@ public final class AioaBehaviorRuntime {
             }
             case SET_ATTACK_DAMAGE -> setAttribute(mob, Attributes.ATTACK_DAMAGE, number(node, "value", 3, 0, 2048));
             case SET_MOVEMENT_SPEED -> setAttribute(mob, Attributes.MOVEMENT_SPEED, number(node, "value", 0.23, 0.01, 2));
+            case SET_ARMOR -> setAttribute(mob, Attributes.ARMOR, number(node, "value", 0, 0, 2048));
+            case SET_FOLLOW_RANGE -> setAttribute(mob, Attributes.FOLLOW_RANGE, number(node, "value", 32, 1, 2048));
+            case SET_KNOCKBACK_RESISTANCE -> setAttribute(mob, Attributes.KNOCKBACK_RESISTANCE, number(node, "value", 0, 0, 1));
             case EQUIP_ITEM -> equipItem(node, mob);
             case SPAWN_MOB -> {
-                if (AioaConfigManager.getConfig().behaviorEngine.allowWorldNodes) spawnMob(node, mob);
+                if (AioaConfigManager.getConfig().behaviorEngine.allowWorldNodes) spawnMob(node, mob, context.state);
             }
             case PLAY_SOUND -> playSound(node, mob);
+            case APPLY_EFFECT_SELF -> applyEffect(node, mob, mob);
+            case APPLY_EFFECT_TARGET -> {
+                LivingEntity target = context.target != null ? context.target : mob.getTarget();
+                if (target != null) applyEffect(node, mob, target);
+            }
+            case CLEAR_EFFECTS_SELF -> mob.removeAllEffects();
+            case SUMMON_LIGHTNING -> summonLightning(node, mob, context);
+            case EXPLOSION -> explosion(node, mob, context);
             case SAY_IN_CHAT -> sayInChat(node, mob);
+            case ACTION_BAR -> actionBar(node, mob);
             case PARTICLE_PATTERN -> particlePattern(node, mob);
             case HEAL_SELF -> mob.heal((float) number(node, "amount", 4, 0, 2048));
             case SET_VELOCITY -> mob.setDeltaMovement(number(node, "x", 0, -8, 8),
@@ -227,11 +294,101 @@ public final class AioaBehaviorRuntime {
             case SET_VARIABLE -> context.variables.put(variableName(node), number(node, "value", 0, -1_000_000, 1_000_000));
             case MATH_VARIABLE -> applyVariableMath(node, context);
             case COMPARE_VARIABLE -> { return compareVariable(node, context) ? "true" : "false"; }
+            case SET_PHASE -> context.variables.put("__phase", number(node, "phase", 1, 1, 4));
+            case PHASE_BRANCH -> { return "phase_" + Math.max(1, Math.min(4,
+                    (int) Math.round(context.variables.getOrDefault("__phase", 1.0D)))); }
             case SCRIPT -> runCreatorScript(node, mob);
             case SET_BODY_ROTATION -> mob.setYBodyRot((float) number(node, "degrees", mob.yBodyRot, -360, 360));
             case SET_HEAD_ROTATION -> mob.setYHeadRot((float) number(node, "degrees", mob.getYHeadRot(), -360, 360));
+            case DESPAWN_SELF -> mob.discard();
         }
         return context.target == null ? "missing" : "found";
+    }
+
+    private static void orbitTarget(AioaBehaviorGraph.Node node, Mob mob, ExecutionContext context) {
+        LivingEntity target = context.target != null ? context.target : mob.getTarget();
+        if (target == null || !(mob instanceof PathfinderMob pathfinder)) return;
+        double radius = number(node, "radius", 5, 1, 24);
+        double angle = Math.atan2(mob.getZ() - target.getZ(), mob.getX() - target.getX())
+                + Math.toRadians(number(node, "degrees", 35, -180, 180));
+        pathfinder.getNavigation().moveTo(target.getX() + Math.cos(angle) * radius, target.getY(),
+                target.getZ() + Math.sin(angle) * radius, number(node, "speed", 1.1, 0.1, 3));
+    }
+
+    private static void dashToTarget(AioaBehaviorGraph.Node node, Mob mob, ExecutionContext context) {
+        LivingEntity target = context.target != null ? context.target : mob.getTarget();
+        if (target == null) return;
+        Vec3 direction = target.position().add(0, target.getBbHeight() * 0.35, 0)
+                .subtract(mob.position()).normalize();
+        double strength = number(node, "strength", 1.25, 0.1, 4);
+        mob.setDeltaMovement(direction.x * strength, direction.y * strength + number(node, "lift", 0.15, -1, 2),
+                direction.z * strength);
+        mob.hasImpulse = true;
+    }
+
+    private static void damageTarget(AioaBehaviorGraph.Node node, Mob mob, ExecutionContext context) {
+        LivingEntity target = context.target != null ? context.target : mob.getTarget();
+        if (target != null && target.isAlive()) {
+            target.hurt(mob.damageSources().mobAttack(mob), (float) number(node, "amount", 6, 0, 2048));
+        }
+    }
+
+    private static void areaDamage(AioaBehaviorGraph.Node node, Mob mob) {
+        double radius = number(node, "radius", 4, 0.5, 32);
+        float amount = (float) number(node, "amount", 4, 0, 2048);
+        boolean includeAllies = flag(node, "includeAllies", false);
+        mob.level().getEntitiesOfClass(LivingEntity.class, mob.getBoundingBox().inflate(radius), target ->
+                        target != mob && target.isAlive() && (includeAllies || AioaZombieBehaviour.canTarget(mob, target)))
+                .forEach(target -> target.hurt(mob.damageSources().mobAttack(mob), amount));
+    }
+
+    private static void launchTarget(AioaBehaviorGraph.Node node, Mob mob, ExecutionContext context) {
+        LivingEntity target = context.target != null ? context.target : mob.getTarget();
+        if (target == null) return;
+        Vec3 outward = target.position().subtract(mob.position()).multiply(1, 0, 1).normalize();
+        double horizontal = number(node, "horizontal", 0.7, 0, 4);
+        target.setDeltaMovement(outward.x * horizontal, number(node, "vertical", 0.65, -1, 4), outward.z * horizontal);
+        target.hasImpulse = true;
+    }
+
+    private static void applyEffect(AioaBehaviorGraph.Node node, Mob source, LivingEntity target) {
+        ResourceLocation id = AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("effect", "minecraft:speed"));
+        if (id == null || !BuiltInRegistries.MOB_EFFECT.containsKey(id)) return;
+        MobEffect effect = BuiltInRegistries.MOB_EFFECT.get(id);
+        if (effect == null) return;
+        target.addEffect(new MobEffectInstance(effect,
+                (int) number(node, "duration", 200, 1, 72000),
+                (int) number(node, "amplifier", 0, 0, 255),
+                flag(node, "ambient", false), flag(node, "particles", true)), source);
+    }
+
+    private static void summonLightning(AioaBehaviorGraph.Node node, Mob mob, ExecutionContext context) {
+        if (!(mob.level() instanceof ServerLevel level)) return;
+        LivingEntity target = context.target != null ? context.target : mob.getTarget();
+        Vec3 position = flag(node, "atTarget", true) && target != null ? target.position() : mob.position();
+        LightningBolt lightning = EntityType.LIGHTNING_BOLT.create(level);
+        if (lightning == null) return;
+        lightning.moveTo(position.x, position.y, position.z);
+        lightning.setVisualOnly(flag(node, "visualOnly", true));
+        level.addFreshEntity(lightning);
+    }
+
+    private static void explosion(AioaBehaviorGraph.Node node, Mob mob, ExecutionContext context) {
+        LivingEntity target = context.target != null ? context.target : mob.getTarget();
+        Vec3 position = flag(node, "atTarget", false) && target != null ? target.position() : mob.position();
+        Level.ExplosionInteraction interaction = flag(node, "breakBlocks", false)
+                ? Level.ExplosionInteraction.MOB : Level.ExplosionInteraction.NONE;
+        mob.level().explode(mob, position.x, position.y, position.z,
+                (float) number(node, "power", 2, 0, 12), flag(node, "fire", false), interaction);
+    }
+
+    private static void actionBar(AioaBehaviorGraph.Node node, Mob mob) {
+        if (!(mob.level() instanceof ServerLevel level)) return;
+        String message = node.parameters.getOrDefault("message", "{mob}")
+                .replace("{mob}", mob.getName().getString());
+        double range = number(node, "range", 32, 1, 256);
+        level.players().stream().filter(player -> player.distanceToSqr(mob) <= range * range)
+                .forEach(player -> player.displayClientMessage(Component.literal(message), true));
     }
 
     private static void sayInChat(AioaBehaviorGraph.Node node, Mob mob) {
@@ -317,9 +474,12 @@ public final class AioaBehaviorRuntime {
                 .min(Comparator.comparingDouble(mob::distanceToSqr)).orElse(null);
     }
 
-    private static void spawnMob(AioaBehaviorGraph.Node node, Mob source) {
+    private static void spawnMob(AioaBehaviorGraph.Node node, Mob source, RuntimeState state) {
         int cooldown = (int) number(node, "cooldown", 200, 20, 12000);
-        if (source.tickCount % cooldown != 0 || !(source.level() instanceof ServerLevel level)) return;
+        long gameTime = source.level().getGameTime();
+        long nextAllowed = state.cooldowns.getOrDefault(node.id, 0L);
+        if (gameTime < nextAllowed || !(source.level() instanceof ServerLevel level)) return;
+        state.cooldowns.put(node.id, gameTime + cooldown);
         double radius = number(node, "capRadius", 16, 4, 64);
         int configuredCap = AioaConfigManager.getConfig().behaviorEngine.maxNodeSpawnedMobsNearby;
         int cap = Math.min(configuredCap, (int) number(node, "nearbyCap", 8, 1, 64));
@@ -381,12 +541,43 @@ public final class AioaBehaviorRuntime {
         }
     }
 
+    private static boolean timerReady(AioaBehaviorGraph.Node node, Mob mob, RuntimeState state, long delay, boolean waitBeforeFirst) {
+        long now = mob.level().getGameTime();
+        Long readyAt = state.timers.get(node.id);
+        if (readyAt == null) {
+            state.timers.put(node.id, now + delay);
+            return !waitBeforeFirst;
+        }
+        if (now < readyAt) return false;
+        state.timers.put(node.id, now + delay);
+        return true;
+    }
+
+    private static void cleanupStates(long gameTime) {
+        if (gameTime - lastCleanupTick < 1200L) return;
+        lastCleanupTick = gameTime;
+        STATES.entrySet().removeIf(entry -> gameTime - entry.getValue().lastTouchedTick > 2400L);
+    }
+
     private static final class ExecutionContext {
         private LivingEntity target;
-        private final Map<String, Double> variables = new HashMap<>();
+        private final RuntimeState state;
+        private final Map<String, Double> variables;
 
-        private ExecutionContext(LivingEntity target) {
+        private ExecutionContext(LivingEntity target, RuntimeState state) {
             this.target = target;
+            this.state = state;
+            this.variables = state.variables;
         }
+    }
+
+    private record RuntimeKey(String graphId, UUID entityId) { }
+
+    private static final class RuntimeState {
+        private final Map<String, Double> variables = new HashMap<>();
+        private final Map<String, Long> timers = new HashMap<>();
+        private final Map<String, Long> cooldowns = new HashMap<>();
+        private final Set<String> firedOnce = new HashSet<>();
+        private long lastTouchedTick;
     }
 }
