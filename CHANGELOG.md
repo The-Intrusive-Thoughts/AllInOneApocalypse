@@ -18,6 +18,11 @@
 - Added Every Seconds, Delay Ticks, Say in Chat, Particle Pattern, safe Script, Body Rotation, and Head Rotation nodes, including server-side execution, validation, defaults, and a dedicated scripting documentation tab.
 - Replaced raw mob registry-id entry in Spawn Studio and graph targeting with translated, searchable mob pickers and live previews.
 - Made node parameters a double-click-only floating inspector, removed graph navigation controls from the inspector, displayed the active graph name prominently, and expanded UI/graph scaling from 25% to 500% with graph zoom from 10% to 800%.
+- Matched Graph Studio's default composition to the wide creator layout, with the simulated viewport separated on the left, a large central graph canvas, and palette/inspector/parameter/guide windows arranged around the edges.
+- Added per-graph editor-layout persistence for every window position, size, collapsed state, help visibility, canvas pan, and zoom; reopening or switching graph tabs no longer resets the creator's workspace.
+- Added visible and interactive resize grips to every movable editor window and expanded viewport/graph zoom limits for large recording and multi-monitor layouts.
+- Rebuilt Node Parameters with previous/next field navigation and contextual tools for entity selection, scripts, booleans, particle patterns, variable math, comparisons, and recommended defaults.
+- Added Heal Self, Set Velocity, Add Tag, Remove Tag, Has Tag, Set Variable, Math Variable, and Compare Variable nodes with runtime execution, validation, defaults, branching, and documentation.
 - Added persistent first-run onboarding with guided steps and a skip control, plus a closable helper card and arrow that continues to point to Documentation until dismissed.
 - Added Interface & Menu Audio settings for compact editor scale, menu mob/ambience volume, and UI sound volume; settings persist in config schema 6 and no longer inherit Minecraft GUI scale behavior.
 - Reorganized the configuration home around Quick Presets, Behavior Graph Studio, Spawn Studio, Docs, and grouped advanced settings, and standardized editing flows on one clear `Done` action.
