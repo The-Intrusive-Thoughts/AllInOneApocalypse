@@ -25,7 +25,7 @@ final class AioaPlayerPickerScreen extends AioaAnimatedScreen {
         this.clearWidgets();
         this.players.clear();
         if (this.minecraft != null && this.minecraft.level != null) {
-            this.minecraft.level.players().stream().map(player -> player.getGameProfile().getName())
+            this.minecraft.level.players().stream().map(player -> player.getGameProfile().name())
                     .sorted(String.CASE_INSENSITIVE_ORDER).forEach(this.players::add);
         }
         int width = Math.min(440, this.width - 32);
