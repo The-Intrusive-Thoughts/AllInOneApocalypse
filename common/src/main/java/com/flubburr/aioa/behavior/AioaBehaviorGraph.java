@@ -85,6 +85,7 @@ public final class AioaBehaviorGraph {
         DELAY_TICKS("Flow", "Waits for a precise number of ticks before continuing."),
         RANDOM_CHANCE("Flow", "Continues through success or fail using a percentage chance."),
         FIND_NEAREST_PLAYER("Sensing", "Finds the nearest valid player."),
+        FIND_PLAYER_NAME("Sensing", "Finds the nearest online player whose name matches the selected player."),
         FIND_NEAREST_ANIMAL("Sensing", "Finds the nearest animal."),
         FIND_NEAREST_MOB("Sensing", "Finds the nearest other mob."),
         FIND_ENTITY_TYPE("Sensing", "Finds the nearest mob matching a registry id."),
