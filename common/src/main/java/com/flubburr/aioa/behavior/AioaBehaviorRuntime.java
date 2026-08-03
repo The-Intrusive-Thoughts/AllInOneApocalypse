@@ -373,7 +373,7 @@ public final class AioaBehaviorRuntime {
         Vec3 position = flag(node, "atTarget", true) && target != null ? target.position() : mob.position();
         LightningBolt lightning = EntityType.LIGHTNING_BOLT.create(level, EntitySpawnReason.EVENT);
         if (lightning == null) return;
-        lightning.moveTo(position.x, position.y, position.z);
+        lightning.snapTo(position.x, position.y, position.z, 0.0F, 0.0F);
         lightning.setVisualOnly(flag(node, "visualOnly", true));
         level.addFreshEntity(lightning);
     }
