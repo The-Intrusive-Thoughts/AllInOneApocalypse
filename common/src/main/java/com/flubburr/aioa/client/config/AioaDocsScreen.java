@@ -81,8 +81,8 @@ final class AioaDocsScreen extends AioaAnimatedScreen {
 
     private void drawEditorDocs(GuiGraphics g, int left, int top, int width) {
         card(g, left + 20, top, width - 40, "CANVAS CONTROLS", "Drag nodes with left click. Alt + left drag or middle drag moves the workspace. Ctrl + mouse wheel zooms toward the cursor. Shift + wheel pans sideways. F or Ctrl+0 fits the complete graph.");
-        card(g, left + 20, top + 78, (width - 50) / 2, "KEYBOARD", "Ctrl+Z undo, Ctrl+Y redo, Ctrl+D duplicate, Ctrl+N new graph, Ctrl+S apply, Delete removes a node, H toggles help. The editor keeps a compact Scale 2 workspace independent of Minecraft's menu layout.");
-        card(g, left + 30 + (width - 50) / 2, top + 78, (width - 50) / 2, "LINKING", "Right-click a node for quick-link, select the output port, then left-click its destination. Condition nodes expose true/false; sensors expose found/missing; timers expose ready/waiting.");
+        card(g, left + 20, top + 78, (width - 50) / 2, "WINDOWS & PERSISTENCE", "Drag any title bar to move it. Every workspace, viewport, palette, inspector, parameter panel, and guide has a bright bottom-right resize grip. Positions, sizes, collapsed states, pan, and zoom are saved separately for every graph tab.");
+        card(g, left + 30 + (width - 50) / 2, top + 78, (width - 50) / 2, "PARAMETERS & LINKING", "Double-click a node to open Parameters. Use previous/next for every field; contextual tools select mobs, toggle booleans, cycle patterns/math, or open script docs. Drag a port to link; conditions expose true/false.");
     }
 
     private void drawNodeDocs(GuiGraphics g, int left, int top, int width) {
@@ -118,6 +118,7 @@ final class AioaDocsScreen extends AioaAnimatedScreen {
         card(g, left + 20, top, width - 40, "SAFE CREATOR SCRIPT NODE", "Scripts are short semicolon-separated commands, not unrestricted Java. Double-click a Script node and edit its script value. Unknown commands are ignored and validation limits scripts to 1,024 characters.");
         card(g, left + 20, top + 76, (width - 50) / 2, "COMMANDS", "say=message; rotate=degrees; glow=true/false; aggressive=true/false; stop. Use {mob} inside say messages to insert the selected mob's display name.");
         card(g, left + 30 + (width - 50) / 2, top + 76, (width - 50) / 2, "TIMING", "Place Every Seconds or Delay Ticks before Script. Connect ready to the script and waiting to the loop. Every Seconds accepts decimals; Delay Ticks uses exact game ticks (20 ticks = 1 second)." );
+        card(g, left + 20, top + 228, width - 40, "VALUES & REUSABLE STATE", "Set Variable stores a named number for the current run. Math Variable supports add, subtract, multiply, divide, min, and max. Compare Variable branches true/false. Scoreboard-tag nodes provide longer-lived state that other graph executions can test.");
         card(g, left + 20, top + 152, width - 40, "EXAMPLE", "say={mob} enters phase two; rotate=90; glow=true; stop   — combine this with Particle Pattern for circles/spirals and separate Body Rotation or Head Rotation nodes for staged animations.");
     }
 
