@@ -79,7 +79,7 @@ public final class AioaBehaviorValidator {
             case EVERY_TICKS, DELAY_TICKS -> number(node, "ticks", 1, 12000, issues);
             case EVERY_SECONDS -> number(node, "seconds", 0.05, 600, issues);
             case RANDOM_CHANCE -> number(node, "chance", 0, 1, issues);
-            case FIND_NEAREST_PLAYER, FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB -> number(node, "range", 1, 64, issues);
+            case FIND_NEAREST_PLAYER, FIND_PLAYER_NAME, FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB -> number(node, "range", 1, 64, issues);
             case TARGET_IN_RANGE, ATTACK_TARGET -> number(node, "range", 1, 64, issues);
             case HEALTH_BELOW -> number(node, "percent", 0, 1, issues);
             case MOVE_TO_TARGET -> number(node, "speed", 0.1, 3, issues);
@@ -112,6 +112,7 @@ public final class AioaBehaviorValidator {
             case EVERY_SECONDS -> Set.of("seconds");
             case RANDOM_CHANCE -> Set.of("chance");
             case FIND_NEAREST_PLAYER, FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB -> Set.of("range");
+            case FIND_PLAYER_NAME -> Set.of("name", "range");
             case FIND_ENTITY_TYPE -> Set.of("entity", "range");
             case TARGET_IN_RANGE, ATTACK_TARGET -> Set.of("range");
             case HEALTH_BELOW -> Set.of("percent");

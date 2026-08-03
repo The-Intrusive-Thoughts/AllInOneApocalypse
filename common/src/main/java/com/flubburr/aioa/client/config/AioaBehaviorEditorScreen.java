@@ -577,6 +577,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         if (this.selected == null || this.parameterKey == null) return "Parameter tools";
         String key = this.parameterKey.getValue();
         if ("entity".equals(key)) return "Choose mob...";
+        if ("name".equals(key) && this.selected.type == AioaBehaviorGraph.NodeType.FIND_PLAYER_NAME) return "Choose online player...";
+        if ("name".equals(key) && isVariableNode(this.selected.type)) return "Cycle variable name";
         if (this.selected.type == AioaBehaviorGraph.NodeType.SCRIPT) return "Open script documentation";
         if ("value".equals(key) && isBooleanNode(this.selected.type)) return "Toggle true / false";
         if ("pattern".equals(key)) return "Cycle particle pattern";
@@ -596,11 +598,27 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             }));
             return;
         }
-        if (this.selected.type == AioaBehaviorGraph.NodeType.SCRIPT) {
-            this.transitionTo(new AioaDocsScreen(this));
+        if ("name".equals(key) && this.selected.type == AioaBehaviorGraph.NodeType.FIND_PLAYER_NAME) {
+            this.transitionTo(new AioaPlayerPickerScreen(this, name -> {
+                snapshot();
+                this.selected.parameters.put("name", name);
+                this.status = "Player target set to " + name + ".";
+            }));
             return;
         }
-        if ("value".equals(key) && isBooleanNode(this.selected.type)) {
+        if (this.selected.type == AioaBehaviorGraph.NodeType.SCRIPT) {
+            String currentScript = this.parameterValue.getValue();
+            this.transitionTo(new AioaScriptEditorScreen(this, currentScript, script -> {
+                snapshot();
+                this.selected.parameters.put("script", script);
+                this.parameterIndex = new ArrayList<>(this.selected.parameters.keySet()).indexOf("script");
+                this.status = "Script commands updated.";
+            }));
+            return;
+        }
+        if ("name".equals(key) && isVariableNode(this.selected.type)) {
+            this.parameterValue.setValue(cycleText(this.parameterValue.getValue(), "value", "counter", "phase", "timer", "distance"));
+        } else if ("value".equals(key) && isBooleanNode(this.selected.type)) {
             this.parameterValue.setValue(Boolean.toString(!Boolean.parseBoolean(this.parameterValue.getValue())));
         } else if ("pattern".equals(key)) {
             this.parameterValue.setValue(cycleText(this.parameterValue.getValue(), "circle", "spiral", "burst"));
@@ -628,6 +646,11 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             case SET_AGGRESSIVE, SET_NO_AI, SET_PERSISTENT, SET_GLOWING, SET_SILENT, SET_INVULNERABLE -> true;
             default -> false;
         };
+    }
+
+    private static boolean isVariableNode(AioaBehaviorGraph.NodeType type) {
+        return type == AioaBehaviorGraph.NodeType.SET_VARIABLE || type == AioaBehaviorGraph.NodeType.MATH_VARIABLE
+                || type == AioaBehaviorGraph.NodeType.COMPARE_VARIABLE;
     }
 
     private void connect(AioaBehaviorGraph.Node from, AioaBehaviorGraph.Node to) {
@@ -720,9 +743,13 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         if (button == 0 && mouseY >= this.windowY + 2 && mouseY <= this.windowY + 22) {
             int tabStart = this.windowX + 330;
             int visibleTabs = Math.min(5, this.graphs.size());
-            for (int i = 0; i < visibleTabs; i++) {
-                if (mouseX >= tabStart + i * 92 && mouseX < tabStart + i * 92 + 88) {
-                    if (mouseX >= tabStart + i * 92 + 72 && this.graphs.size() > 1) {
+            List<Integer> hitOrder = new ArrayList<>();
+            for (int i = visibleTabs - 1; i >= 0; i--) if (i != this.graphIndex) hitOrder.add(i);
+            if (this.graphIndex < visibleTabs) hitOrder.add(0, this.graphIndex);
+            for (int i : hitOrder) {
+                int tabX = tabStart + i * 82;
+                if (mouseX >= tabX && mouseX < tabX + 108) {
+                    if (mouseX >= tabX + 92 && this.graphs.size() > 1) {
                         closeGraph(i);
                         return true;
                     }
@@ -1083,12 +1110,13 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         }
         drawViewport(guiGraphics, mouseX, mouseY);
         drawFloatingPanel(guiGraphics, FloatingWindow.PALETTE, "NODE PALETTE", this.paletteCollapsed ? 20 : this.paletteHeight);
-        drawFloatingPanel(guiGraphics, FloatingWindow.INSPECTOR, "INSPECTOR", this.inspectorCollapsed ? 20 : this.inspectorHeight);
+        drawFloatingPanel(guiGraphics, FloatingWindow.INSPECTOR,
+                "INSPECTOR :: " + (this.selected == null ? "GRAPH" : friendly(this.selected.type)),
+                this.inspectorCollapsed ? 20 : this.inspectorHeight);
         drawFloatingPanel(guiGraphics, FloatingWindow.PARAMETERS, "NODE PARAMETERS", this.parametersCollapsed ? 20 : this.parametersHeight);
-        if (!this.inspectorCollapsed) guiGraphics.drawString(this.font, this.selected == null ? "No node selected" : friendly(this.selected.type), this.inspectorX + 10, this.inspectorY + 116, AioaScreenUtil.TEXT_MAIN);
-        if (!this.inspectorCollapsed && this.selected != null) {
+        if (!this.inspectorCollapsed && this.selected != null && this.inspectorHeight >= 270) {
             AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal(this.selected.type.help),
-                    this.inspectorX + this.inspectorWidth / 2, this.inspectorY + 132, this.inspectorWidth - 24, AioaScreenUtil.TEXT_SUB);
+                    this.inspectorX + this.inspectorWidth / 2, this.inspectorY + 216, this.inspectorWidth - 24, AioaScreenUtil.TEXT_SUB);
         }
         drawPaletteScrollBar(guiGraphics);
         guiGraphics.fill(this.windowX + 1, bottom - 27, right - 1, bottom - 1, 0xFF111A15);
@@ -1279,14 +1307,18 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private void drawGraphTabs(GuiGraphics graphics, int mouseX, int mouseY) {
         int tabStart = this.windowX + 330;
         int visibleTabs = Math.min(5, this.graphs.size());
-        for (int i = 0; i < visibleTabs; i++) {
-            int x = tabStart + i * 92;
+        for (int pass = 0; pass < 2; pass++) {
+            for (int i = 0; i < visibleTabs; i++) {
+            if ((pass == 0 && i == this.graphIndex) || (pass == 1 && i != this.graphIndex)) continue;
+            int x = tabStart + i * 82;
             int color = i == this.graphIndex ? 0xFF315A42 : 0xFF1E3026;
-            graphics.fill(x, this.windowY + 2, x + 88, this.windowY + 22, color);
-            boolean hovered = mouseX >= x && mouseX < x + 88 && mouseY >= this.windowY + 2 && mouseY <= this.windowY + 22;
-            String name = this.font.plainSubstrByWidth(this.graphs.get(i).name, hovered ? 62 : 78);
+            graphics.fill(x, this.windowY + 2, x + 108, this.windowY + 22, color);
+            graphics.fill(x, this.windowY + 2, x + 108, this.windowY + 4, i == this.graphIndex ? 0xFF6EFFBA : 0xFF396B4D);
+            boolean hovered = mouseX >= x && mouseX < x + 108 && mouseY >= this.windowY + 2 && mouseY <= this.windowY + 22;
+            String name = this.font.plainSubstrByWidth(this.graphs.get(i).name, hovered ? 80 : 94);
             graphics.drawString(this.font, name, x + 6, this.windowY + 8, i == this.graphIndex ? 0xFFFFFFFF : AioaScreenUtil.TEXT_SUB);
-            if (hovered && this.graphs.size() > 1) graphics.drawString(this.font, "x", x + 74, this.windowY + 8, 0xFFFF9A9A);
+            if (hovered && this.graphs.size() > 1) graphics.drawString(this.font, "x", x + 96, this.windowY + 8, 0xFFFF9A9A);
+            }
         }
     }
 
@@ -1330,7 +1362,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private static String[] outputsFor(AioaBehaviorGraph.NodeType type) {
         if (type == null) return new String[]{"next"};
         return switch (type) {
-            case FIND_NEAREST_PLAYER, FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB, FIND_ENTITY_TYPE -> new String[]{"found", "missing"};
+            case FIND_NEAREST_PLAYER, FIND_PLAYER_NAME, FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB, FIND_ENTITY_TYPE -> new String[]{"found", "missing"};
             case HAS_TARGET, TARGET_IN_RANGE, HEALTH_BELOW, CAN_SEE_TARGET, IS_DAYTIME, IS_ON_GROUND, WAS_HURT,
                     HAS_TAG, COMPARE_VARIABLE -> new String[]{"true", "false"};
             case EVERY_TICKS, ON_FIRST_TICK -> new String[]{"ready", "waiting"};
@@ -1346,6 +1378,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             case EVERY_SECONDS -> node.parameter("seconds", "1");
             case RANDOM_CHANCE -> node.parameter("chance", "0.5");
             case FIND_NEAREST_PLAYER, FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB -> node.parameter("range", "24");
+            case FIND_PLAYER_NAME -> node.parameter("name", "Player").parameter("range", "64");
             case FIND_ENTITY_TYPE -> node.parameter("entity", "minecraft:zombie").parameter("range", "24");
             case TARGET_IN_RANGE, ATTACK_TARGET -> node.parameter("range", "3");
             case HEALTH_BELOW -> node.parameter("percent", "0.5");
