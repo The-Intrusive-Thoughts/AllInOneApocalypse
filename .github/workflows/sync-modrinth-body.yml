@@ -1,0 +1,39 @@
+name: Sync Modrinth Description
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Validate Modrinth token is configured
+        run: |
+          if [ -z "${MODRINTH_TOKEN}" ]; then
+            echo "MODRINTH_TOKEN GitHub secret is missing."
+            exit 1
+          fi
+
+      - name: Sync project description
+        run: ./gradlew syncModrinthBody

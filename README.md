@@ -1,57 +1,106 @@
-![AIOA Logo](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/AIOA-logo2.png)
+![All In One Apocalypse logo](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/AIOA-logo2.png)
 
-All In One Apocalypse (AIOA) is a lightweight mod that changes mob spawning to create a zombie apocalypse style experience.
+# All In One Apocalypse
 
-By default, the mod disables the spawning of most hostile mobs so that zombies become the main threat in the world. Mobs that spawn in structures or other dimensions are not affected. This option can be changed in the config.
+**All In One Apocalypse (AIOA)** turns Minecraft's ordinary hostile spawning into a configurable zombie-apocalypse experience. Keep the lightweight default setup, build cinematic encounters, or create advanced mob behavior with the visual editor—without needing to write a mod.
 
-The mod also allows zombies to spawn on the surface during the day and prevents them from burning in sunlight. This can also be enabled or disabled in the config.
+Available for **Fabric** and **Forge**. Choose a file marked for your exact Minecraft version and loader from the Versions tab.
 
-![AIOA Config Screen](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/AIOA-config.png)
+## The apocalypse, your way
 
-AIOA includes a simple spawn configuration that allows you to add modded mobs to the daytime spawn list.
+By default, AIOA suppresses most ordinary hostile spawns so zombies become the main threat. Structure, spawner, special, and non-Overworld spawning can remain untouched, and every major rule can be adjusted in the in-game configuration.
 
-You can also adjust how frequently those mobs spawn, making it easy to balance mobs from other mods.
+Configured apocalypse mobs can spawn on the surface during the day and can be protected from sunlight burning. The spawn pool accepts vanilla and modded mobs, with controls for rarity, chance, group size, distance, biome, and per-player limits.
 
-![AIOA Features](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/AIOA-features.png)
+![AIOA configuration screen](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/AIOA-config.png)
 
-- Disables most hostile mob spawning by default
-- Allows zombies to spawn during the day
-- Prevents zombies from burning in sunlight
-- Configurable spawn list for modded mobs
-- Adjustable spawn rarity
-- Creative Spawn Studio (`F7`) with cursor placement, No AI, face-player, and persistence controls
-- Per-player instanced horde spawning for predictable multiplayer budgets
-- Coordinated target-sharing AI for configurable vanilla and modded mobs
-- Visual Behavior Graph Studio for scripting individual mobs, entity types, tags, managed mobs, or global mob behavior
-- 35+ graph nodes for sensing, conditions, movement, combat, state changes, mob interaction, spawning, and effects
-- Right-click world selection, multi-graph projects, live mob viewport, draggable paged help, validation, and secure multiplayer syncing
-- Configurable graph cadence, execution budgets, and mob-spawn safety caps
+## Highlights
+
+- Configurable hostile-spawn suppression
+- Daytime surface spawning for vanilla or modded mobs
+- Optional sunlight protection and zombie-variant controls
+- Per-player instanced spawning with multiplayer-safe budgets
+- Refined pursuit, door use, wall climbing, and coordinated target sharing
+- Per-mob targeting rules for players, animals, other mobs, or everything
 - Balanced, Cinematic, and Horde quick presets
-- Compact ImGui-inspired UI with blur-safe animated-grid backgrounds and micro-animated controls
+- Server-authoritative networking, validation, cooldowns, and spawn safety caps
+- Compact, scalable editor UI with draggable windows, animated grids, contextual help, and configurable sounds
 
+![AIOA feature overview](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/AIOA-features.png)
 
+## Behavior Graph Studio
 
-## Compatible Config Mods
+Press **F7** to open the visual Behavior Graph Studio. Build mob logic by dragging nodes onto a graph and connecting their ports, similar to a visual scripting or node-compositing tool.
 
-[![YetAnotherConfigLib](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/YACL-TEXTURE.png)](https://modrinth.com/mod/yacl)
-[![MidnightLib](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/ML-TEXTURE.png)](https://modrinth.com/mod/midnightlib)
-[![Mod Menu](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/MM-TEXTURE.png)](https://modrinth.com/mod/modmenu)
-[![Catalogue](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/C-TEXTURE.png)](https://www.curseforge.com/minecraft/mc-mods/catalogue)
-[![Cloth Config Lib](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/CCL-TEXTURE.png)](https://modrinth.com/mod/cloth-config)
-[![Configured](https://raw.githubusercontent.com/The-Intrusive-Thoughts/AllInOneApocalypse/1.20.1/common/logo/CONF-TEXTURE.png)](https://modrinth.com/mod/project/HlpEBg3R)
+Graphs can target:
 
-## Release Workflow
+- One selected mob
+- A mob type
+- A mob tag
+- AIOA-managed mobs
+- All eligible mobs globally
 
-- `.\gradlew.bat verifyAll`
-  Builds both Fabric and Forge to catch loader-specific breakages before release.
+The editor includes sensing, timing, conditions, variables, movement, rotation, navigation, combat, equipment, attributes, effects, model-part controls, mob spawning, chat actions, and safe script nodes. Graphs support multiple tabs, undo and redo, validation, zooming, panning, reusable files, an inspector, node parameters, and an interactive 3D preview viewport.
 
-- `.\gradlew.bat publishModrinth`
-  Publishes the current checked-in version to Modrinth without changing the Modrinth project page body.
+To select a world mob, leave the editor's selection mode and **right-click the mob**. This avoids accidental selection through the UI.
 
-- `.\gradlew.bat syncModrinthBody`
-  Updates the Modrinth project page body separately when you actually want the public description changed.
+## Creative Spawn Studio
 
-- `.\gradlew.bat releaseModrinth -PreleaseVersion=0.1.2d -PreleaseChangelog="First note||Second note"`
-  Updates `gradle.properties`, prepends a matching `CHANGELOG.md` entry, builds both loaders, and publishes both artifacts to Modrinth.
+Press **F6** or open Spawn Studio from AIOA's configuration screen. Creative players can spawn a chosen mob with controls such as:
 
-This still does not remove the need for separate Minecraft branches when Mojang changes APIs, but it does keep each branch much easier to maintain and publish consistently.
+- Placement at the aimed block or cursor position
+- Face the player
+- Disable AI
+- Persistent mob
+- Custom name and basic spawn options
+
+Use Spawn Studio with the Behavior Graph Studio to create, select, and test actors for videos, maps, machinima, and gameplay scenarios.
+
+## Built-in guidance
+
+The first-open tutorial points to the integrated Docs tab and can be skipped or closed. The movable help and documentation windows explain editor controls, graph targeting, node categories, scripting, validation, and common workflows directly in game.
+
+## Controls
+
+| Action | Default control |
+| --- | --- |
+| Open Creative Spawn Studio | `F6` |
+| Open Behavior Graph Studio | `F7` |
+| Pan graph | Hold left mouse button on empty space |
+| Zoom graph | Mouse wheel |
+| Edit a node | Double-click the node |
+| Connect nodes | Drag between compatible ports |
+| Delete selection | `Delete` |
+| Undo | `Ctrl` + `Z` |
+| Redo | `Ctrl` + `Y` |
+| Context actions | Right-click the graph |
+
+Controls can be changed from Minecraft's keybind settings.
+
+## Optional configuration integrations
+
+AIOA includes its own configuration and editor screens. These supported mods provide additional entry points or loader-specific configuration integration; they are not all required.
+
+- [YetAnotherConfigLib (YACL)](https://modrinth.com/mod/yacl)
+- [MidnightLib](https://modrinth.com/mod/midnightlib)
+- [Mod Menu](https://modrinth.com/mod/modmenu)
+- [Cloth Config API](https://modrinth.com/mod/cloth-config)
+- [Catalogue](https://www.curseforge.com/minecraft/mc-mods/catalogue)
+- [Configured](https://modrinth.com/mod/configured)
+
+## Installation
+
+1. Install the Fabric or Forge loader required by the file.
+2. Install any dependency marked **Required** on that version's Modrinth page.
+3. Place the AIOA `.jar` in your `mods` folder.
+4. Make sure the AIOA file, loader, dependencies, and Minecraft version all match.
+
+Do not use a Forge build on Fabric or a Fabric build on Forge. A file compiled for a newer Minecraft/Java version may show a `javafml` or language-provider error on an older installation.
+
+## Links
+
+- [Download AIOA versions](https://modrinth.com/mod/aioa/versions)
+- [Source code and issue tracker](https://github.com/The-Intrusive-Thoughts/AllInOneApocalypse)
+- [Changelog](https://github.com/The-Intrusive-Thoughts/AllInOneApocalypse/blob/1.20.1/CHANGELOG.md)
+
+AIOA is designed for survival packs, adventure maps, multiplayer events, testing, and content creation. Start with a preset, then tune only the systems you need.
