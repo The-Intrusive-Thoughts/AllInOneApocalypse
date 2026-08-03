@@ -93,6 +93,9 @@ public final class AioaBehaviorValidator {
             case PLAY_SOUND -> { number(node, "volume", 0, 4, issues); number(node, "pitch", 0.25, 2, issues); }
             case SAY_IN_CHAT -> number(node, "range", 1, 256, issues);
             case PARTICLE_PATTERN -> { number(node, "points", 3, 64, issues); number(node, "radius", 0.1, 8, issues); }
+            case HEAL_SELF -> number(node, "amount", 0, 2048, issues);
+            case SET_VELOCITY -> { number(node, "x", -8, 8, issues); number(node, "y", -8, 8, issues); number(node, "z", -8, 8, issues); }
+            case SET_VARIABLE, MATH_VARIABLE, COMPARE_VARIABLE -> number(node, "value", -1_000_000, 1_000_000, issues);
             case SET_BODY_ROTATION, SET_HEAD_ROTATION -> number(node, "degrees", -360, 360, issues);
             case SCRIPT -> {
                 String script = node.parameters.getOrDefault("script", "");
@@ -128,6 +131,12 @@ public final class AioaBehaviorValidator {
             case PLAY_SOUND -> Set.of("sound", "volume", "pitch");
             case SAY_IN_CHAT -> Set.of("message", "range");
             case PARTICLE_PATTERN -> Set.of("pattern", "points", "radius");
+            case HEAL_SELF -> Set.of("amount");
+            case SET_VELOCITY -> Set.of("x", "y", "z");
+            case ADD_TAG, REMOVE_TAG, HAS_TAG -> Set.of("tag");
+            case SET_VARIABLE -> Set.of("name", "value");
+            case MATH_VARIABLE -> Set.of("name", "operation", "value");
+            case COMPARE_VARIABLE -> Set.of("name", "comparison", "value");
             case SET_BODY_ROTATION, SET_HEAD_ROTATION -> Set.of("degrees");
             case SCRIPT -> Set.of("script");
             case COMMENT -> Set.of("text");
