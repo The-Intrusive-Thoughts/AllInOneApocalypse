@@ -247,7 +247,7 @@ public final class AioaBehaviorRuntime {
             case AREA_DAMAGE -> areaDamage(node, mob);
             case SET_FIRE_TARGET -> {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
-                if (target != null) target.setSecondsOnFire((int) number(node, "seconds", 4, 0, 60));
+                if (target != null) target.igniteForSeconds((int) number(node, "seconds", 4, 0, 60));
             }
             case LAUNCH_TARGET -> launchTarget(node, mob, context);
             case SET_AGGRESSIVE -> mob.setAggressive(flag(node, "value", true));
@@ -356,7 +356,7 @@ public final class AioaBehaviorRuntime {
     private static void applyEffect(AioaBehaviorGraph.Node node, Mob source, LivingEntity target) {
         ResourceLocation id = AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("effect", "minecraft:speed"));
         if (id == null || !BuiltInRegistries.MOB_EFFECT.containsKey(id)) return;
-        MobEffect effect = BuiltInRegistries.MOB_EFFECT.get(id);
+        Holder<MobEffect> effect = BuiltInRegistries.MOB_EFFECT.getHolder(id).orElse(null);
         if (effect == null) return;
         target.addEffect(new MobEffectInstance(effect,
                 (int) number(node, "duration", 200, 1, 72000),
