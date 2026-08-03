@@ -40,7 +40,7 @@ public final class AioaForge {
             .simpleChannel();
 
     public AioaForge() {
-        SOUND_EVENTS.register(FMLJavaModLoadingContext.get().getModEventBus());
+        SOUND_EVENTS.register(FMLJavaModLoadingContext.get().getModBusGroup());
         AioaCommon.init();
         NETWORK.messageBuilder(AioaSpawnRequest.class, 0)
                 .encoder(AioaForge::encodeSpawnRequest)
