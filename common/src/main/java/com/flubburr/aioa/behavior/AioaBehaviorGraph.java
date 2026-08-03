@@ -14,6 +14,7 @@ public final class AioaBehaviorGraph {
     public String selector = "";
     public List<Node> nodes = new ArrayList<>();
     public List<Edge> edges = new ArrayList<>();
+    public EditorLayout editorLayout = new EditorLayout();
 
     public static AioaBehaviorGraph createStarter() {
         AioaBehaviorGraph graph = new AioaBehaviorGraph();
@@ -42,6 +43,7 @@ public final class AioaBehaviorGraph {
         copy.nodes = new ArrayList<>(copy.nodes);
         copy.edges = this.edges == null ? new ArrayList<>() : this.edges.stream().map(Edge::copy).toList();
         copy.edges = new ArrayList<>(copy.edges);
+        copy.editorLayout = this.editorLayout == null ? new EditorLayout() : this.editorLayout.copy();
         return copy.sanitize();
     }
 
@@ -52,6 +54,7 @@ public final class AioaBehaviorGraph {
         if (this.selector == null) this.selector = "";
         if (this.nodes == null) this.nodes = new ArrayList<>();
         if (this.edges == null) this.edges = new ArrayList<>();
+        if (this.editorLayout == null) this.editorLayout = new EditorLayout();
         this.nodes.removeIf(node -> node == null || node.id == null || node.type == null);
         this.nodes.forEach(Node::sanitize);
         this.edges.removeIf(edge -> edge == null || edge.from == null || edge.to == null);
@@ -123,6 +126,14 @@ public final class AioaBehaviorGraph {
         PLAY_SOUND("Effects", "Plays a registered sound at the mob."),
         SAY_IN_CHAT("Presentation", "Sends a formatted creator message to nearby players."),
         PARTICLE_PATTERN("Presentation", "Draws a circle, burst, or spiral particle pattern around the mob."),
+        HEAL_SELF("Combat", "Heals the graph mob by a configurable amount."),
+        SET_VELOCITY("Movement", "Sets an exact X/Y/Z movement vector for launches, slides, and scripted motion."),
+        ADD_TAG("State", "Adds a scoreboard tag that other graphs can test."),
+        REMOVE_TAG("State", "Removes a scoreboard tag from the graph mob."),
+        HAS_TAG("Conditions", "Branches based on whether the graph mob has a scoreboard tag."),
+        SET_VARIABLE("Values", "Stores a named numeric value for later value nodes in this execution."),
+        MATH_VARIABLE("Values", "Adds, subtracts, multiplies, divides, minimums, or maximums a stored value."),
+        COMPARE_VARIABLE("Conditions", "Branches by comparing a stored value with a numeric threshold."),
         SCRIPT("Scripting", "Runs a safe creator script made from documented wait, say, rotate, glow, and stop commands."),
         SET_BODY_ROTATION("Model", "Separately changes the mob body's display rotation."),
         SET_HEAD_ROTATION("Model", "Separately changes the mob head's display rotation."),
@@ -188,6 +199,43 @@ public final class AioaBehaviorGraph {
 
         public Edge copy() {
             return new Edge(this.from, this.to, this.output);
+        }
+    }
+
+    public static final class EditorLayout {
+        public boolean initialized;
+        public int screenWidth;
+        public int screenHeight;
+        public int workspaceX, workspaceY, workspaceWidth, workspaceHeight;
+        public int viewportX, viewportY, viewportWidth, viewportHeight;
+        public int paletteX, paletteY, paletteWidth, paletteHeight;
+        public int inspectorX, inspectorY, inspectorWidth, inspectorHeight;
+        public int parametersX, parametersY, parametersWidth, parametersHeight;
+        public int helpX, helpY, helpWidth, helpHeight;
+        public boolean paletteCollapsed, inspectorCollapsed, parametersCollapsed, showHelp = true;
+        public int canvasPanX, canvasPanY;
+        public double canvasZoom = 1.0D;
+
+        public EditorLayout copy() {
+            EditorLayout copy = new EditorLayout();
+            copy.initialized = this.initialized;
+            copy.screenWidth = this.screenWidth; copy.screenHeight = this.screenHeight;
+            copy.workspaceX = this.workspaceX; copy.workspaceY = this.workspaceY;
+            copy.workspaceWidth = this.workspaceWidth; copy.workspaceHeight = this.workspaceHeight;
+            copy.viewportX = this.viewportX; copy.viewportY = this.viewportY;
+            copy.viewportWidth = this.viewportWidth; copy.viewportHeight = this.viewportHeight;
+            copy.paletteX = this.paletteX; copy.paletteY = this.paletteY;
+            copy.paletteWidth = this.paletteWidth; copy.paletteHeight = this.paletteHeight;
+            copy.inspectorX = this.inspectorX; copy.inspectorY = this.inspectorY;
+            copy.inspectorWidth = this.inspectorWidth; copy.inspectorHeight = this.inspectorHeight;
+            copy.parametersX = this.parametersX; copy.parametersY = this.parametersY;
+            copy.parametersWidth = this.parametersWidth; copy.parametersHeight = this.parametersHeight;
+            copy.helpX = this.helpX; copy.helpY = this.helpY;
+            copy.helpWidth = this.helpWidth; copy.helpHeight = this.helpHeight;
+            copy.paletteCollapsed = this.paletteCollapsed; copy.inspectorCollapsed = this.inspectorCollapsed;
+            copy.parametersCollapsed = this.parametersCollapsed; copy.showHelp = this.showHelp;
+            copy.canvasPanX = this.canvasPanX; copy.canvasPanY = this.canvasPanY; copy.canvasZoom = this.canvasZoom;
+            return copy;
         }
     }
 }
