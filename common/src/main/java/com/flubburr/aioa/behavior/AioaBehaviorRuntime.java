@@ -131,7 +131,7 @@ public final class AioaBehaviorRuntime {
             case FIND_PLAYER_NAME -> {
                 String playerName = node.parameters.getOrDefault("name", "");
                 context.target = nearest(mob, Player.class, range, candidate -> !candidate.isSpectator()
-                        && candidate.getGameProfile().getName().equalsIgnoreCase(playerName));
+                        && candidate.getGameProfile().name().equalsIgnoreCase(playerName));
             }
             case FIND_NEAREST_ANIMAL -> context.target = nearest(mob, Animal.class, range, LivingEntity::isAlive);
             case FIND_NEAREST_MOB -> context.target = nearest(mob, Mob.class, range, candidate -> candidate != mob && candidate.isAlive());
