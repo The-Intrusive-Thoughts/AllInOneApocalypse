@@ -127,6 +127,11 @@ public final class AioaBehaviorRuntime {
             case IS_ON_GROUND -> { return mob.onGround() ? "true" : "false"; }
             case WAS_HURT -> { return mob.hurtTime > 0 ? "true" : "false"; }
             case FIND_NEAREST_PLAYER -> context.target = nearest(mob, Player.class, range, candidate -> !candidate.isSpectator());
+            case FIND_PLAYER_NAME -> {
+                String playerName = node.parameters.getOrDefault("name", "");
+                context.target = nearest(mob, Player.class, range, candidate -> !candidate.isSpectator()
+                        && candidate.getGameProfile().getName().equalsIgnoreCase(playerName));
+            }
             case FIND_NEAREST_ANIMAL -> context.target = nearest(mob, Animal.class, range, LivingEntity::isAlive);
             case FIND_NEAREST_MOB -> context.target = nearest(mob, Mob.class, range, candidate -> candidate != mob && candidate.isAlive());
             case FIND_ENTITY_TYPE -> context.target = findEntityType(node, mob, range);
