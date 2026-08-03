@@ -1,6 +1,7 @@
 package com.flubburr.aioa.compat;
 
 import net.minecraft.core.Registry;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -24,6 +25,6 @@ public final class AioaRegistryCompat {
 
     public static SoundEvent getSoundEvent(Identifier id) {
         Registry<SoundEvent> registry = soundEvents();
-        return registry == null ? null : registry.get(id);
+        return registry == null ? null : registry.get(id).map(Holder::value).orElse(null);
     }
 }

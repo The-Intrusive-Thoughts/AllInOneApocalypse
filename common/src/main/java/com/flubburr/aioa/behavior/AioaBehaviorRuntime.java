@@ -357,9 +357,9 @@ public final class AioaBehaviorRuntime {
     }
 
     private static void applyEffect(AioaBehaviorGraph.Node node, Mob source, LivingEntity target) {
-        ResourceLocation id = AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("effect", "minecraft:speed"));
+        Identifier id = AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("effect", "minecraft:speed"));
         if (id == null || !BuiltInRegistries.MOB_EFFECT.containsKey(id)) return;
-        MobEffect effect = BuiltInRegistries.MOB_EFFECT.get(id);
+        Holder<MobEffect> effect = BuiltInRegistries.MOB_EFFECT.get(id).orElse(null);
         if (effect == null) return;
         target.addEffect(new MobEffectInstance(effect,
                 (int) number(node, "duration", 200, 1, 72000),
@@ -371,7 +371,7 @@ public final class AioaBehaviorRuntime {
         if (!(mob.level() instanceof ServerLevel level)) return;
         LivingEntity target = context.target != null ? context.target : mob.getTarget();
         Vec3 position = flag(node, "atTarget", true) && target != null ? target.position() : mob.position();
-        LightningBolt lightning = EntityType.LIGHTNING_BOLT.create(level);
+        LightningBolt lightning = EntityType.LIGHTNING_BOLT.create(level, EntitySpawnReason.EVENT);
         if (lightning == null) return;
         lightning.moveTo(position.x, position.y, position.z);
         lightning.setVisualOnly(flag(node, "visualOnly", true));
