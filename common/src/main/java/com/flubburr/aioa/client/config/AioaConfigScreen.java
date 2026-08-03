@@ -214,7 +214,15 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
 
     private void finishTutorial() {
         this.editableConfig.clientUi.tutorialCompleted = true;
+        persistGuideState();
         this.rebuildWidgets();
+    }
+
+    private void persistGuideState() {
+        AioaConfig persisted = AioaConfigManager.getConfigCopy();
+        persisted.clientUi.tutorialCompleted = this.editableConfig.clientUi.tutorialCompleted;
+        persisted.clientUi.showDocsHint = this.editableConfig.clientUi.showDocsHint;
+        AioaConfigManager.save(persisted);
     }
 
     @Override
@@ -225,6 +233,7 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
             if (mouseX >= hintX + hintWidth - 24 && mouseX <= hintX + hintWidth
                     && mouseY >= 12 && mouseY <= 36) {
                 this.editableConfig.clientUi.showDocsHint = false;
+                persistGuideState();
                 return true;
             }
         }

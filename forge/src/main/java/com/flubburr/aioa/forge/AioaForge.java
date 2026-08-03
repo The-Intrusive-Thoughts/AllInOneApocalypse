@@ -13,7 +13,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
@@ -23,6 +26,15 @@ import java.util.function.Supplier;
 @Mod(AioaConstants.MOD_ID)
 public final class AioaForge {
 
+    private static final DeferredRegister<net.minecraft.sounds.SoundEvent> SOUND_EVENTS =
+            DeferredRegister.create(ForgeRegistries.SOUND_EVENTS, AioaConstants.MOD_ID);
+
+    static {
+        SOUND_EVENTS.register("music.menu", () -> net.minecraft.sounds.SoundEvent.createVariableRangeEvent(
+                new net.minecraft.resources.ResourceLocation(AioaConstants.MOD_ID, "music.menu")
+        ));
+    }
+
     private static final String NETWORK_VERSION = "1";
     public static final SimpleChannel NETWORK = NetworkRegistry.newSimpleChannel(
             new net.minecraft.resources.ResourceLocation(AioaConstants.MOD_ID, "main"),
@@ -30,6 +42,7 @@ public final class AioaForge {
     );
 
     public AioaForge() {
+        SOUND_EVENTS.register(FMLJavaModLoadingContext.get().getModEventBus());
         AioaCommon.init();
         NETWORK.registerMessage(0, AioaSpawnRequest.class, AioaForge::encodeSpawnRequest, AioaForge::decodeSpawnRequest, AioaForge::handleSpawnRequest);
         NETWORK.registerMessage(1, AioaGraphUpdateRequest.class,

@@ -8,7 +8,10 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvent;
 
 import com.flubburr.aioa.AioaConstants;
 import com.flubburr.aioa.network.AioaSpawnRequest;
@@ -20,9 +23,13 @@ public final class AioaFabric implements ModInitializer {
 
     public static final ResourceLocation SPAWN_REQUEST = new ResourceLocation(AioaConstants.MOD_ID, "spawn_request");
     public static final ResourceLocation GRAPH_UPDATE = new ResourceLocation(AioaConstants.MOD_ID, "graph_update");
+    public static final ResourceLocation MENU_MUSIC = new ResourceLocation(AioaConstants.MOD_ID, "music.menu");
 
     @Override
     public void onInitialize() {
+        if (!BuiltInRegistries.SOUND_EVENT.containsKey(MENU_MUSIC)) {
+            Registry.register(BuiltInRegistries.SOUND_EVENT, MENU_MUSIC, SoundEvent.createVariableRangeEvent(MENU_MUSIC));
+        }
         AioaCommon.init();
         if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
             AioaMidnightConfig.initialize();
