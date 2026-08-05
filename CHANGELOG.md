@@ -13,7 +13,9 @@
 - Made variables, event state, delays, intervals, and spawn cooldowns persist per graph and per mob, with stale runtime state cleanup.
 - Added explicit floating-window z-order and occlusion-aware controls so lower Inspector, Parameters, and Palette widgets no longer bleed through the active window.
 - Added scrollable layered graph tabs that keep the active document visible when more graphs are open than fit in the workspace.
-- Reworked the viewport into a play/pause, variable-speed graph timeline preview using the selected mob type, target presence, movement, combat, rotation, glow, and active-node state without cursor-following behavior.
+- Rebuilt the viewport as a deterministic 3D graph sandbox with separate Play, Pause, Stop, 1x, 2x, and 3x controls; it follows real graph edges and output ports while previewing timers, movement, targeting, combat, health, phases, variables, rotation, and glow without changing the world.
+- Added Delay Seconds, Repeat Count, Heal Target, Clear Target Effects, and Set Target Glowing creator nodes with matching runtime execution, validation, defaults, branching, inspector fields, and documentation.
+- Categorized the Node Palette by node family and made editor sizing compensate for Minecraft GUI scales above 2 so high-scale setups retain a compact, usable workspace.
 - Added 25 boss and creator nodes covering cooldowns, four-lane sequences, target/player/weather conditions, attacker targeting, orbit/dash/target teleport, direct and area damage, fire, launch, armor, follow range, knockback resistance, status effects, lightning, explosions, action bars, persistent phases, phase routing, and despawning.
 - Expanded node configuration with immediate validation feedback, safer field limits, contextual effect/equipment/phase/sound controls, and preserved parameter edits during editor window rebuilds.
 - Updated the portable graph format to version 2 while retaining version 1 import compatibility.
