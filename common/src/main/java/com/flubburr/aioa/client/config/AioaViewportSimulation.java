@@ -126,6 +126,7 @@ final class AioaViewportSimulation {
         while (!queue.isEmpty() && budget-- > 0) {
             AioaBehaviorGraph.Node node = queue.removeFirst();
             if (!visited.add(node.id)) continue;
+            if (node.type == AioaBehaviorGraph.NodeType.FUNCTION_GROUP) simulateGroup(graph, node);
             String output = run(node);
             this.activeNode = friendly(node.type);
             this.emittedPort = output;
@@ -136,6 +137,35 @@ final class AioaViewportSimulation {
                     AioaBehaviorGraph.Node next = nodes.get(edge.to);
                     if (next != null) queue.addLast(next);
                 }
+            }
+        }
+    }
+
+    private void simulateGroup(AioaBehaviorGraph graph, AioaBehaviorGraph.Node groupNode) {
+        String groupId = groupNode.parameters.getOrDefault("_groupId", "");
+        Map<String, AioaBehaviorGraph.Node> members = graph.nodes.stream()
+                .filter(node -> groupId.equals(node.parameters.get("_group")))
+                .collect(java.util.stream.Collectors.toMap(node -> node.id, node -> node, (first, ignored) -> first));
+        if (members.isEmpty()) return;
+        Map<String, List<AioaBehaviorGraph.Edge>> outgoing = graph.edges.stream()
+                .filter(edge -> members.containsKey(edge.from) && members.containsKey(edge.to))
+                .collect(java.util.stream.Collectors.groupingBy(edge -> edge.from));
+        Set<String> incoming = graph.edges.stream().filter(edge -> members.containsKey(edge.from) && members.containsKey(edge.to))
+                .map(edge -> edge.to).collect(java.util.stream.Collectors.toSet());
+        ArrayDeque<AioaBehaviorGraph.Node> queue = new ArrayDeque<>();
+        members.values().stream().filter(node -> !incoming.contains(node.id)).forEach(queue::addLast);
+        Set<String> visited = new HashSet<>();
+        int budget = 48;
+        while (!queue.isEmpty() && budget-- > 0) {
+            AioaBehaviorGraph.Node node = queue.removeFirst();
+            if (!visited.add(node.id)) continue;
+            String output = run(node);
+            this.activeNode = groupNode.parameters.getOrDefault("name", "Group") + " / " + friendly(node.type);
+            this.emittedPort = output;
+            Set<String> emitted = node.type == AioaBehaviorGraph.NodeType.SEQUENCE
+                    ? AioaNodeSchema.branchOutputs(node.type) : Set.of(AioaNodeSchema.normalizeOutput(output));
+            for (AioaBehaviorGraph.Edge edge : outgoing.getOrDefault(node.id, List.of())) {
+                if (emitted.contains(AioaNodeSchema.normalizeOutput(edge.output))) queue.addLast(members.get(edge.to));
             }
         }
     }
