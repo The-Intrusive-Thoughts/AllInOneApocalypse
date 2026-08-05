@@ -61,7 +61,7 @@ public final class AioaBehaviorValidator {
 
     private static void validateParameters(AioaBehaviorGraph.Node node, List<String> issues) {
         Set<String> allowed = allowedParameters(node.type);
-        node.parameters.keySet().stream().filter(key -> !allowed.contains(key))
+        node.parameters.keySet().stream().filter(key -> !key.startsWith("_") && !allowed.contains(key))
                 .forEach(key -> issues.add(node.type.name().replace('_', ' ') + " does not use parameter '" + key + "'."));
         switch (node.type) {
             case MOB_BASE -> {
@@ -127,10 +127,41 @@ public final class AioaBehaviorValidator {
             case SET_PHASE -> number(node, "phase", 1, 4, issues);
             case SCRIPT -> {
                 String script = node.parameters.getOrDefault("script", "");
-                if (script.length() > 1024) issues.add("Script nodes are limited to 1,024 characters.");
+                if (script.length() > 8192) issues.add("Script nodes are limited to 8,192 characters.");
+                validateScript(script, issues);
             }
             default -> { }
         }
+    }
+
+    private static void validateScript(String script, List<String> issues) {
+        int depth = 0;
+        int lineNumber = 0;
+        for (String raw : script.replace(';', '\n').split("\\R")) {
+            lineNumber++;
+            String line = raw.trim();
+            if (line.isEmpty() || line.startsWith("//") || line.startsWith("#")) continue;
+            if (line.startsWith("if ")) {
+                depth++;
+                if (!line.contains("{") && !line.endsWith("then")) issues.add("Script line " + lineNumber + " needs '{' after its if condition.");
+            } else if (line.equals("}") || line.equalsIgnoreCase("end")) {
+                if (--depth < 0) { issues.add("Script line " + lineNumber + " closes a block that was not opened."); depth = 0; }
+            } else if (line.equals("else") || line.equals("else {") || line.equals("} else {")) {
+                if (depth == 0) issues.add("Script line " + lineNumber + " uses else outside an if block.");
+            } else if (line.startsWith("let ")) {
+                if (!line.substring(4).contains("=")) issues.add("Script line " + lineNumber + " needs 'let name = value'.");
+            } else if (!line.matches("[A-Za-z_][A-Za-z0-9_]*\\s*(\\(.*\\)|=.*)")) {
+                issues.add("Script line " + lineNumber + " is not a recognized statement.");
+            } else {
+                String function = line.split("[ (=]", 2)[0].toLowerCase(java.util.Locale.ROOT);
+                if (!Set.of("say", "actionbar", "rotate", "glow", "aggressive", "no_ai", "stop", "heal",
+                        "damage_target", "move_to_target", "set_phase", "tag").contains(function)) {
+                    issues.add("Script line " + lineNumber + " calls unknown function '" + function + "'.");
+                }
+            }
+            if (issues.size() >= 12) break;
+        }
+        if (depth > 0) issues.add("Script has " + depth + " unclosed if block(s).");
     }
 
     private static Set<String> allowedParameters(AioaBehaviorGraph.NodeType type) {

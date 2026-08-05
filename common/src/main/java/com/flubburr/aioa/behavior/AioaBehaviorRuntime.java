@@ -324,7 +324,7 @@ public final class AioaBehaviorRuntime {
             case SET_PHASE -> context.variables.put("__phase", number(node, "phase", 1, 1, 4));
             case PHASE_BRANCH -> { return "phase_" + Math.max(1, Math.min(4,
                     (int) Math.round(context.variables.getOrDefault("__phase", 1.0D)))); }
-            case SCRIPT -> runCreatorScript(node, mob);
+            case SCRIPT -> runCreatorScript(node, mob, context);
             case SET_BODY_ROTATION -> mob.setYBodyRot((float) number(node, "degrees", mob.yBodyRot, -360, 360));
             case SET_HEAD_ROTATION -> mob.setYHeadRot((float) number(node, "degrees", mob.getYHeadRot(), -360, 360));
             case DESPAWN_SELF -> mob.discard();
@@ -441,23 +441,149 @@ public final class AioaBehaviorRuntime {
         }
     }
 
-    private static void runCreatorScript(AioaBehaviorGraph.Node node, Mob mob) {
-        String script = node.parameters.getOrDefault("script", "");
-        for (String raw : script.split(";")) {
-            String command = raw.trim();
-            if (command.isEmpty()) continue;
-            String[] parts = command.split("=", 2);
-            String name = parts[0].trim().toLowerCase(java.util.Locale.ROOT);
-            String value = parts.length > 1 ? parts[1].trim() : "true";
-            switch (name) {
-                case "say" -> sayInChat(new AioaBehaviorGraph.Node("script-say", AioaBehaviorGraph.NodeType.SAY_IN_CHAT, 0, 0).parameter("message", value), mob);
-                case "rotate" -> { try { mob.setYRot(mob.getYRot() + Float.parseFloat(value)); } catch (NumberFormatException ignored) { } }
-                case "glow" -> mob.setGlowingTag(Boolean.parseBoolean(value));
-                case "stop" -> mob.getNavigation().stop();
-                case "aggressive" -> mob.setAggressive(Boolean.parseBoolean(value));
-                default -> { }
+    private static void runCreatorScript(AioaBehaviorGraph.Node node, Mob mob, ExecutionContext context) {
+        String script = node.parameters.getOrDefault("script", "").replace(';', '\n');
+        ArrayDeque<Boolean> parents = new ArrayDeque<>();
+        ArrayDeque<Boolean> conditions = new ArrayDeque<>();
+        boolean active = true;
+        int executed = 0;
+        for (String raw : script.split("\\R")) {
+            if (executed++ >= 128) break;
+            String line = raw.strip();
+            if (line.isEmpty() || line.startsWith("//") || line.startsWith("#")) continue;
+            if (line.startsWith("if ")) {
+                boolean condition = scriptCondition(line.substring(3).replace("{", "").trim(), mob, context);
+                parents.push(active);
+                conditions.push(condition);
+                active = active && condition;
+                continue;
             }
+            if (line.equals("else") || line.equals("else {") || line.equals("} else {")) {
+                if (!parents.isEmpty() && !conditions.isEmpty()) {
+                    boolean inverted = !conditions.pop();
+                    conditions.push(inverted);
+                    active = parents.peek() && inverted;
+                }
+                continue;
+            }
+            if (line.equals("}") || line.equalsIgnoreCase("end")) {
+                if (!parents.isEmpty()) active = parents.pop();
+                if (!conditions.isEmpty()) conditions.pop();
+                continue;
+            }
+            if (!active) continue;
+            if (line.startsWith("let ")) {
+                String[] assignment = line.substring(4).split("=", 2);
+                if (assignment.length == 2) context.variables.put(safeScriptName(assignment[0]),
+                        scriptValue(assignment[1], mob, context));
+                continue;
+            }
+            runScriptCall(line, mob, context);
         }
+    }
+
+    private static void runScriptCall(String line, Mob mob, ExecutionContext context) {
+        String name;
+        String argument;
+        int open = line.indexOf('(');
+        if (open >= 0 && line.endsWith(")")) {
+            name = line.substring(0, open).trim().toLowerCase(java.util.Locale.ROOT);
+            argument = line.substring(open + 1, line.length() - 1).trim();
+        } else {
+            String[] legacy = line.split("=", 2);
+            name = legacy[0].trim().toLowerCase(java.util.Locale.ROOT);
+            argument = legacy.length > 1 ? legacy[1].trim() : "true";
+        }
+        LivingEntity target = context.target != null ? context.target : mob.getTarget();
+        switch (name) {
+            case "say" -> sayInChat(new AioaBehaviorGraph.Node("script-say", AioaBehaviorGraph.NodeType.SAY_IN_CHAT, 0, 0)
+                    .parameter("message", scriptText(argument, mob, context)), mob);
+            case "actionbar" -> actionBar(new AioaBehaviorGraph.Node("script-actionbar", AioaBehaviorGraph.NodeType.ACTION_BAR, 0, 0)
+                    .parameter("message", scriptText(argument, mob, context)), mob);
+            case "rotate" -> {
+                float yaw = mob.getYRot() + (float) scriptValue(argument, mob, context);
+                mob.setYRot(yaw); mob.setYHeadRot(yaw); mob.setYBodyRot(yaw);
+            }
+            case "glow" -> mob.setGlowingTag(scriptBoolean(argument, mob, context));
+            case "aggressive" -> mob.setAggressive(scriptBoolean(argument, mob, context));
+            case "no_ai" -> mob.setNoAi(scriptBoolean(argument, mob, context));
+            case "stop" -> mob.getNavigation().stop();
+            case "heal" -> mob.heal((float) Math.max(0, Math.min(2048, scriptValue(argument, mob, context))));
+            case "damage_target" -> {
+                if (target != null && target.isAlive()) target.hurt(mob.damageSources().mobAttack(mob),
+                        (float) Math.max(0, Math.min(2048, scriptValue(argument, mob, context))));
+            }
+            case "move_to_target" -> {
+                if (target != null && mob instanceof PathfinderMob pathfinder) pathfinder.getNavigation().moveTo(target,
+                        Math.max(0.1, Math.min(3, scriptValue(argument, mob, context))));
+            }
+            case "set_phase" -> context.variables.put("__phase", Math.max(1, Math.min(4, scriptValue(argument, mob, context))));
+            case "tag" -> mob.addTag(safeScriptName(stripScriptQuotes(argument)));
+            default -> { }
+        }
+    }
+
+    private static boolean scriptCondition(String expression, Mob mob, ExecutionContext context) {
+        String value = expression.trim();
+        if (value.equals("target_exists")) return (context.target != null ? context.target : mob.getTarget()) != null;
+        if (value.equals("!target_exists")) return (context.target != null ? context.target : mob.getTarget()) == null;
+        for (String operator : List.of(">=", "<=", "==", "!=", ">", "<")) {
+            int at = value.indexOf(operator);
+            if (at < 0) continue;
+            double left = scriptValue(value.substring(0, at), mob, context);
+            double right = scriptValue(value.substring(at + operator.length()), mob, context);
+            return switch (operator) {
+                case ">=" -> left >= right; case "<=" -> left <= right; case "==" -> Math.abs(left - right) < 1.0E-9;
+                case "!=" -> Math.abs(left - right) >= 1.0E-9; case ">" -> left > right; default -> left < right;
+            };
+        }
+        return scriptValue(value, mob, context) != 0;
+    }
+
+    private static double scriptValue(String raw, Mob mob, ExecutionContext context) {
+        String value = raw.trim();
+        LivingEntity target = context.target != null ? context.target : mob.getTarget();
+        return switch (value) {
+            case "health" -> mob.getHealth();
+            case "max_health" -> mob.getMaxHealth();
+            case "health_percent" -> mob.getHealth() / Math.max(1.0F, mob.getMaxHealth());
+            case "target_health" -> target == null ? 0 : target.getHealth();
+            case "target_distance" -> target == null ? 1_000_000 : Math.sqrt(mob.distanceToSqr(target));
+            case "phase" -> context.variables.getOrDefault("__phase", 1.0D);
+            case "tick" -> (double) mob.level().getGameTime();
+            default -> {
+                try { yield Double.parseDouble(value); }
+                catch (NumberFormatException ignored) { yield context.variables.getOrDefault(safeScriptName(value), 0.0D); }
+            }
+        };
+    }
+
+    private static boolean scriptBoolean(String raw, Mob mob, ExecutionContext context) {
+        String value = raw.trim();
+        if (value.equalsIgnoreCase("true")) return true;
+        if (value.equalsIgnoreCase("false")) return false;
+        return scriptValue(value, mob, context) != 0;
+    }
+
+    private static String scriptText(String raw, Mob mob, ExecutionContext context) {
+        String value = stripScriptQuotes(raw).replace("{mob}", mob.getName().getString());
+        for (Map.Entry<String, Double> variable : context.variables.entrySet()) {
+            value = value.replace("{" + variable.getKey() + "}", Double.toString(variable.getValue()));
+        }
+        return value.substring(0, Math.min(256, value.length()));
+    }
+
+    private static String stripScriptQuotes(String value) {
+        String trimmed = value.trim();
+        if (trimmed.length() >= 2 && ((trimmed.startsWith("\"") && trimmed.endsWith("\""))
+                || (trimmed.startsWith("'") && trimmed.endsWith("'")))) return trimmed.substring(1, trimmed.length() - 1);
+        return trimmed;
+    }
+
+    private static String safeScriptName(String value) {
+        String safe = value.trim().replaceAll("[^A-Za-z0-9_]", "_");
+        if (safe.isBlank()) safe = "value";
+        return safe.substring(0, Math.min(48, safe.length()));
     }
 
     private static String variableName(AioaBehaviorGraph.Node node) {
