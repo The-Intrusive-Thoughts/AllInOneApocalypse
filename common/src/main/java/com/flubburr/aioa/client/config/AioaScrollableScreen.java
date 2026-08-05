@@ -7,7 +7,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-abstract class AioaScrollableScreen extends Screen {
+abstract class AioaScrollableScreen extends AioaAnimatedScreen {
 
     protected final List<AbstractWidget> scrollWidgets = new ArrayList<>();
     protected final List<Integer> scrollBaseY = new ArrayList<>();
@@ -83,7 +83,7 @@ abstract class AioaScrollableScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-        return this.handleScroll(delta, 28) || super.mouseScrolled(mouseX, mouseY, delta);
+    public boolean mouseScrolled(double mouseX, double mouseY, double deltaX, double deltaY) {
+        return this.handleScroll(deltaY, 28) || super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
     }
 }

@@ -18,7 +18,7 @@ def mcVersionProfiles = [
         '1.21.9': [fabricApi: '0.134.1+1.21.9', forge: '59.0.5', forgeLoaderRange: '[59,)', midnightLib: '1.9.2+1.21.10-fabric', modMenu: '16.0.1', fabricGameVersions: ['1.21.9']],
         '1.21.10': [fabricApi: '0.138.4+1.21.10', forge: '60.1.9', forgeLoaderRange: '[60,)', midnightLib: '1.9.2+1.21.10-fabric', modMenu: '16.0.1', fabricGameVersions: ['1.21.10']],
         '1.21.11': [fabricApi: '0.141.3+1.21.11', forge: '61.1.5', forgeLoaderRange: '[61,)', midnightLib: '1.9.2+1.21.11-fabric', modMenu: '17.0.0', fabricGameVersions: ['1.21.11']],
-        '26.1': [fabricApi: '0.144.3+26.1', forge: '62.0.3', forgeLoaderRange: '[62,)', midnightLib: '1.9.2+26.1-fabric', modMenu: '18.0.0-alpha.8', fabricGameVersions: ['26.1']],
+        '26.1.2': [fabricApi: '0.155.2+26.1.2', forge: null, forgeLoaderRange: null, midnightLib: '', modMenu: '', fabricGameVersions: ['26.1', '26.1.1', '26.1.2']],
 ]
 
 def selectedProfile = mcVersionProfiles[minecraft_version]
@@ -32,6 +32,9 @@ ext.forge_loader_version_range = selectedProfile.forgeLoaderRange ?: "[0,)"
 ext.midnightlib_version = selectedProfile.midnightLib
 ext.modmenu_version = selectedProfile.modMenu
 ext.fabric_modrinth_game_versions = selectedProfile.fabricGameVersions ?: [minecraft_version]
+ext.publish_forge_to_modrinth = selectedProfile.containsKey('publishForgeToModrinth')
+        ? selectedProfile.publishForgeToModrinth
+        : true
 
 tasks.register('publishModrinth') {
     group = 'publishing'
@@ -39,8 +42,12 @@ tasks.register('publishModrinth') {
 
     dependsOn(':fabric:modrinth')
 
-    if (findProject(':forge') != null) {
+    if (findProject(':forge') != null && publish_forge_to_modrinth) {
         dependsOn(':forge:modrinth')
+    } else if (findProject(':forge') != null) {
+        doFirst {
+            logger.lifecycle("Skipping Forge Modrinth publish for Minecraft ${minecraft_version}; this profile is not enabled for aggregate Modrinth publishing.")
+        }
     }
 }
 

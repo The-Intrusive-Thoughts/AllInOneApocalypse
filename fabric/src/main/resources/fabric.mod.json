@@ -10,20 +10,12 @@
   "license": "${license}",
   "icon": "logo.png",
   "environment": "*",
-  "jars": [
-    {
-      "file": "META-INF/jars/aioa-embedded-midnightlib.jar"
-    }
-  ],
   "entrypoints": {
     "main": [
       "com.flubburr.aioa.fabric.AioaFabric"
     ],
     "client": [
       "com.flubburr.aioa.fabric.AioaFabricClient"
-    ],
-    "modmenu": [
-      "com.flubburr.aioa.fabric.config.AioaModMenuIntegration"
     ]
   },
   "mixins": [
@@ -31,9 +23,9 @@
   ],
   "depends": {
     "fabricloader": ">=${fabric_loader_version}",
-    "fabric": "*",
+    "fabric-api": "*",
     "minecraft": "${fabric_minecraft_version_range}",
-    "java": ">=17"
+    "java": ">=25"
   },
   "suggests": {
     "midnightlib": "*",

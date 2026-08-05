@@ -7,12 +7,13 @@ import java.util.List;
 
 public final class AioaConfig {
 
-    public static final int CURRENT_SCHEMA_VERSION = 5;
+    public static final int CURRENT_SCHEMA_VERSION = 6;
 
     public int schemaVersion = CURRENT_SCHEMA_VERSION;
     public HostileSpawnControl hostileSpawnControl = new HostileSpawnControl();
     public DaySurfaceSpawns daySurfaceSpawns = new DaySurfaceSpawns();
     public BehaviorEngine behaviorEngine = new BehaviorEngine();
+    public ClientUi clientUi = new ClientUi();
     public List<AioaBehaviorGraph> behaviorGraphs = new ArrayList<>(List.of(AioaBehaviorGraph.createStarter()));
 
     public static AioaConfig createDefault() {
@@ -25,6 +26,7 @@ public final class AioaConfig {
         copy.hostileSpawnControl = this.hostileSpawnControl.copy();
         copy.daySurfaceSpawns = this.daySurfaceSpawns.copy();
         copy.behaviorEngine = this.behaviorEngine.copy();
+        copy.clientUi = this.clientUi.copy();
         copy.behaviorGraphs = this.behaviorGraphs == null
                 ? new ArrayList<>()
                 : new ArrayList<>(this.behaviorGraphs.stream().map(AioaBehaviorGraph::copy).toList());
@@ -42,10 +44,14 @@ public final class AioaConfig {
         if (this.behaviorEngine == null) {
             this.behaviorEngine = new BehaviorEngine();
         }
+        if (this.clientUi == null) {
+            this.clientUi = new ClientUi();
+        }
 
         this.hostileSpawnControl.sanitize();
         this.daySurfaceSpawns.sanitize();
         this.behaviorEngine.sanitize();
+        this.clientUi.sanitize();
         if (this.behaviorGraphs == null) {
             this.behaviorGraphs = new ArrayList<>();
         }
@@ -93,6 +99,30 @@ public final class AioaConfig {
         HORDE
     }
 
+    public static final class ClientUi {
+        public int editorScalePercent = 100;
+        public double menuSfxVolume = 0.35D;
+        public double uiSoundVolume = 0.70D;
+        public boolean showDocsHint = true;
+        public boolean tutorialCompleted = false;
+
+        private ClientUi copy() {
+            ClientUi copy = new ClientUi();
+            copy.editorScalePercent = this.editorScalePercent;
+            copy.menuSfxVolume = this.menuSfxVolume;
+            copy.uiSoundVolume = this.uiSoundVolume;
+            copy.showDocsHint = this.showDocsHint;
+            copy.tutorialCompleted = this.tutorialCompleted;
+            return copy;
+        }
+
+        private void sanitize() {
+            this.editorScalePercent = Math.max(25, Math.min(500, this.editorScalePercent));
+            this.menuSfxVolume = Math.max(0.0D, Math.min(1.0D, this.menuSfxVolume));
+            this.uiSoundVolume = Math.max(0.0D, Math.min(1.0D, this.uiSoundVolume));
+        }
+    }
+
     public static final class BehaviorEngine {
         public boolean enabled = true;
         public int tickInterval = 1;
@@ -100,6 +130,7 @@ public final class AioaConfig {
         public int maxStepsPerGraph = 64;
         public boolean allowWorldNodes = true;
         public int maxNodeSpawnedMobsNearby = 16;
+        public String graphLibraryDirectory = "aioa/graphs";
 
         private BehaviorEngine copy() {
             BehaviorEngine copy = new BehaviorEngine();
@@ -109,6 +140,7 @@ public final class AioaConfig {
             copy.maxStepsPerGraph = this.maxStepsPerGraph;
             copy.allowWorldNodes = this.allowWorldNodes;
             copy.maxNodeSpawnedMobsNearby = this.maxNodeSpawnedMobsNearby;
+            copy.graphLibraryDirectory = this.graphLibraryDirectory;
             return copy;
         }
 
@@ -117,6 +149,11 @@ public final class AioaConfig {
             this.maxGraphsPerMob = Math.max(1, Math.min(32, this.maxGraphsPerMob));
             this.maxStepsPerGraph = Math.max(8, Math.min(256, this.maxStepsPerGraph));
             this.maxNodeSpawnedMobsNearby = Math.max(1, Math.min(64, this.maxNodeSpawnedMobsNearby));
+            if (this.graphLibraryDirectory == null || this.graphLibraryDirectory.isBlank()
+                    || this.graphLibraryDirectory.contains("..") || this.graphLibraryDirectory.startsWith("/")
+                    || this.graphLibraryDirectory.matches("^[A-Za-z]:.*")) {
+                this.graphLibraryDirectory = "aioa/graphs";
+            }
         }
     }
 

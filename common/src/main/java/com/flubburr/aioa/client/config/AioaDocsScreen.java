@@ -1,0 +1,133 @@
+package com.flubburr.aioa.client.config;
+
+import com.flubburr.aioa.behavior.AioaBehaviorGraph;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+
+import java.util.List;
+
+final class AioaDocsScreen extends AioaAnimatedScreen {
+    private final Screen parent;
+    private int tab;
+    private int nodePage;
+
+    AioaDocsScreen(Screen parent) {
+        super(Component.translatable("aioa.docs.title"));
+        this.parent = parent;
+    }
+
+    @Override
+    protected void init() {
+        this.clearWidgets();
+        int panelWidth = Math.min(820, this.width - 24);
+        int left = (this.width - panelWidth) / 2;
+        String[] tabs = {
+                Component.translatable("aioa.docs.tab.start").getString(),
+                Component.translatable("aioa.docs.tab.editor").getString(),
+                Component.translatable("aioa.docs.tab.nodes").getString(),
+                Component.translatable("aioa.docs.tab.spawning").getString(),
+                Component.translatable("aioa.docs.tab.multiplayer").getString(),
+                "Scripts"
+        };
+        int tabWidth = Math.max(72, (panelWidth - 32) / tabs.length);
+        for (int i = 0; i < tabs.length; i++) {
+            int selectedTab = i;
+            this.addRenderableWidget(AioaScreenUtil.button(left + 16 + i * tabWidth, 54, tabWidth - 4, tabs[i], b -> {
+                this.tab = selectedTab;
+                this.rebuildDocsWidgets();
+            }));
+        }
+        if (this.tab == 2) {
+            this.addRenderableWidget(AioaScreenUtil.button(left + 20, this.height - 54, 90, Component.translatable("aioa.docs.previous").getString(), b -> this.nodePage = Math.max(0, this.nodePage - 1)));
+            this.addRenderableWidget(AioaScreenUtil.button(left + 116, this.height - 54, 90, Component.translatable("aioa.docs.next").getString(), b -> {
+                if ((this.nodePage + 1) * 8 < AioaBehaviorGraph.NodeType.values().length) this.nodePage++;
+            }));
+        }
+        this.addRenderableWidget(AioaScreenUtil.button(left + panelWidth - 104, this.height - 54, 84, Component.translatable("gui.done").getString(), b -> this.onClose()));
+    }
+
+    private void rebuildDocsWidgets() { this.init(); }
+
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        this.beginUiRender(graphics);
+        AioaScreenUtil.drawScreenBackground(graphics, this.width, this.height);
+        int panelWidth = Math.min(820, this.width - 24);
+        int left = (this.width - panelWidth) / 2;
+        AioaScreenUtil.drawPanel(graphics, left, 18, left + panelWidth, this.height - 20);
+        graphics.drawCenteredString(this.font, this.title, this.width / 2, 30, AioaScreenUtil.TEXT_MAIN);
+        graphics.drawCenteredString(this.font, "Creator-friendly guide - no code required", this.width / 2, 42, AioaScreenUtil.TEXT_SUB);
+        int top = 88;
+        switch (this.tab) {
+            case 1 -> drawEditorDocs(graphics, left, top, panelWidth);
+            case 2 -> drawNodeDocs(graphics, left, top, panelWidth);
+            case 3 -> drawSpawnDocs(graphics, left, top, panelWidth);
+            case 4 -> drawMultiplayerDocs(graphics, left, top, panelWidth);
+            case 5 -> drawScriptDocs(graphics, left, top, panelWidth);
+            default -> drawStartDocs(graphics, left, top, panelWidth);
+        }
+        super.render(graphics, mouseX, mouseY, partialTick);
+        this.finishUiRender(graphics);
+    }
+
+    private void drawStartDocs(GuiGraphics g, int left, int top, int width) {
+        card(g, left + 20, top, width - 40, "WELCOME TO MOB STUDIO", "Build mob behavior by placing readable nodes, linking their output ports, previewing the selected mob, validating, and applying. Start with one mob type before using global scopes.");
+        AioaScreenUtil.drawMobPreview(g, this.font, left + 36, top + 76, 210, 150, Identifier.fromNamespaceAndPath("minecraft", "zombie"), true,
+                List.of(Component.literal("LIVE MOB SHOWCASE"), Component.literal("Select, preview, spawn, direct")));
+        card(g, left + 270, top + 76, width - 306, "FIRST GRAPH", "1. Open Behavior Graph Studio or press F7.  2. Choose a scope or use world picking.  3. Add event, sensing, action, and condition nodes.  4. Link ports.  5. Validate and press Done. Use Spawn Studio to create a test subject.");
+    }
+
+    private void drawEditorDocs(GuiGraphics g, int left, int top, int width) {
+        card(g, left + 20, top, width - 40, "CANVAS CONTROLS", "Drag nodes with left click. Drag empty canvas space to pan, use the wheel to zoom toward the cursor, and use Shift + wheel to pan sideways. F or Ctrl+0 fits the complete graph.");
+        card(g, left + 20, top + 78, (width - 50) / 2, "WINDOWS & AUTOSAVE", "Drag any title bar or resize grip. Window layout saves per graph. Graph edits autosave locally after a short pause and sync to the server only after the complete workspace validates.");
+        card(g, left + 30 + (width - 50) / 2, top + 78, (width - 50) / 2, "PORTS & REROUTING", "Drag a named output to an input. Click a curve and press Delete to disconnect it. Drag an occupied input to reroute its newest link. Branches only run the output that actually fired.");
+    }
+
+    private void drawNodeDocs(GuiGraphics g, int left, int top, int width) {
+        AioaBehaviorGraph.NodeType[] nodes = AioaBehaviorGraph.NodeType.values();
+        int start = this.nodePage * 8;
+        for (int i = start; i < Math.min(nodes.length, start + 8); i++) {
+            AioaBehaviorGraph.NodeType node = nodes[i];
+            int row = i - start;
+            int column = row % 2;
+            int y = top + (row / 2) * 66;
+            card(g, left + 20 + column * ((width - 50) / 2 + 10), y, (width - 50) / 2,
+                    node.name().replace('_', ' '), node.category + " - " + node.help);
+        }
+        g.drawString(this.font, "Node reference page " + (this.nodePage + 1) + " / " + ((nodes.length + 7) / 8), left + 220, this.height - 47, AioaScreenUtil.TEXT_SUB);
+    }
+
+    private void drawSpawnDocs(GuiGraphics g, int left, int top, int width) {
+        card(g, left + 20, top, width - 40, "SPAWN STUDIO", "Create individual mobs or instanced groups with exact facing, position, AI, persistence, silence, invulnerability, glow, baby state, equipment, and names. Preview first, then spawn at the player or cursor target.");
+        AioaScreenUtil.drawMobPreview(g, this.font, left + 30, top + 78, 190, 145, Identifier.fromNamespaceAndPath("minecraft", "skeleton"), true,
+                List.of(Component.literal("INSTANCE PRESET"), Component.literal("No AI + face player")));
+        AioaScreenUtil.drawMobPreview(g, this.font, left + 236, top + 78, 190, 145, Identifier.fromNamespaceAndPath("minecraft", "creeper"), true,
+                List.of(Component.literal("CONTENT SHOT"), Component.literal("Persistent + custom name")));
+        card(g, left + 442, top + 78, width - 472, "SAFE TESTING", "Creative/operator permission is required for server-side creation. Limits clamp group size, distance, graph size, and packet size. Test dangerous graphs on a copy of the world.");
+    }
+
+    private void drawMultiplayerDocs(GuiGraphics g, int left, int top, int width) {
+        card(g, left + 20, top, width - 40, "SERVER AUTHORITY", "Behavior and spawn requests are validated by the server. Players without permission cannot push graphs or create mob instances. Mob behavior runs server-side so all clients observe the same result.");
+        card(g, left + 20, top + 82, width - 40, "COMPATIBILITY", "AIOA uses standard mob navigation, registry IDs, goals, and bounded network payloads. Scope graphs narrowly when combining it with other AI mods. If another mod owns the same mob goal, use AIOA graph actions instead of enabling both global controllers.");
+        card(g, left + 20, top + 164, width - 40, "LANGUAGES & ACCESSIBILITY", "Labels use Minecraft's language system and fall back to English when a translation is unavailable. The fixed compact editor, high contrast ports, text status feedback, and instant open/close behavior are designed for recording and live content creation.");
+    }
+
+    private void drawScriptDocs(GuiGraphics g, int left, int top, int width) {
+        card(g, left + 20, top, width - 40, "SAFE CREATOR SCRIPT NODE", "Double-click a Script node to open the code editor. Use let variables, if / else blocks, comments, built-in mob and target values, and bounded calls such as say(), actionbar(), rotate(), heal(), damage_target(), move_to_target(), glow(), tag(), and stop(). Scripts are validated and capped at 8,192 characters; unrestricted Java is never executed.");
+        card(g, left + 20, top + 76, (width - 50) / 2, "COMMANDS", "say=message; rotate=degrees; glow=true/false; aggressive=true/false; stop. Use {mob} inside say messages to insert the selected mob's display name.");
+        card(g, left + 30 + (width - 50) / 2, top + 76, (width - 50) / 2, "TIMING", "Place Every Seconds or Delay Ticks before Script. Connect ready to the script and waiting to the loop. Every Seconds accepts decimals; Delay Ticks uses exact game ticks (20 ticks = 1 second)." );
+        card(g, left + 20, top + 228, width - 40, "VALUES & REUSABLE STATE", "Variables, phases, delays, intervals, and cooldowns persist separately for every graph mob. Math supports add, subtract, multiply, divide, min, and max; Compare Variable branches true/false.");
+        card(g, left + 20, top + 152, width - 40, "EXAMPLE", "say={mob} enters phase two; rotate=90; glow=true; stop — combine this with Particle Pattern, Set Phase, Phase Branch, and the four-lane Sequence node for staged boss patterns.");
+    }
+
+    private void card(GuiGraphics g, int x, int y, int width, String title, String body) {
+        AioaScreenUtil.drawInsetPanel(g, x, y, x + width, y + 60, false);
+        g.drawString(this.font, title, x + 10, y + 9, 0xFF78E5A5);
+        AioaScreenUtil.drawWrappedCenteredText(g, this.font, Component.literal(body), x + width / 2, y + 24, width - 18, AioaScreenUtil.TEXT_SUB);
+    }
+
+    @Override
+    public void onClose() { this.transitionTo(this.parent); }
+}

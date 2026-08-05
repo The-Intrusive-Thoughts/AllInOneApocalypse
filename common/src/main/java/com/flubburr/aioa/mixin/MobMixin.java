@@ -17,7 +17,7 @@ public abstract class MobMixin {
     private void aioa$preventSunBurnForManagedDaySpawns(CallbackInfoReturnable<Boolean> cir) {
         Mob self = (Mob) (Object) this;
         if (AioaConfigManager.getConfig().daySurfaceSpawns.preventSunlightBurn
-                && (self.getTags().contains(AioaConstants.DAY_SPAWN_TAG)
+                && (self.entityTags().contains(AioaConstants.DAY_SPAWN_TAG)
                 || AioaConfigManager.isBurnSafeDaySpawnEntity(self.getType()))) {
             cir.setReturnValue(false);
         }

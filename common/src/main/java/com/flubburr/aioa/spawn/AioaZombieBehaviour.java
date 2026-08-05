@@ -5,7 +5,7 @@ import com.flubburr.aioa.compat.AioaEntityHelper;
 import com.flubburr.aioa.config.AioaConfig;
 import com.flubburr.aioa.config.AioaConfigManager;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -17,11 +17,11 @@ import net.minecraft.world.entity.ai.goal.GoalSelector;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.entity.animal.IronGolem;
-import net.minecraft.world.entity.animal.Turtle;
-import net.minecraft.world.entity.animal.WaterAnimal;
-import net.minecraft.world.entity.monster.Zombie;
-import net.minecraft.world.entity.npc.AbstractVillager;
+import net.minecraft.world.entity.animal.fish.WaterAnimal;
+import net.minecraft.world.entity.animal.golem.IronGolem;
+import net.minecraft.world.entity.animal.turtle.Turtle;
+import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.entity.npc.villager.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
@@ -29,24 +29,21 @@ import net.minecraft.world.phys.AABB;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class AioaZombieBehaviour {
 
-    private static final UUID FOLLOW_RANGE_MODIFIER_ID = UUID.fromString("7dc8f5fb-15a5-4a64-a228-cb62398f2d9f");
-    private static final UUID CHASE_SPEED_MODIFIER_ID = UUID.fromString("80a5998f-26f7-4a83-986e-1577145f0ed0");
+    private static final Identifier FOLLOW_RANGE_MODIFIER_ID = Identifier.fromNamespaceAndPath("aioa", "refined_zombie_follow_range");
+    private static final Identifier CHASE_SPEED_MODIFIER_ID = Identifier.fromNamespaceAndPath("aioa", "refined_zombie_chase_speed");
     private static final AttributeModifier FOLLOW_RANGE_MODIFIER = new AttributeModifier(
             FOLLOW_RANGE_MODIFIER_ID,
-            "aioa_refined_zombie_follow_range",
             10.0D,
-            AttributeModifier.Operation.ADDITION
+            AttributeModifier.Operation.ADD_VALUE
     );
     private static final AttributeModifier CHASE_SPEED_MODIFIER = new AttributeModifier(
             CHASE_SPEED_MODIFIER_ID,
-            "aioa_refined_zombie_chase_speed",
             0.08D,
-            AttributeModifier.Operation.MULTIPLY_TOTAL
+            AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
     );
     private static final ConcurrentHashMap<Class<?>, Optional<Method>> SET_BABY_METHOD_CACHE = new ConcurrentHashMap<>();
 
@@ -81,7 +78,7 @@ public final class AioaZombieBehaviour {
         if (mob instanceof Zombie) {
             return settings.zombieTargetMode;
         }
-        if (isConfiguredMob(mob, settings.refinedAiEntityIds) || mob.getTags().contains(AioaConstants.DAY_SPAWN_TAG)) {
+        if (isConfiguredMob(mob, settings.refinedAiEntityIds) || mob.entityTags().contains(AioaConstants.DAY_SPAWN_TAG)) {
             return settings.zombieTargetMode;
         }
         return null;
@@ -117,11 +114,11 @@ public final class AioaZombieBehaviour {
             }
             case OTHER_MOBS_ONLY -> targetSelector.addGoal(
                     2,
-                    new NearestAttackableTargetGoal<>(mob, PathfinderMob.class, 10, true, false, target -> canTarget(mob, target, mode))
+                    new NearestAttackableTargetGoal<PathfinderMob>(mob, PathfinderMob.class, 10, true, false, (target, level) -> canTarget(mob, target, mode))
             );
             case EVERYTHING -> targetSelector.addGoal(
                     2,
-                    new NearestAttackableTargetGoal<>(mob, LivingEntity.class, 10, true, false, target -> canTarget(mob, target, mode))
+                    new NearestAttackableTargetGoal<LivingEntity>(mob, LivingEntity.class, 10, true, false, (target, level) -> canTarget(mob, target, mode))
             );
         }
     }
@@ -182,7 +179,7 @@ public final class AioaZombieBehaviour {
                 (currentVelocity.z * 0.92D) + chaseVector.z
         );
         mob.fallDistance = 0.0F;
-        mob.hasImpulse = true;
+        mob.hurtMarked = true;
 
         if (mob instanceof PathfinderMob pathfinderMob) {
             double speed = refinedAiEnabled ? 1.15D : 1.0D;
@@ -198,38 +195,36 @@ public final class AioaZombieBehaviour {
         }
 
         if (refinedAiEnabled) {
-            if (!followRange.hasModifier(FOLLOW_RANGE_MODIFIER)) {
+            if (!followRange.hasModifier(FOLLOW_RANGE_MODIFIER_ID)) {
                 followRange.addTransientModifier(FOLLOW_RANGE_MODIFIER);
             }
             if (mob.getTarget() != null) {
-                if (!movementSpeed.hasModifier(CHASE_SPEED_MODIFIER)) {
+                if (!movementSpeed.hasModifier(CHASE_SPEED_MODIFIER_ID)) {
                     movementSpeed.addTransientModifier(CHASE_SPEED_MODIFIER);
                 }
                 if (mob instanceof PathfinderMob pathfinderMob) {
                     if (openDoors && pathfinderMob.getNavigation() instanceof GroundPathNavigation groundNavigation) {
                         groundNavigation.setCanOpenDoors(true);
-                        groundNavigation.setCanPassDoors(true);
                     }
                     if (mob.tickCount % 10 == 0) {
                         pathfinderMob.getNavigation().moveTo(mob.getTarget(), 1.15D);
                     }
                 }
-            } else if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER)) {
-                movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
+            } else if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER_ID)) {
+                movementSpeed.removeModifier(CHASE_SPEED_MODIFIER_ID);
             }
             return;
         }
 
-        if (followRange.hasModifier(FOLLOW_RANGE_MODIFIER)) {
-            followRange.removeModifier(FOLLOW_RANGE_MODIFIER);
+        if (followRange.hasModifier(FOLLOW_RANGE_MODIFIER_ID)) {
+            followRange.removeModifier(FOLLOW_RANGE_MODIFIER_ID);
         }
-        if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER)) {
-            movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
+        if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER_ID)) {
+            movementSpeed.removeModifier(CHASE_SPEED_MODIFIER_ID);
         }
         if (mob instanceof PathfinderMob pathfinderMob
                 && pathfinderMob.getNavigation() instanceof GroundPathNavigation groundNavigation) {
             groundNavigation.setCanOpenDoors(false);
-            groundNavigation.setCanPassDoors(false);
         }
     }
 
@@ -254,9 +249,9 @@ public final class AioaZombieBehaviour {
     }
 
     private static boolean isConfiguredMob(Mob mob, List<String> rawEntityIds) {
-        ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+        Identifier entityId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
         for (String rawEntityId : rawEntityIds) {
-            Optional<ResourceLocation> configuredId = AioaEntityHelper.resolveEntityId(
+            Optional<Identifier> configuredId = AioaEntityHelper.resolveEntityId(
                     rawEntityId,
                     warning -> AioaConfigManager.warnOnce("invalid-ai-selector:" + rawEntityId, warning)
             );

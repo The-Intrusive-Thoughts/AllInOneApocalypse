@@ -3,7 +3,7 @@ package com.flubburr.aioa.compat;
 import com.flubburr.aioa.AioaConstants;
 import com.flubburr.aioa.config.AioaConfigManager;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -20,13 +20,13 @@ import java.util.function.Consumer;
 
 public final class AioaEntityHelper {
 
-    private static final ConcurrentHashMap<ResourceLocation, MobClassification> CLASSIFICATION_CACHE = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Identifier, MobClassification> CLASSIFICATION_CACHE = new ConcurrentHashMap<>();
 
     private AioaEntityHelper() {
     }
 
     public static Optional<EntityType<?>> resolveEntityType(String rawEntityId) {
-        Optional<ResourceLocation> id = resolveEntityId(rawEntityId, warning -> {
+        Optional<Identifier> id = resolveEntityId(rawEntityId, warning -> {
         });
         if (id.isEmpty()) {
             return Optional.empty();
@@ -35,32 +35,36 @@ public final class AioaEntityHelper {
         return resolveEntityType(id.get());
     }
 
-    public static Optional<EntityType<?>> resolveEntityType(ResourceLocation entityId) {
+    public static Optional<EntityType<?>> resolveEntityType(Identifier entityId) {
         return BuiltInRegistries.ENTITY_TYPE.containsKey(entityId)
-                ? Optional.of(BuiltInRegistries.ENTITY_TYPE.get(entityId))
+                ? Optional.of(BuiltInRegistries.ENTITY_TYPE.getValue(entityId))
                 : Optional.empty();
     }
 
-    public static Optional<ResourceLocation> resolveEntityId(String rawSelector, Consumer<String> warningConsumer) {
+    public static Identifier parseResourceLocation(String raw) {
+        return raw == null ? null : Identifier.tryParse(raw.trim());
+    }
+
+    public static Optional<Identifier> resolveEntityId(String rawSelector, Consumer<String> warningConsumer) {
         String trimmed = rawSelector == null ? "" : rawSelector.trim();
         if (trimmed.isEmpty()) {
             return Optional.empty();
         }
 
-        ResourceLocation directId = ResourceLocation.tryParse(trimmed);
+        Identifier directId = Identifier.tryParse(trimmed);
         if (directId != null && BuiltInRegistries.ENTITY_TYPE.containsKey(directId)) {
             return Optional.of(directId);
         }
 
-        ResourceLocation embeddedId = tryParseEmbeddedId(trimmed);
+        Identifier embeddedId = tryParseEmbeddedId(trimmed);
         if (embeddedId != null && BuiltInRegistries.ENTITY_TYPE.containsKey(embeddedId)) {
             return Optional.of(embeddedId);
         }
 
         String normalizedSelector = normalizeSelector(trimmed);
-        List<ResourceLocation> matches = BuiltInRegistries.ENTITY_TYPE.keySet().stream()
+        List<Identifier> matches = BuiltInRegistries.ENTITY_TYPE.keySet().stream()
                 .filter(id -> matchesSelector(normalizedSelector, id))
-                .sorted(Comparator.comparing(ResourceLocation::toString))
+                .sorted(Comparator.comparing(Identifier::toString))
                 .toList();
 
         if (matches.size() == 1) {
@@ -72,11 +76,7 @@ public final class AioaEntityHelper {
         return Optional.empty();
     }
 
-    public static ResourceLocation parseResourceLocation(String raw) {
-        return raw == null ? null : ResourceLocation.tryParse(raw.trim());
-    }
-
-    public static String describeEntity(ResourceLocation entityId) {
+    public static String describeEntity(Identifier entityId) {
         return toFriendlyName(entityId) + " (" + entityId + ")";
     }
 
@@ -92,22 +92,22 @@ public final class AioaEntityHelper {
         return classify(entityType, level).hostile();
     }
 
-    public static List<ResourceLocation> enumerateConfigurableMobIds(ServerLevel level) {
+    public static List<Identifier> enumerateConfigurableMobIds(ServerLevel level) {
         return BuiltInRegistries.ENTITY_TYPE.stream()
                 .filter(type -> isConfigurableMob(type, level))
                 .map(BuiltInRegistries.ENTITY_TYPE::getKey)
-                .sorted(Comparator.comparing(ResourceLocation::toString))
+                .sorted(Comparator.comparing(Identifier::toString))
                 .toList();
     }
 
     private static MobClassification classify(EntityType<?> entityType, ServerLevel level) {
-        ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
+        Identifier id = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
         return CLASSIFICATION_CACHE.computeIfAbsent(id, ignored -> inspectEntityType(entityType, level, id));
     }
 
-    private static MobClassification inspectEntityType(EntityType<?> entityType, ServerLevel level, ResourceLocation id) {
+    private static MobClassification inspectEntityType(EntityType<?> entityType, ServerLevel level, Identifier id) {
         try {
-            Entity entity = entityType.create(level);
+            Entity entity = entityType.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
             if (!(entity instanceof Mob mob)) {
                 return MobClassification.NONE;
             }
@@ -123,7 +123,7 @@ public final class AioaEntityHelper {
         }
     }
 
-    private static boolean matchesSelector(String normalizedSelector, ResourceLocation entityId) {
+    private static boolean matchesSelector(String normalizedSelector, Identifier entityId) {
         return normalizedSelector.equals(normalizeSelector(entityId.toString()))
                 || normalizedSelector.equals(normalizeSelector(entityId.getPath()))
                 || normalizedSelector.equals(normalizeSelector(toFriendlyName(entityId)))
@@ -131,14 +131,14 @@ public final class AioaEntityHelper {
                 || normalizedSelector.equals(normalizeSelector(toFriendlyName(entityId) + " " + entityId));
     }
 
-    private static ResourceLocation tryParseEmbeddedId(String rawSelector) {
+    private static Identifier tryParseEmbeddedId(String rawSelector) {
         int open = Math.max(rawSelector.lastIndexOf('('), rawSelector.lastIndexOf('['));
         int close = Math.max(rawSelector.lastIndexOf(')'), rawSelector.lastIndexOf(']'));
         if (open < 0 || close <= open) {
             return null;
         }
 
-        return ResourceLocation.tryParse(rawSelector.substring(open + 1, close).trim());
+        return Identifier.tryParse(rawSelector.substring(open + 1, close).trim());
     }
 
     private static String normalizeSelector(String value) {
@@ -148,7 +148,7 @@ public final class AioaEntityHelper {
                 .trim();
     }
 
-    private static String toFriendlyName(ResourceLocation entityId) {
+    private static String toFriendlyName(Identifier entityId) {
         String pathName = titleCase(entityId.getPath());
         if ("minecraft".equals(entityId.getNamespace())) {
             return pathName;

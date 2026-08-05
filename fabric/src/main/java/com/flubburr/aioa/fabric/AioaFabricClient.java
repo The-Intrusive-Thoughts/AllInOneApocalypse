@@ -1,63 +1,14 @@
 package com.flubburr.aioa.fabric;
 
-import com.flubburr.aioa.AioaConstants;
-import com.flubburr.aioa.client.config.AioaConfigScreen;
-import com.flubburr.aioa.client.config.AioaSpawnStudioScreen;
-import com.flubburr.aioa.client.config.AioaMobSelectionController;
-import com.flubburr.aioa.network.AioaClientNetworking;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.client.KeyMapping;
-import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 
+/**
+ * 26.x beta client bootstrap. Gameplay, graph execution, networking and spawning are available;
+ * the editor renderer is being migrated to Minecraft's extracted GUI render-state API.
+ */
 public final class AioaFabricClient implements ClientModInitializer {
-
-    private static KeyMapping openConfigKey;
-    private static KeyMapping openSpawnStudioKey;
-
     @Override
     public void onInitializeClient() {
-        openConfigKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
-                "key.aioa.open_config",
-                InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_F6,
-                "key.categories." + AioaConstants.MOD_ID
-        ));
-        openSpawnStudioKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
-                "key.aioa.open_spawn_studio",
-                InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_F7,
-                KeyMapping.Category.MISC
-        ));
-        AioaClientNetworking.registerSender(request -> {
-            ClientPlayNetworking.send(new AioaFabricSpawnPayload(request));
-        });
-        AioaClientNetworking.registerGraphSender(request -> ClientPlayNetworking.send(new AioaFabricGraphPayload(request)));
-
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            AioaMobSelectionController.tick(client);
-            while (openConfigKey.consumeClick()) {
-                if (client.player != null && client.player.isCreative()) {
-                    if (client.hasSingleplayerServer() || client.getCurrentServer() == null) {
-                        client.setScreen(AioaConfigScreen.create(client.screen));
-                    } else {
-                        client.player.displayClientMessage(Component.translatable("aioa.common.multiplayer_locked"), true);
-                    }
-                }
-            }
-            while (openSpawnStudioKey.consumeClick()) {
-                if (AioaMobSelectionController.isArmed()) {
-                    AioaMobSelectionController.cancel(client, "AIOA mob selection cancelled.");
-                    continue;
-                }
-                if (client.player != null && client.player.isCreative()) {
-                    client.setScreen(AioaSpawnStudioScreen.create(client.screen));
-                }
-            }
-        });
+        // Intentionally renderer-free for the first unobfuscated 26.x beta.
     }
 }

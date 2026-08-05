@@ -1,7 +1,7 @@
 package com.flubburr.aioa.config;
 
 import com.flubburr.aioa.compat.AioaEntityHelper;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 
 import java.util.Locale;
@@ -10,7 +10,7 @@ import java.util.function.Consumer;
 
 public record AioaSpawnEntry(
         String rawEntry,
-        ResourceLocation entityId,
+        Identifier entityId,
         boolean enabled,
         int weight,
         double chance,
@@ -25,12 +25,12 @@ public record AioaSpawnEntry(
         }
 
         String[] segments = trimmed.split(";");
-        Optional<ResourceLocation> resolvedEntityId = AioaEntityHelper.resolveEntityId(segments[0].trim(), warningConsumer);
+        Optional<Identifier> resolvedEntityId = AioaEntityHelper.resolveEntityId(segments[0].trim(), warningConsumer);
         if (resolvedEntityId.isEmpty()) {
             warningConsumer.accept("Ignoring malformed AIOA spawn entry '" + trimmed + "': the mob selector did not resolve.");
             return Optional.empty();
         }
-        ResourceLocation entityId = resolvedEntityId.get();
+        Identifier entityId = resolvedEntityId.get();
 
         boolean enabled = true;
         int weight = 10;

@@ -24,7 +24,7 @@ public final class AioaSpawnStudioHandler {
 
     public static void handle(ServerPlayer player, AioaSpawnRequest request) {
         if (!player.isCreative()) {
-            player.displayClientMessage(Component.literal("AIOA Spawn Studio requires creative mode."), true);
+            player.sendOverlayMessage(Component.literal("AIOA Spawn Studio requires creative mode."));
             return;
         }
 
@@ -41,13 +41,13 @@ public final class AioaSpawnStudioHandler {
 
         Optional<EntityType<?>> resolved = AioaEntityHelper.resolveEntityType(request.entityId());
         if (resolved.isEmpty()) {
-            player.displayClientMessage(Component.literal("Unknown mob: " + request.entityId()), true);
+            player.sendOverlayMessage(Component.literal("Unknown mob: " + request.entityId()));
             return;
         }
 
         Entity entity = resolved.get().create(level, EntitySpawnReason.COMMAND);
         if (!(entity instanceof Mob mob)) {
-            player.displayClientMessage(Component.literal("That entity is not a spawnable mob."), true);
+            player.sendOverlayMessage(Component.literal("That entity is not a spawnable mob."));
             return;
         }
 
@@ -64,10 +64,10 @@ public final class AioaSpawnStudioHandler {
 
         if (!level.noCollision(mob)) {
             mob.discard();
-            player.displayClientMessage(Component.literal("No safe room to spawn that mob."), true);
+            player.sendOverlayMessage(Component.literal("No safe room to spawn that mob."));
             return;
         }
         level.addFreshEntityWithPassengers(mob);
-        player.displayClientMessage(Component.literal("Spawned " + request.entityId()), true);
+        player.sendOverlayMessage(Component.literal("Spawned " + request.entityId()));
     }
 }

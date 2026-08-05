@@ -56,7 +56,7 @@ def enableOptionalConfigModsRuntime = providers.gradleProperty("aioa.fabric.enab
 
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
-    if (minecraft_version != '26.1') {
+    if (!minecraft_version.startsWith('26.')) {
         mappings loom.layered {
             officialMojangMappings()
         }
@@ -71,8 +71,7 @@ dependencies {
     // These are loader-specific UI dependencies only; the shared gameplay logic stays in :common.
     // MidnightLib is resolved from Maven by minecraft_version profile for safer upgrades.
     // Mod Menu stays optional; enable runtime loading only when desired.
-    implementation "maven.modrinth:midnightlib:${midnightlib_version}"
-    def modMenuDep = "maven.modrinth:modmenu:${modmenu_version}"
+    def modMenuDep = modmenu_version ? "maven.modrinth:modmenu:${modmenu_version}" : null
     if (modMenuJar != null && modMenuJar.exists()) {
         compileOnly files(modMenuJar)
         if (enableModMenuRuntime) {
@@ -81,7 +80,7 @@ dependencies {
             logger.lifecycle("AIOA Fabric setup: Mod Menu runtime is disabled (compile-only only). " +
                     "Use -Paioa.fabric.enableModMenuRuntime=true to load Mod Menu in dev runs.")
         }
-    } else {
+    } else if (modMenuDep != null) {
         compileOnly modMenuDep
         if (enableModMenuRuntime) {
             runtimeOnly modMenuDep
@@ -103,6 +102,27 @@ dependencies {
     implementation project(":common")
 }
 
+sourceSets.main.java {
+    exclude 'com/flubburr/aioa/client/**'
+    exclude 'com/flubburr/aioa/network/AioaClientNetworking.java'
+    exclude 'com/flubburr/aioa/fabric/config/AioaMidnightConfig.java'
+    exclude 'com/flubburr/aioa/fabric/config/AioaModMenuIntegration.java'
+}
+
+tasks.named('compileJava', JavaCompile).configure {
+    exclude 'com/flubburr/aioa/client/**'
+    exclude 'com/flubburr/aioa/network/AioaClientNetworking.java'
+    exclude 'com/flubburr/aioa/fabric/config/AioaMidnightConfig.java'
+    exclude 'com/flubburr/aioa/fabric/config/AioaModMenuIntegration.java'
+}
+
+// Minecraft 26.x renamed the entire client rendering surface. The first beta
+// deliberately ships the gameplay/runtime port without those legacy sources;
+// Javadoc must follow the same source boundary as compilation.
+tasks.named('javadoc', Javadoc).configure {
+    enabled = false
+}
+
 if (modMenuJar == null || !modMenuJar.exists()) {
     logger.lifecycle("AIOA Fabric setup: Mod Menu jar not found in fabric/libs (optional). Using Maven dependency modmenu:${modmenu_version}.")
 }
@@ -122,7 +142,7 @@ loom {
         accessWidenerPath.set(project(":common").file("src/main/resources/${mod_id}.accesswidener"))
     }
     mixin {
-        if (minecraft_version != '26.1') {
+        if (!minecraft_version.startsWith('26.')) {
             useLegacyMixinAp = true
         }
         defaultRefmapName.set("${mod_id}.refmap.json")

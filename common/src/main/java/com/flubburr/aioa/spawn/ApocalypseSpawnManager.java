@@ -6,8 +6,9 @@ import com.flubburr.aioa.config.AioaConfig;
 import com.flubburr.aioa.config.AioaConfigManager;
 import com.flubburr.aioa.config.AioaSpawnEntry;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -15,7 +16,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.NaturalSpawner;
@@ -41,7 +42,7 @@ public final class ApocalypseSpawnManager {
         if (settings.overworldOnly && !level.dimension().equals(Level.OVERWORLD)) {
             return;
         }
-        if (settings.requireDaytime && !level.isDay()) {
+        if (settings.requireDaytime && !level.isBrightOutside()) {
             return;
         }
         if (level.getGameTime() % settings.spawnIntervalTicks != 0L) {
@@ -148,7 +149,7 @@ public final class ApocalypseSpawnManager {
             AioaConfig.DaySurfaceSpawns settings,
             RandomSource random
     ) {
-        for (int attempt = 0; attempt < 8; attempt++) {
+        for (int attempt = 0; attempt < 32; attempt++) {
             int x = player.getBlockX() + randomOffset(random, settings.minSpawnDistance, settings.maxSpawnDistance);
             int z = player.getBlockZ() + randomOffset(random, settings.minSpawnDistance, settings.maxSpawnDistance);
             BlockPos surface = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, new BlockPos(x, 0, z));
@@ -214,12 +215,12 @@ public final class ApocalypseSpawnManager {
             return false;
         }
 
-        Entity entity = entityType.create(level);
+        Entity entity = entityType.create(level, EntitySpawnReason.EVENT);
         if (!(entity instanceof Mob mob)) {
             return false;
         }
 
-        mob.moveTo(
+        mob.snapTo(
                 spawnPosition.getX() + 0.5D,
                 spawnPosition.getY(),
                 spawnPosition.getZ() + 0.5D,
@@ -231,7 +232,7 @@ public final class ApocalypseSpawnManager {
             return false;
         }
 
-        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), MobSpawnType.EVENT, null, null);
+        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), EntitySpawnReason.EVENT, null);
         if (!AioaZombieBehaviour.applyVariantMode(mob, settings)) {
             return false;
         }
@@ -245,13 +246,27 @@ public final class ApocalypseSpawnManager {
     }
 
     private static boolean isPotentialSpawnPosition(ServerLevel level, BlockPos spawnPosition, EntityType<?> entityType) {
-        SpawnPlacements.Type placementType = SpawnPlacements.getPlacementType(entityType);
-        if (!NaturalSpawner.isSpawnPositionOk(placementType, level, spawnPosition, entityType)) {
-            return false;
+        BlockState state = level.getBlockState(spawnPosition);
+        if (SpawnPlacements.isSpawnPositionOk(entityType, level, spawnPosition)
+                && NaturalSpawner.isValidEmptySpawnBlock(level, spawnPosition, state, state.getFluidState(), entityType)) {
+            return true;
         }
 
-        BlockState state = level.getBlockState(spawnPosition);
-        return NaturalSpawner.isValidEmptySpawnBlock(level, spawnPosition, state, state.getFluidState(), entityType);
+        // Daytime apocalypse spawns use EVENT and intentionally bypass vanilla
+        // darkness rules. Keep a conservative ground-placement fallback so a
+        // mapping/loader-specific NaturalSpawner check cannot silently disable
+        // every configured zombie spawn.
+        if (!state.getFluidState().isEmpty()
+                || !state.getCollisionShape(level, spawnPosition).isEmpty()) {
+            return false;
+        }
+        BlockPos above = spawnPosition.above();
+        BlockState aboveState = level.getBlockState(above);
+        if (!aboveState.getFluidState().isEmpty() || !aboveState.getCollisionShape(level, above).isEmpty()) {
+            return false;
+        }
+        BlockPos floor = spawnPosition.below();
+        return level.getBlockState(floor).isFaceSturdy(level, floor, Direction.UP);
     }
 
     private static boolean isAllowedBiome(ServerLevel level, BlockPos pos, AioaConfig.DaySurfaceSpawns settings) {
@@ -259,8 +274,8 @@ public final class ApocalypseSpawnManager {
             return true;
         }
 
-        ResourceLocation biomeId = level.registryAccess()
-                .registryOrThrow(Registries.BIOME)
+        Identifier biomeId = level.registryAccess()
+                .lookupOrThrow(Registries.BIOME)
                 .getKey(level.getBiome(pos).value());
 
         if (biomeId == null) {
@@ -268,7 +283,7 @@ public final class ApocalypseSpawnManager {
         }
 
         for (String rawBiomeId : settings.allowedBiomeIds) {
-            ResourceLocation configuredBiomeId = ResourceLocation.tryParse(rawBiomeId == null ? "" : rawBiomeId.trim());
+            Identifier configuredBiomeId = Identifier.tryParse(rawBiomeId == null ? "" : rawBiomeId.trim());
             if (configuredBiomeId == null) {
                 AioaConfigManager.warnOnce(
                         "invalid-biome:" + rawBiomeId,
@@ -287,7 +302,7 @@ public final class ApocalypseSpawnManager {
 
     private static int countNearbyManagedMobs(ServerLevel level, BlockPos center, int range, String instanceTag) {
         AABB searchBox = new AABB(center).inflate(range);
-        return level.getEntitiesOfClass(Mob.class, searchBox, mob -> mob.getTags().contains(instanceTag)).size();
+        return level.getEntitiesOfClass(Mob.class, searchBox, mob -> mob.entityTags().contains(instanceTag)).size();
     }
 
     private static int randomOffset(RandomSource random, int minDistance, int maxDistance) {
