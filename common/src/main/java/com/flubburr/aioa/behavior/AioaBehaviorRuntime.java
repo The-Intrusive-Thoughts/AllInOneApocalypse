@@ -96,7 +96,7 @@ public final class AioaBehaviorRuntime {
         graph.nodes.stream().filter(node -> node.type == AioaBehaviorGraph.NodeType.MOB_BASE).forEach(queue::add);
         if (queue.isEmpty()) graph.nodes.stream().filter(node -> node.type == AioaBehaviorGraph.NodeType.ON_TICK).forEach(queue::add);
         Set<String> visited = new HashSet<>();
-        ExecutionContext context = new ExecutionContext(mob.getTarget(), state);
+        ExecutionContext context = new ExecutionContext(graph, mob.getTarget(), state);
         int steps = 0;
 
         while (!queue.isEmpty() && steps++ < maxSteps) {
@@ -328,8 +328,41 @@ public final class AioaBehaviorRuntime {
             case SET_BODY_ROTATION -> mob.setYBodyRot((float) number(node, "degrees", mob.yBodyRot, -360, 360));
             case SET_HEAD_ROTATION -> mob.setYHeadRot((float) number(node, "degrees", mob.getYHeadRot(), -360, 360));
             case DESPAWN_SELF -> mob.discard();
+            case FUNCTION_GROUP -> executeFunctionGroup(node, mob, context);
         }
         return context.target == null ? "missing" : "found";
+    }
+
+    private static void executeFunctionGroup(AioaBehaviorGraph.Node groupNode, Mob mob, ExecutionContext context) {
+        if (context.groupDepth >= 4) return;
+        String groupId = groupNode.parameters.getOrDefault("_groupId", "");
+        if (groupId.isBlank()) return;
+        Map<String, AioaBehaviorGraph.Node> members = context.graph.nodes.stream()
+                .filter(node -> groupId.equals(node.parameters.get("_group")))
+                .collect(java.util.stream.Collectors.toMap(node -> node.id, node -> node, (first, ignored) -> first));
+        if (members.isEmpty()) return;
+        Map<String, List<AioaBehaviorGraph.Edge>> outgoing = context.graph.edges.stream()
+                .filter(edge -> members.containsKey(edge.from) && members.containsKey(edge.to))
+                .collect(java.util.stream.Collectors.groupingBy(edge -> edge.from));
+        Set<String> hasIncoming = context.graph.edges.stream()
+                .filter(edge -> members.containsKey(edge.from) && members.containsKey(edge.to))
+                .map(edge -> edge.to).collect(java.util.stream.Collectors.toSet());
+        ArrayDeque<AioaBehaviorGraph.Node> queue = new ArrayDeque<>();
+        members.values().stream().filter(member -> !hasIncoming.contains(member.id)).forEach(queue::addLast);
+        Set<String> visited = new HashSet<>();
+        context.groupDepth++;
+        int budget = 48;
+        while (!queue.isEmpty() && budget-- > 0) {
+            AioaBehaviorGraph.Node member = queue.removeFirst();
+            if (!visited.add(member.id) || member.type == AioaBehaviorGraph.NodeType.FUNCTION_GROUP) continue;
+            String output = runNode(member, mob, context);
+            Set<String> emitted = member.type == AioaBehaviorGraph.NodeType.SEQUENCE
+                    ? AioaNodeSchema.branchOutputs(member.type) : Set.of(AioaNodeSchema.normalizeOutput(output));
+            for (AioaBehaviorGraph.Edge edge : outgoing.getOrDefault(member.id, List.of())) {
+                if (emitted.contains(AioaNodeSchema.normalizeOutput(edge.output))) queue.addLast(members.get(edge.to));
+            }
+        }
+        context.groupDepth--;
     }
 
     private static void orbitTarget(AioaBehaviorGraph.Node node, Mob mob, ExecutionContext context) {
@@ -713,11 +746,15 @@ public final class AioaBehaviorRuntime {
     }
 
     private static final class ExecutionContext {
+        private final AioaBehaviorGraph graph;
         private LivingEntity target;
         private final RuntimeState state;
         private final Map<String, Double> variables;
 
-        private ExecutionContext(LivingEntity target, RuntimeState state) {
+        private int groupDepth;
+
+        private ExecutionContext(AioaBehaviorGraph graph, LivingEntity target, RuntimeState state) {
+            this.graph = graph;
             this.target = target;
             this.state = state;
             this.variables = state.variables;
