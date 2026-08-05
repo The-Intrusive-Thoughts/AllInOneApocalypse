@@ -2,6 +2,12 @@
 
 ## 0.2.1 (Unreleased)
 
+- Replaced the Graph Studio action strip with File, Edit, View, Graph, and Help menus covering new/save/save-as/import/export/quit, undo/redo, layout controls, validation, linking, grouping, preview, guides, and documentation.
+- Added direct curve rerouting: pick up an existing connection anywhere along its Bezier, drop it on another typed input, or release on empty canvas to restore the original link safely.
+- Changed Node Parameters from a draggable persistent window into a cursor-local double-click popover that closes with its `x` or an outside click, while preserving edits and contextual entity/player/script controls.
+- Added node-aware right-click menus with compact action icons, custom node labels, parameter editing, duplication, linking, deletion, fitting, and named visual group frames for organizing reusable behavior sections.
+- Rebuilt Creator Script as a bounded code-like language with comments, variables, `if`/`else` blocks, mob/target/phase/tick built-ins, interpolation, validation, and safe action calls for messages, movement, combat, state, healing, targeting, and tags.
+- Added hover tooltips for graph nodes and strengthened first-run onboarding with Back/Next/Skip controls, an animated guide card, modal input capture, and a final handoff into the integrated documentation.
 - Fixed the Forge 1.20.1 `NoSuchFieldError: SOUND_EVENT` startup crash by moving custom sound registration into each loader and using a version-safe common registry lookup.
 - Fixed daytime apocalypse mobs failing to spawn by broadening surface searches and adding a conservative ground-placement fallback when loader-specific vanilla placement checks reject otherwise valid EVENT spawns.
 - Fixed the first-run tutorial and Quick Presets documentation hint returning after dismissal by persisting Skip and close actions immediately.
