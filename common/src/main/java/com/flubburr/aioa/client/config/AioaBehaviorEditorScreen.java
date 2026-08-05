@@ -27,6 +27,7 @@ import java.util.Locale;
 import java.util.UUID;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Set;
 
 public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private static final int WINDOW_WIDTH = 920;
@@ -91,6 +92,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private int contextMenuX;
     private int contextMenuY;
     private String activeTopMenu;
+    private String activeGroupId;
     private boolean draggingWindow;
     private boolean draggingNode;
     private boolean draggingCanvas;
@@ -449,6 +451,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         this.graphIndex = this.graphs.size() - 1;
         ensureActiveTabVisible();
         this.selected = null;
+        this.activeGroupId = null;
         this.selectedEdgeId = null;
         this.undo.clear();
         this.redo.clear();
@@ -470,6 +473,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         ensureActiveTabVisible();
         this.graph = this.graphs.get(this.graphIndex);
         this.selected = null;
+        this.activeGroupId = null;
         this.selectedEdgeId = null;
         this.linkStart = null;
         this.undo.clear();
@@ -488,6 +492,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         ensureActiveTabVisible();
         this.graph = this.graphs.get(index);
         this.selected = null;
+        this.activeGroupId = null;
         this.selectedEdgeId = null;
         this.linkStart = null;
         this.undo.clear();
@@ -507,6 +512,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         ensureActiveTabVisible();
         this.graph = this.graphs.get(this.graphIndex);
         this.selected = null;
+        this.activeGroupId = null;
         this.selectedEdgeId = null;
         this.undo.clear();
         this.redo.clear();
@@ -569,6 +575,9 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 70 - this.canvasPanY + (this.graph.nodes.size() / 3) * 68);
         this.graph.nodes.add(node);
         applyDefaultParameters(node);
+        if (this.activeGroupId != null && type != AioaBehaviorGraph.NodeType.FUNCTION_GROUP) {
+            node.parameters.put("_group", this.activeGroupId);
+        }
         this.selected = node;
         this.selectedEdgeId = null;
         this.status = "Added " + friendly(type) + ".";
@@ -591,8 +600,13 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         }
         snapshot();
         String id = this.selected.id;
-        this.graph.nodes.removeIf(node -> node.id.equals(id));
-        this.graph.edges.removeIf(edge -> edge.from.equals(id) || edge.to.equals(id));
+        String groupId = this.selected.type == AioaBehaviorGraph.NodeType.FUNCTION_GROUP
+                ? this.selected.parameters.get("_groupId") : null;
+        Set<String> removedIds = this.graph.nodes.stream().filter(node -> node.id.equals(id)
+                        || (groupId != null && groupId.equals(node.parameters.get("_group"))))
+                .map(node -> node.id).collect(java.util.stream.Collectors.toSet());
+        this.graph.nodes.removeIf(node -> removedIds.contains(node.id));
+        this.graph.edges.removeIf(edge -> removedIds.contains(edge.from) || removedIds.contains(edge.to));
         this.selected = null;
         this.selectedEdgeId = null;
         this.linkStart = null;
@@ -616,16 +630,17 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     }
 
     private void fitGraph() {
-        if (this.graph.nodes.isEmpty()) {
+        List<AioaBehaviorGraph.Node> visibleNodes = this.graph.nodes.stream().filter(this::isNodeVisible).toList();
+        if (visibleNodes.isEmpty()) {
             this.canvasZoom = 1.0D;
             this.canvasPanX = 0;
             this.canvasPanY = 0;
             return;
         }
-        int minX = this.graph.nodes.stream().mapToInt(node -> node.x).min().orElse(0);
-        int minY = this.graph.nodes.stream().mapToInt(node -> node.y).min().orElse(0);
-        int maxX = this.graph.nodes.stream().mapToInt(node -> node.x + NODE_WIDTH).max().orElse(NODE_WIDTH);
-        int maxY = this.graph.nodes.stream().mapToInt(node -> node.y + NODE_HEIGHT).max().orElse(NODE_HEIGHT);
+        int minX = visibleNodes.stream().mapToInt(node -> node.x).min().orElse(0);
+        int minY = visibleNodes.stream().mapToInt(node -> node.y).min().orElse(0);
+        int maxX = visibleNodes.stream().mapToInt(node -> node.x + NODE_WIDTH).max().orElse(NODE_WIDTH);
+        int maxY = visibleNodes.stream().mapToInt(node -> node.y + NODE_HEIGHT).max().orElse(NODE_HEIGHT);
         double fitX = (canvasRight() - canvasLeft() - 36.0D) / Math.max(1, maxX - minX);
         double fitY = (canvasBottom() - canvasTop() - 36.0D) / Math.max(1, maxY - minY);
         this.canvasZoom = clampZoom(Math.min(fitX, fitY));
@@ -1095,6 +1110,14 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 this.dragOffsetX = (int) mouseX - screenNodeX(hit);
                 this.dragOffsetY = (int) mouseY - screenNodeY(hit);
                 this.status = hit.type.help;
+                if (doubleClick && hit.type == AioaBehaviorGraph.NodeType.FUNCTION_GROUP) {
+                    this.activeGroupId = hit.parameters.get("_groupId");
+                    this.selected = null;
+                    this.parametersCollapsed = true;
+                    this.status = "Entered function group " + hit.parameters.getOrDefault("name", "Group") + ". Add and link nodes normally; use Graph > Exit group when done.";
+                    rebuildEditorWidgets();
+                    return true;
+                }
                 if (doubleClick) {
                     this.parametersX = Math.max(0, Math.min(this.width - this.parametersWidth, (int) mouseX + 12));
                     this.parametersY = Math.max(0, Math.min(this.height - this.parametersHeight, (int) mouseY + 10));
@@ -1341,6 +1364,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private AioaBehaviorGraph.Node nodeAt(double mouseX, double mouseY) {
         for (int i = this.graph.nodes.size() - 1; i >= 0; i--) {
             AioaBehaviorGraph.Node node = this.graph.nodes.get(i);
+            if (!isNodeVisible(node)) continue;
             int x = screenNodeX(node);
             int y = screenNodeY(node);
             if (mouseX >= x && mouseX <= x + nodeWidth() && mouseY >= y && mouseY <= y + nodeHeight()) return node;
@@ -1389,7 +1413,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             AioaBehaviorGraph.Edge edge = this.graph.edges.get(edgeIndex);
             AioaBehaviorGraph.Node from = findNode(edge.from);
             AioaBehaviorGraph.Node to = findNode(edge.to);
-            if (from == null || to == null) continue;
+            if (from == null || to == null || !isNodeVisible(from) || !isNodeVisible(to)) continue;
             double x1 = screenNodeX(from) + nodeWidth();
             double y1 = outputPortY(from, edge.output);
             double x2 = screenNodeX(to);
@@ -1457,7 +1481,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         int bottom = this.windowY + windowHeight();
         AioaScreenUtil.drawPanel(guiGraphics, this.windowX, this.windowY, right, bottom);
         guiGraphics.fill(this.windowX + 1, this.windowY + 1, right - 1, this.windowY + 24, 0xFF18231D);
-        guiGraphics.drawString(this.font, "GRAPH: " + this.graph.name + "  :: drag / resize", this.windowX + 10, this.windowY + 8, AioaScreenUtil.TEXT_MAIN);
+        String graphTitle = "GRAPH: " + this.graph.name + (this.activeGroupId == null ? "" : "  >  " + activeGroupName()) + "  :: drag / resize";
+        guiGraphics.drawString(this.font, this.font.plainSubstrByWidth(graphTitle, 310), this.windowX + 10, this.windowY + 8, AioaScreenUtil.TEXT_MAIN);
         drawGraphTabs(guiGraphics, mouseX, mouseY);
         guiGraphics.fill(this.canvasLeft(), this.canvasTop(), this.canvasRight(), this.canvasBottom(), 0xF0090D0B);
         drawGrid(guiGraphics);
@@ -1501,7 +1526,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         for (AioaBehaviorGraph.Edge edge : this.graph.edges) {
             AioaBehaviorGraph.Node from = findNode(edge.from);
             AioaBehaviorGraph.Node to = findNode(edge.to);
-            if (from == null || to == null) continue;
+            if (from == null || to == null || !isNodeVisible(from) || !isNodeVisible(to)) continue;
             int x1 = screenNodeX(from) + nodeWidth();
             int y1 = outputPortY(from, edge.output);
             int x2 = screenNodeX(to);
@@ -1513,6 +1538,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                     Math.min(y1, y2) + Math.abs(y2 - y1) / 2 - 4, 0xFF9AD6AE);
         }
         for (AioaBehaviorGraph.Node node : this.graph.nodes) {
+            if (!isNodeVisible(node)) continue;
             int x = screenNodeX(node);
             int y = screenNodeY(node);
             int nodeWidth = nodeWidth();
@@ -1544,6 +1570,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     }
 
     private void drawGroupFrames(GuiGraphics graphics) {
+        if (this.activeGroupId == null) return;
         this.graph.nodes.stream().map(node -> node.parameters.get("_group")).filter(java.util.Objects::nonNull)
                 .filter(name -> !name.isBlank()).distinct().forEach(group -> {
                     List<AioaBehaviorGraph.Node> members = this.graph.nodes.stream()
@@ -1678,7 +1705,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
 
     private String[] contextActions() {
         if (this.contextNode != null) return new String[]{"[N] Edit name", "[P] Edit parameters", "[D] Duplicate",
-                "[L] Start link", "[G] Add to group", "[X] Delete", "[F] Fit view"};
+                "[L] Start link", "[G] Group / enter", "[X] Delete", "[F] Fit view"};
         return new String[]{"[U] Undo  Ctrl+Z", "[R] Redo  Ctrl+Y", "[D] Duplicate", "[X] Delete",
                 "[N] New graph", "[F] Fit view"};
     }
@@ -1700,7 +1727,11 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                     this.linkOutput = defaultOutput(this.selected.type);
                     this.status = "Drag or click a destination input for " + this.linkOutput + ".";
                 }
-                case 4 -> addSelectedToGroup();
+                case 4 -> {
+                    if (this.selected.type == AioaBehaviorGraph.NodeType.FUNCTION_GROUP) {
+                        this.activeGroupId = this.selected.parameters.get("_groupId"); rebuildEditorWidgets();
+                    } else addSelectedToGroup(false);
+                }
                 case 5 -> deleteSelected();
                 case 6 -> fitGraph();
             }
@@ -1735,22 +1766,51 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         openParameterPopover(this.contextMenuX, this.contextMenuY);
     }
 
-    private void addSelectedToGroup() {
+    private void addSelectedToGroup(boolean forceNew) {
         if (this.selected == null) return;
+        if (this.selected.type == AioaBehaviorGraph.NodeType.MOB_BASE) {
+            this.status = "Base Mob must stay in the parent graph and cannot be placed inside a function group.";
+            return;
+        }
         snapshot();
         String group = this.selected.parameters.get("_group");
         if (group == null || group.isBlank()) {
+            String groupId = forceNew ? null : this.graph.nodes.stream()
+                    .filter(node -> node.type == AioaBehaviorGraph.NodeType.FUNCTION_GROUP)
+                    .map(node -> node.parameters.get("_groupId")).filter(java.util.Objects::nonNull).findFirst().orElse(null);
+            if (groupId != null) {
+                this.selected.parameters.put("_group", groupId);
+                pruneGroupBoundaryEdges();
+                this.status = "Added node to " + groupName(groupId) + ".";
+                return;
+            }
+            groupId = "group_" + UUID.randomUUID().toString().substring(0, 8);
             group = this.graph.nodes.stream().filter(node -> node != this.selected).map(node -> node.parameters.get("_group"))
                     .filter(java.util.Objects::nonNull).filter(name -> !name.isBlank()).findFirst().orElse(null);
-            if (group == null) group = "Group " + (1 + this.graph.nodes.stream().map(node -> node.parameters.get("_group"))
-                    .filter(java.util.Objects::nonNull).distinct().count());
-            this.selected.parameters.put("_group", group);
-            this.status = "Added node to " + group + ". Rename it by editing the _group setting.";
+            String displayName = "Function " + (1 + this.graph.nodes.stream()
+                    .filter(node -> node.type == AioaBehaviorGraph.NodeType.FUNCTION_GROUP).count());
+            AioaBehaviorGraph.Node call = new AioaBehaviorGraph.Node("node_" + UUID.randomUUID().toString().substring(0, 8),
+                    AioaBehaviorGraph.NodeType.FUNCTION_GROUP, this.selected.x - 180, this.selected.y)
+                    .parameter("name", displayName).parameter("_groupId", groupId);
+            this.graph.nodes.add(call);
+            this.selected.parameters.put("_group", groupId);
+            pruneGroupBoundaryEdges();
+            this.selected = call;
+            this.status = "Created " + displayName + ". Double-click its call node to edit the internal graph.";
         } else {
             this.parameterIndex = new ArrayList<>(this.selected.parameters.keySet()).indexOf("_group");
             openParameterPopover(this.contextMenuX, this.contextMenuY);
-            this.status = "Edit the group name; matching names share one group frame.";
+            this.status = "This node is inside " + groupName(group) + ".";
         }
+    }
+
+    private void pruneGroupBoundaryEdges() {
+        this.graph.edges.removeIf(edge -> {
+            AioaBehaviorGraph.Node from = findNode(edge.from);
+            AioaBehaviorGraph.Node to = findNode(edge.to);
+            if (from == null || to == null) return true;
+            return !java.util.Objects.equals(from.parameters.get("_group"), to.parameters.get("_group"));
+        });
     }
 
     private void drawTopMenu(GuiGraphics graphics) {
@@ -1782,7 +1842,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         if ("File".equals(menu)) return new String[]{"New graph  Ctrl+N", "Save  Ctrl+S", "Save as library file", "Import newest", "Export", "Quit"};
         if ("Edit".equals(menu)) return new String[]{"Undo  Ctrl+Z", "Redo  Ctrl+Y", "Duplicate  Ctrl+D", "Delete  Del"};
         if ("View".equals(menu)) return new String[]{"Fit graph  F", "Toggle node palette", "Toggle inspector", "Toggle quick guide"};
-        if ("Graph".equals(menu)) return new String[]{"Validate graph", "Start link from selection", "Create / extend group", "Stop preview"};
+        if ("Graph".equals(menu)) return new String[]{"Validate graph", "Start link from selection", "Create function group", this.activeGroupId == null ? "Stop preview" : "Exit function group"};
         return new String[]{"Quick guide", "Documentation", "Keyboard shortcuts"};
     }
 
@@ -1808,7 +1868,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         } else if ("Graph".equals(menu)) switch (action) {
             case 0 -> validateGraph();
             case 1 -> { this.linkStart = this.selected; if (this.selected != null) this.linkOutput = defaultOutput(this.selected.type); }
-            case 2 -> addSelectedToGroup(); case 3 -> stopPreview();
+            case 2 -> addSelectedToGroup(true); case 3 -> { if (this.activeGroupId == null) stopPreview(); else { this.activeGroupId = null; this.selected = null; rebuildEditorWidgets(); } }
         } else switch (action) {
             case 0 -> this.showHelp = true; case 1 -> this.transitionTo(new AioaDocsScreen(this));
             case 2 -> this.status = "Ctrl+Z/Y undo/redo, Ctrl+D duplicate, Del delete, F fit, wheel zoom, Shift+wheel pan.";
@@ -1951,6 +2011,20 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         return this.graph.nodes.stream().filter(node -> node.id.equals(id)).findFirst().orElse(null);
     }
 
+    private boolean isNodeVisible(AioaBehaviorGraph.Node node) {
+        String membership = node.parameters.get("_group");
+        return this.activeGroupId == null ? membership == null || membership.isBlank()
+                : this.activeGroupId.equals(membership);
+    }
+
+    private String groupName(String groupId) {
+        return this.graph.nodes.stream().filter(node -> node.type == AioaBehaviorGraph.NodeType.FUNCTION_GROUP
+                        && groupId.equals(node.parameters.get("_groupId")))
+                .map(node -> node.parameters.getOrDefault("name", "Function group")).findFirst().orElse("Function group");
+    }
+
+    private String activeGroupName() { return groupName(this.activeGroupId); }
+
     private static String defaultOutput(AioaBehaviorGraph.NodeType type) {
         return outputsFor(type)[0];
     }
@@ -2022,6 +2096,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             case COMPARE_VARIABLE -> node.parameter("name", "value").parameter("comparison", ">=").parameter("value", "1");
             case SET_PHASE -> node.parameter("phase", "1");
             case SCRIPT -> node.parameter("script", "say={mob} started; rotate=90; glow=true");
+            case FUNCTION_GROUP -> node.parameter("name", "Function group")
+                    .parameter("_groupId", "group_" + UUID.randomUUID().toString().substring(0, 8));
             case SET_BODY_ROTATION, SET_HEAD_ROTATION -> node.parameter("degrees", "0");
             default -> { }
         }
