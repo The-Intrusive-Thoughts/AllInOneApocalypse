@@ -21,8 +21,9 @@ public final class AioaNodeSchema {
                     List.of("found", "missing");
             case HAS_TARGET, TARGET_IN_RANGE, HEALTH_BELOW, CAN_SEE_TARGET, IS_DAYTIME, IS_ON_GROUND, WAS_HURT,
                     HAS_TAG, COMPARE_VARIABLE -> List.of("true", "false");
-            case EVERY_TICKS, EVERY_SECONDS, DELAY_TICKS, ON_FIRST_TICK -> List.of("ready", "waiting");
+            case EVERY_TICKS, EVERY_SECONDS, DELAY_TICKS, DELAY_SECONDS, ON_FIRST_TICK -> List.of("ready", "waiting");
             case COOLDOWN -> List.of("ready", "waiting");
+            case REPEAT_COUNT -> List.of("repeat", "done");
             case RANDOM_CHANCE -> List.of("success", "fail");
             case SEQUENCE -> List.of("then_1", "then_2", "then_3", "then_4");
             case PHASE_BRANCH -> List.of("phase_1", "phase_2", "phase_3", "phase_4");
