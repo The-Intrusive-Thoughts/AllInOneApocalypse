@@ -100,9 +100,15 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         this.finishScrollLayout(y + AioaScreenUtil.BUTTON_HEIGHT);
 
         if (!this.editableConfig.clientUi.tutorialCompleted) {
-            this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 - 118, this.height - 66, 108, "Skip tutorial", b -> finishTutorial()));
-            this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 + 10, this.height - 66, 108, "Next", b -> {
-                if (++this.tutorialStep >= 4) finishTutorial();
+            this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 - 174, this.height - 66, 108, "Skip tutorial", b -> finishTutorial(false)));
+            Button back = this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 - 54, this.height - 66, 108, "Back", b -> {
+                this.tutorialStep = Math.max(0, this.tutorialStep - 1); this.rebuildWidgets();
+            }));
+            back.active = this.tutorialStep > 0;
+            this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 + 66, this.height - 66, 108,
+                    this.tutorialStep == 3 ? "Open docs" : "Next", b -> {
+                if (this.tutorialStep >= 3) finishTutorial(true);
+                else { this.tutorialStep++; this.rebuildWidgets(); }
             }));
         }
     }
@@ -186,7 +192,7 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
     private void drawTutorial(GuiGraphics graphics) {
         int boxWidth = Math.min(520, this.width - 32);
         int left = this.width / 2 - boxWidth / 2;
-        int top = this.height - 126;
+        int top = this.height - 130 + (int) Math.round(Math.sin(System.currentTimeMillis() / 420.0D) * 2.0D);
         graphics.fill(0, 0, this.width, this.height, 0x52000000);
         graphics.fill(left, top, left + boxWidth, top + 54, 0xF518271E);
         String title = switch (this.tutorialStep) {
@@ -214,10 +220,11 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         graphics.fill(x2 - 2, y2 - 4, x2 + 3, y2, 0xFF78E5A5);
     }
 
-    private void finishTutorial() {
+    private void finishTutorial(boolean openDocs) {
         this.editableConfig.clientUi.tutorialCompleted = true;
         persistGuideState();
-        this.rebuildWidgets();
+        if (openDocs) this.transitionTo(new AioaDocsScreen(this));
+        else this.rebuildWidgets();
     }
 
     private void persistGuideState() {
@@ -232,6 +239,8 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         double mouseX = event.x();
         double mouseY = event.y();
         int button = event.button();
+        if (!this.editableConfig.clientUi.tutorialCompleted && !(mouseY >= this.height - 72 && mouseY <= this.height - 34
+                && mouseX >= this.width / 2 - 184 && mouseX <= this.width / 2 + 184)) return true;
         if (button == 0 && this.editableConfig.clientUi.showDocsHint) {
             int hintWidth = Math.min(390, this.width - 30);
             int hintX = this.width - hintWidth - 14;

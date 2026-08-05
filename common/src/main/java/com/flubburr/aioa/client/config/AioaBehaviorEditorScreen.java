@@ -54,6 +54,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private AioaBehaviorGraph.Node selected;
     private String selectedEdgeId;
     private AioaBehaviorGraph.Node linkStart;
+    private AioaBehaviorGraph.Edge reroutingEdge;
     private String linkOutput = "next";
     private String linkInput = "exec";
     private int windowX;
@@ -88,8 +89,10 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private String lastNodeClickId = "";
     private int parameterIndex;
     private boolean showContextMenu;
+    private AioaBehaviorGraph.Node contextNode;
     private int contextMenuX;
     private int contextMenuY;
+    private String activeTopMenu;
     private boolean draggingWindow;
     private boolean draggingNode;
     private boolean draggingCanvas;
@@ -124,7 +127,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private long lastMutationAt;
     private long lastAutosaveAt;
     private final List<FloatingWindow> floatingOrder = new ArrayList<>(List.of(
-            FloatingWindow.PALETTE, FloatingWindow.INSPECTOR, FloatingWindow.PARAMETERS));
+            FloatingWindow.PALETTE, FloatingWindow.INSPECTOR));
     private final Map<FloatingWindow, List<AbstractWidget>> floatingWidgets = new EnumMap<>(FloatingWindow.class);
 
     private AioaBehaviorEditorScreen(Screen parent, AioaConfig editableConfig, boolean saveOnApply) {
@@ -255,35 +258,14 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         this.floatingWidgets.clear();
         int toolbarY = this.windowY + 28;
         int x = this.windowX + 8;
-        this.addRenderableWidget(AioaScreenUtil.button(x, toolbarY, 66, "New", button -> newGraph()));
-        x += 70;
-        this.addRenderableWidget(AioaScreenUtil.button(x, toolbarY, 66, "Undo", button -> undo()));
-        x += 70;
-        this.addRenderableWidget(AioaScreenUtil.button(x, toolbarY, 66, "Redo", button -> redo()));
-        x += 70;
-        this.addRenderableWidget(AioaScreenUtil.button(x, toolbarY, 82, "Validate", button -> validateGraph()));
-        x += 86;
-        this.addRenderableWidget(AioaScreenUtil.button(x, toolbarY, 72, this.linkStart == null ? "Link" : "Linking", button -> {
-            this.linkStart = this.selected;
-            if (this.linkStart != null) this.linkOutput = defaultOutput(this.linkStart.type);
-            this.status = this.linkStart == null ? "Select a source node first." : "Click a destination node.";
-            rebuildEditorWidgets();
-        }));
-        x += 76;
-        this.addRenderableWidget(AioaScreenUtil.button(x, toolbarY, 76, "Port: " + this.linkOutput, button -> {
-            this.linkOutput = nextOutput(this.selected == null ? null : this.selected.type, this.linkOutput);
-            rebuildEditorWidgets();
-        }));
-        x += 80;
-        this.addRenderableWidget(AioaScreenUtil.button(x, toolbarY, 66, "Delete", button -> deleteSelected()));
-        x += 70;
-        this.addRenderableWidget(AioaScreenUtil.button(x, toolbarY, 58, Component.translatable("aioa.editor.help").getString(), button -> {
-            this.showHelp = !this.showHelp;
-            saveGraphLayout();
-        }));
-        x += 62;
-        this.addRenderableWidget(AioaScreenUtil.button(x, toolbarY, 58, Component.translatable("aioa.editor.docs").getString(), button ->
-                this.transitionTo(new AioaDocsScreen(this))));
+        for (String menu : List.of("File", "Edit", "View", "Graph", "Help")) {
+            int width = menu.equals("Graph") ? 62 : 54;
+            this.addRenderableWidget(AioaScreenUtil.button(x, toolbarY, width, menu, button -> {
+                this.activeTopMenu = menu.equals(this.activeTopMenu) ? null : menu;
+                this.showContextMenu = false;
+            }));
+            x += width + 4;
+        }
 
         int right = this.windowX + windowWidth() - 8;
         this.addRenderableWidget(AioaScreenUtil.button(right - 88, toolbarY, 80, "Done", button -> applyAndClose()));
@@ -334,7 +316,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         if (!this.parametersCollapsed) addFloatingWidget(FloatingWindow.PARAMETERS, this.parameterKey);
         this.parameterValue = new EditBox(this.font, parameterContentX, this.parametersY + 56, parameterContentWidth, 22, Component.literal("Parameter value"));
         this.parameterValue.setHint(Component.literal("value"));
-        this.parameterValue.setMaxLength(2048);
+        this.parameterValue.setMaxLength(8192);
         if (!this.parametersCollapsed) addFloatingWidget(FloatingWindow.PARAMETERS, this.parameterValue);
         if (!this.parametersCollapsed) {
             int half = (parameterContentWidth - 6) / 2;
@@ -538,6 +520,14 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     }
 
     private void exportGraph() {
+        exportGraph(false);
+    }
+
+    private void exportGraphAs() {
+        exportGraph(true);
+    }
+
+    private void exportGraph(boolean uniqueCopy) {
         syncFields();
         List<String> issues = AioaBehaviorValidator.validate(this.graph);
         if (!issues.isEmpty()) {
@@ -545,7 +535,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             return;
         }
         try {
-            this.status = "Saved " + AioaGraphLibrary.exportGraph(this.graph, this.editableConfig).getFileName() + ".";
+            this.status = "Saved " + (uniqueCopy ? AioaGraphLibrary.exportGraphAs(this.graph, this.editableConfig)
+                    : AioaGraphLibrary.exportGraph(this.graph, this.editableConfig)).getFileName() + ".";
         } catch (java.io.IOException exception) {
             this.status = "Could not export graph: " + exception.getMessage();
         }
@@ -937,6 +928,21 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         double mouseX = event.x();
         double mouseY = event.y();
         int button = event.button();
+        if (this.activeTopMenu != null && topMenuClicked(mouseX, mouseY, button)) return true;
+        if (this.activeTopMenu != null && !(mouseY >= this.windowY + 28 && mouseY <= this.windowY + 52)) {
+            this.activeTopMenu = null;
+        }
+        if (!this.parametersCollapsed) {
+            boolean insideParameters = mouseX >= this.parametersX && mouseX <= this.parametersX + this.parametersWidth
+                    && mouseY >= this.parametersY && mouseY <= this.parametersY + this.parametersHeight;
+            if (button == 0 && insideParameters && mouseY <= this.parametersY + 20
+                    && mouseX >= this.parametersX + this.parametersWidth - 22) {
+                closeParameterPopover();
+                return true;
+            }
+            if (insideParameters) return super.mouseClicked(event, eventDoubleClick);
+            if (button == 0) closeParameterPopover();
+        }
         FloatingWindow focusedWindow = floatingAt(mouseX, mouseY);
         if (focusedWindow != null) bringToFront(focusedWindow);
         if (this.showContextMenu && contextMenuClicked(mouseX, mouseY, button)) return true;
@@ -971,14 +977,13 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             return true;
         }
         if (button == 0) {
-            for (FloatingWindow window : FloatingWindow.values()) {
+            for (FloatingWindow window : this.floatingOrder) {
                 if (floatingResizeHandleClicked(mouseX, mouseY, window)) {
                     this.resizingFloatingWindow = window;
                     return true;
                 }
             }
         }
-        if (button == 0 && floatingHeaderClicked(mouseX, mouseY, FloatingWindow.PARAMETERS)) return true;
         if (button == 0 && floatingHeaderClicked(mouseX, mouseY, FloatingWindow.INSPECTOR)) return true;
         if (button == 0 && floatingHeaderClicked(mouseX, mouseY, FloatingWindow.PALETTE)) return true;
         if (button == 0 && mouseX >= this.viewportX + this.viewportWidth - 12 && mouseX <= this.viewportX + this.viewportWidth
@@ -1053,6 +1058,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                             .reduce((first, second) -> second).orElse(null);
                     if (incoming != null) {
                         snapshot();
+                        this.reroutingEdge = incoming.copy();
                         this.graph.edges.removeIf(edge -> edge.id.equals(incoming.id));
                         this.linkStart = findNode(incoming.from);
                         this.linkOutput = incoming.output;
@@ -1068,10 +1074,11 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 }
                 if (button == 1) {
                     this.selected = hit;
-                    this.linkStart = hit;
-                    this.linkOutput = defaultOutput(hit.type);
-                    this.status = "Quick-link: left-click a destination node.";
-                    rebuildEditorWidgets();
+                    this.selectedEdgeId = null;
+                    this.contextNode = hit;
+                    this.showContextMenu = true;
+                    this.contextMenuX = Math.min((int) mouseX, this.width - 168);
+                    this.contextMenuY = Math.min((int) mouseY, this.height - 152);
                     return true;
                 }
                 if (this.linkStart != null && this.linkStart != hit) {
@@ -1093,17 +1100,31 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 this.dragOffsetX = (int) mouseX - screenNodeX(hit);
                 this.dragOffsetY = (int) mouseY - screenNodeY(hit);
                 this.status = hit.type.help;
+                if (doubleClick) {
+                    this.parametersX = Math.max(0, Math.min(this.width - this.parametersWidth, (int) mouseX + 12));
+                    this.parametersY = Math.max(0, Math.min(this.height - this.parametersHeight, (int) mouseY + 10));
+                }
                 loadSelectedParameter(doubleClick);
                 return true;
             }
             AioaBehaviorGraph.Edge edge = edgeAt(mouseX, mouseY);
             if (button == 0 && edge != null) {
-                this.selected = null;
-                this.selectedEdgeId = edge.id;
-                this.status = "Selected link " + edge.output + " -> " + edge.input + ". Press Delete to disconnect.";
+                snapshot();
+                this.reroutingEdge = edge.copy();
+                this.graph.edges.removeIf(existing -> existing.id.equals(edge.id));
+                this.linkStart = findNode(edge.from);
+                this.linkOutput = edge.output;
+                this.linkInput = edge.input;
+                this.draggingLink = this.linkStart != null;
+                this.linkMouseX = mouseX;
+                this.linkMouseY = mouseY;
+                this.selected = this.linkStart;
+                this.selectedEdgeId = null;
+                this.status = "Link picked up. Drop it on a new input, or release on empty space to cancel.";
                 return true;
             }
             if (button == 1) {
+                this.contextNode = null;
                 this.showContextMenu = true;
                 this.contextMenuX = Math.min((int) mouseX, this.width - 132);
                 this.contextMenuY = Math.min((int) mouseY, this.height - 132);
@@ -1193,10 +1214,18 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             AioaBehaviorGraph.Node target = nodeAt(mouseX, mouseY);
             String targetInput = target == null ? null : inputAt(target, mouseX, mouseY);
             if (target != null && targetInput == null) targetInput = AioaNodeSchema.inputs(target.type).stream().findFirst().orElse(null);
-            if (targetInput != null) this.linkInput = targetInput;
-            connect(this.linkStart, targetInput == null ? null : target);
+            if (targetInput != null) {
+                this.linkInput = targetInput;
+                connect(this.linkStart, target);
+            } else if (this.reroutingEdge != null) {
+                this.graph.edges.add(this.reroutingEdge.copy());
+                this.status = "Reroute cancelled; the original link was restored.";
+            } else {
+                this.status = "Link cancelled.";
+            }
             this.draggingLink = false;
             this.linkStart = null;
+            this.reroutingEdge = null;
             rebuildEditorWidgets();
             return true;
         }
@@ -1464,6 +1493,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         }
         drawViewport(guiGraphics, mouseX, mouseY);
         drawFloatingWindows(guiGraphics);
+        if (!this.parametersCollapsed) drawParameterPopover(guiGraphics);
         guiGraphics.fill(this.windowX + 1, bottom - 27, right - 1, bottom - 1, 0xFF111A15);
         guiGraphics.drawString(this.font, this.status, this.windowX + 10, bottom - 18, AioaScreenUtil.TEXT_SUB);
         String workspace = "UI " + this.editableConfig.clientUi.editorScalePercent + "% | Graph " + zoomPercent() + "% | Wheel zoom | Drag grid to pan";
@@ -1473,6 +1503,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         super.render(guiGraphics, mouseX, mouseY, partialTick);
         if (this.showHelp) drawHelp(guiGraphics);
         if (this.showContextMenu) drawContextMenu(guiGraphics);
+        if (this.activeTopMenu != null) drawTopMenu(guiGraphics);
+        drawNodeTooltip(guiGraphics, mouseX, mouseY);
         this.finishUiRender(guiGraphics);
     }
 
@@ -1490,6 +1522,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
 
     private void drawGraph(GuiGraphics graphics) {
         graphics.enableScissor(canvasLeft(), canvasTop(), canvasRight(), canvasBottom());
+        drawGroupFrames(graphics);
         for (AioaBehaviorGraph.Edge edge : this.graph.edges) {
             AioaBehaviorGraph.Node from = findNode(edge.from);
             AioaBehaviorGraph.Node to = findNode(edge.to);
@@ -1511,7 +1544,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             int nodeHeight = nodeHeight();
             AioaScreenUtil.drawInsetPanel(graphics, x, y, x + nodeWidth, y + nodeHeight, node == this.selected);
             graphics.fill(x + 1, y + 1, x + nodeWidth - 1, y + Math.min(14, nodeHeight - 2), colorFor(node.type.category));
-            graphics.drawString(this.font, this.font.plainSubstrByWidth(friendly(node.type), nodeWidth - 10), x + 6, y + 4, 0xFFFFFFFF);
+            String nodeLabel = node.parameters.getOrDefault("_label", friendly(node.type));
+            graphics.drawString(this.font, this.font.plainSubstrByWidth(nodeLabel, nodeWidth - 10), x + 6, y + 4, 0xFFFFFFFF);
             if (this.canvasZoom >= 0.72D) graphics.drawString(this.font, node.type.category, x + 6, y + 22, AioaScreenUtil.TEXT_SUB);
             for (String input : AioaNodeSchema.inputs(node.type)) {
                 int portY = inputPortY(node, input);
@@ -1532,6 +1566,25 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             }
         }
         graphics.disableScissor();
+    }
+
+    private void drawGroupFrames(GuiGraphics graphics) {
+        this.graph.nodes.stream().map(node -> node.parameters.get("_group")).filter(java.util.Objects::nonNull)
+                .filter(name -> !name.isBlank()).distinct().forEach(group -> {
+                    List<AioaBehaviorGraph.Node> members = this.graph.nodes.stream()
+                            .filter(node -> group.equals(node.parameters.get("_group"))).toList();
+                    if (members.isEmpty()) return;
+                    int left = members.stream().mapToInt(this::screenNodeX).min().orElse(0) - 16;
+                    int top = members.stream().mapToInt(this::screenNodeY).min().orElse(0) - 28;
+                    int right = members.stream().mapToInt(node -> screenNodeX(node) + nodeWidth()).max().orElse(0) + 16;
+                    int bottom = members.stream().mapToInt(node -> screenNodeY(node) + nodeHeight()).max().orElse(0) + 16;
+                    graphics.fill(left, top, right, top + 18, 0xAA25573B);
+                    graphics.fill(left, top + 18, left + 1, bottom, 0x886EFFBA);
+                    graphics.fill(right - 1, top + 18, right, bottom, 0x886EFFBA);
+                    graphics.fill(left, bottom - 1, right, bottom, 0x886EFFBA);
+                    graphics.drawString(this.font, "[GROUP] " + this.font.plainSubstrByWidth(group, Math.max(20, right - left - 58)),
+                            left + 7, top + 5, 0xFFD6FFE3);
+                });
     }
 
     private void drawBezier(GuiGraphics graphics, int x1, int y1, int x2, int y2, int color) {
@@ -1609,6 +1662,27 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         }
     }
 
+    private void drawParameterPopover(GuiGraphics graphics) {
+        graphics.fill(this.parametersX, this.parametersY, this.parametersX + this.parametersWidth,
+                this.parametersY + this.parametersHeight, 0xFC101713);
+        graphics.fill(this.parametersX, this.parametersY, this.parametersX + this.parametersWidth,
+                this.parametersY + 20, 0xFF1A2B21);
+        graphics.fill(this.parametersX, this.parametersY, this.parametersX + 2,
+                this.parametersY + this.parametersHeight, 0xFF6EFFBA);
+        String title = this.selected == null ? "NODE SETTINGS" : "SETTINGS :: "
+                + this.selected.parameters.getOrDefault("_label", friendly(this.selected.type));
+        graphics.drawString(this.font, this.font.plainSubstrByWidth(title, this.parametersWidth - 36),
+                this.parametersX + 8, this.parametersY + 6, AioaScreenUtil.TEXT_MAIN);
+        graphics.drawString(this.font, "x", this.parametersX + this.parametersWidth - 16,
+                this.parametersY + 6, 0xFFFF9A9A);
+    }
+
+    private void closeParameterPopover() {
+        setParameterIfPresent();
+        this.parametersCollapsed = true;
+        rebuildEditorWidgets();
+    }
+
     private static void drawResizeHandle(GuiGraphics graphics, int right, int bottom) {
         graphics.fill(right - 14, bottom - 2, right, bottom, 0xFF6EFFBA);
         graphics.fill(right - 2, bottom - 14, right, bottom, 0xFF6EFFBA);
@@ -1616,29 +1690,173 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     }
 
     private void drawContextMenu(GuiGraphics graphics) {
-        String[] actions = {"Undo  Ctrl+Z", "Redo  Ctrl+Y", "Duplicate  Ctrl+D", "Delete  Del", "New Graph  Ctrl+N", "Fit View  F"};
-        graphics.fill(this.contextMenuX, this.contextMenuY, this.contextMenuX + 128, this.contextMenuY + 124, 0xFA111A15);
+        String[] actions = contextActions();
+        int width = this.contextNode == null ? 154 : 166;
+        graphics.fill(this.contextMenuX, this.contextMenuY, this.contextMenuX + width,
+                this.contextMenuY + 8 + actions.length * 20, 0xFA111A15);
         for (int i = 0; i < actions.length; i++) {
             int y = this.contextMenuY + 4 + i * 20;
-            graphics.fill(this.contextMenuX + 3, y, this.contextMenuX + 125, y + 18, 0xFF1B2921);
+            graphics.fill(this.contextMenuX + 3, y, this.contextMenuX + width - 3, y + 18, 0xFF1B2921);
             graphics.drawString(this.font, actions[i], this.contextMenuX + 8, y + 5, AioaScreenUtil.TEXT_MAIN);
         }
     }
 
+    private String[] contextActions() {
+        if (this.contextNode != null) return new String[]{"[N] Edit name", "[P] Edit parameters", "[D] Duplicate",
+                "[L] Start link", "[G] Add to group", "[X] Delete", "[F] Fit view"};
+        return new String[]{"[U] Undo  Ctrl+Z", "[R] Redo  Ctrl+Y", "[D] Duplicate", "[X] Delete",
+                "[N] New graph", "[F] Fit view"};
+    }
+
     private boolean contextMenuClicked(double mouseX, double mouseY, int button) {
-        if (button != 0 || mouseX < this.contextMenuX || mouseX > this.contextMenuX + 128
-                || mouseY < this.contextMenuY || mouseY > this.contextMenuY + 124) return false;
-        int action = Math.max(0, Math.min(5, ((int) mouseY - this.contextMenuY - 4) / 20));
-        switch (action) {
-            case 0 -> undo();
-            case 1 -> redo();
-            case 2 -> duplicateSelected();
-            case 3 -> deleteSelected();
-            case 4 -> newGraph();
-            case 5 -> fitGraph();
+        String[] actions = contextActions();
+        int width = this.contextNode == null ? 154 : 166;
+        if (button != 0 || mouseX < this.contextMenuX || mouseX > this.contextMenuX + width
+                || mouseY < this.contextMenuY || mouseY > this.contextMenuY + 8 + actions.length * 20) return false;
+        int action = Math.max(0, Math.min(actions.length - 1, ((int) mouseY - this.contextMenuY - 4) / 20));
+        if (this.contextNode != null) {
+            this.selected = this.contextNode;
+            switch (action) {
+                case 0 -> openSyntheticParameter("_label", this.selected.parameters.getOrDefault("_label", friendly(this.selected.type)));
+                case 1 -> openParameterPopover(this.contextMenuX, this.contextMenuY);
+                case 2 -> duplicateSelected();
+                case 3 -> {
+                    this.linkStart = this.selected;
+                    this.linkOutput = defaultOutput(this.selected.type);
+                    this.status = "Drag or click a destination input for " + this.linkOutput + ".";
+                }
+                case 4 -> addSelectedToGroup();
+                case 5 -> deleteSelected();
+                case 6 -> fitGraph();
+            }
+        } else {
+            switch (action) {
+                case 0 -> undo();
+                case 1 -> redo();
+                case 2 -> duplicateSelected();
+                case 3 -> deleteSelected();
+                case 4 -> newGraph();
+                case 5 -> fitGraph();
+            }
         }
         this.showContextMenu = false;
+        this.contextNode = null;
         return true;
+    }
+
+    private void openParameterPopover(int x, int y) {
+        if (this.selected == null || this.selected.parameters.isEmpty()) return;
+        this.parametersX = Math.max(0, Math.min(this.width - this.parametersWidth, x + 10));
+        this.parametersY = Math.max(0, Math.min(this.height - this.parametersHeight, y + 8));
+        this.parametersCollapsed = false;
+        rebuildEditorWidgets();
+        loadSelectedParameter(false);
+    }
+
+    private void openSyntheticParameter(String key, String value) {
+        if (this.selected == null) return;
+        this.selected.parameters.putIfAbsent(key, value);
+        this.parameterIndex = new ArrayList<>(this.selected.parameters.keySet()).indexOf(key);
+        openParameterPopover(this.contextMenuX, this.contextMenuY);
+    }
+
+    private void addSelectedToGroup() {
+        if (this.selected == null) return;
+        snapshot();
+        String group = this.selected.parameters.get("_group");
+        if (group == null || group.isBlank()) {
+            group = this.graph.nodes.stream().filter(node -> node != this.selected).map(node -> node.parameters.get("_group"))
+                    .filter(java.util.Objects::nonNull).filter(name -> !name.isBlank()).findFirst().orElse(null);
+            if (group == null) group = "Group " + (1 + this.graph.nodes.stream().map(node -> node.parameters.get("_group"))
+                    .filter(java.util.Objects::nonNull).distinct().count());
+            this.selected.parameters.put("_group", group);
+            this.status = "Added node to " + group + ". Rename it by editing the _group setting.";
+        } else {
+            this.parameterIndex = new ArrayList<>(this.selected.parameters.keySet()).indexOf("_group");
+            openParameterPopover(this.contextMenuX, this.contextMenuY);
+            this.status = "Edit the group name; matching names share one group frame.";
+        }
+    }
+
+    private void drawTopMenu(GuiGraphics graphics) {
+        String[] items = topMenuItems(this.activeTopMenu);
+        int x = topMenuX(this.activeTopMenu);
+        int y = this.windowY + 54;
+        int width = 178;
+        graphics.fill(x, y, x + width, y + 6 + items.length * 20, 0xFC101713);
+        for (int i = 0; i < items.length; i++) {
+            int rowY = y + 3 + i * 20;
+            graphics.fill(x + 2, rowY, x + width - 2, rowY + 18, 0xFF1B2921);
+            graphics.drawString(this.font, items[i], x + 8, rowY + 5, AioaScreenUtil.TEXT_MAIN);
+        }
+    }
+
+    private boolean topMenuClicked(double mouseX, double mouseY, int button) {
+        if (button != 0) return false;
+        String[] items = topMenuItems(this.activeTopMenu);
+        int x = topMenuX(this.activeTopMenu);
+        int y = this.windowY + 54;
+        if (mouseX < x || mouseX > x + 178 || mouseY < y || mouseY > y + 6 + items.length * 20) return false;
+        int action = Math.max(0, Math.min(items.length - 1, ((int) mouseY - y - 3) / 20));
+        runTopMenuAction(this.activeTopMenu, action);
+        this.activeTopMenu = null;
+        return true;
+    }
+
+    private String[] topMenuItems(String menu) {
+        if ("File".equals(menu)) return new String[]{"New graph  Ctrl+N", "Save  Ctrl+S", "Save as library file", "Import newest", "Export", "Quit"};
+        if ("Edit".equals(menu)) return new String[]{"Undo  Ctrl+Z", "Redo  Ctrl+Y", "Duplicate  Ctrl+D", "Delete  Del"};
+        if ("View".equals(menu)) return new String[]{"Fit graph  F", "Toggle node palette", "Toggle inspector", "Toggle quick guide"};
+        if ("Graph".equals(menu)) return new String[]{"Validate graph", "Start link from selection", "Create / extend group", "Stop preview"};
+        return new String[]{"Quick guide", "Documentation", "Keyboard shortcuts"};
+    }
+
+    private int topMenuX(String menu) {
+        int x = this.windowX + 8;
+        for (String name : List.of("File", "Edit", "View", "Graph", "Help")) {
+            if (name.equals(menu)) return x;
+            x += (name.equals("Graph") ? 62 : 54) + 4;
+        }
+        return x;
+    }
+
+    private void runTopMenuAction(String menu, int action) {
+        if ("File".equals(menu)) switch (action) {
+            case 0 -> newGraph(); case 1 -> saveNow(); case 2 -> exportGraphAs(); case 3 -> loadNewestGraph();
+            case 4 -> exportGraph(); case 5 -> applyAndClose();
+        } else if ("Edit".equals(menu)) switch (action) {
+            case 0 -> undo(); case 1 -> redo(); case 2 -> duplicateSelected(); case 3 -> deleteSelected();
+        } else if ("View".equals(menu)) switch (action) {
+            case 0 -> fitGraph(); case 1 -> { this.paletteCollapsed = !this.paletteCollapsed; rebuildEditorWidgets(); }
+            case 2 -> { this.inspectorCollapsed = !this.inspectorCollapsed; rebuildEditorWidgets(); }
+            case 3 -> this.showHelp = !this.showHelp;
+        } else if ("Graph".equals(menu)) switch (action) {
+            case 0 -> validateGraph();
+            case 1 -> { this.linkStart = this.selected; if (this.selected != null) this.linkOutput = defaultOutput(this.selected.type); }
+            case 2 -> addSelectedToGroup(); case 3 -> stopPreview();
+        } else switch (action) {
+            case 0 -> this.showHelp = true; case 1 -> this.transitionTo(new AioaDocsScreen(this));
+            case 2 -> this.status = "Ctrl+Z/Y undo/redo, Ctrl+D duplicate, Del delete, F fit, wheel zoom, Shift+wheel pan.";
+        }
+    }
+
+    private void saveNow() {
+        this.graphDirty = true;
+        this.lastMutationAt = 0L;
+        this.lastAutosaveAt = 0L;
+        autosaveIfReady();
+    }
+
+    private void drawNodeTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
+        if (!insideCanvas(mouseX, mouseY) || this.showContextMenu || this.activeTopMenu != null) return;
+        AioaBehaviorGraph.Node node = nodeAt(mouseX, mouseY);
+        if (node == null) return;
+        int width = Math.min(260, Math.max(150, this.font.width(node.type.help) + 16));
+        int x = Math.min(this.width - width - 4, mouseX + 12);
+        int y = Math.min(this.height - 34, mouseY + 12);
+        graphics.fill(x, y, x + width, y + 30, 0xF5111915);
+        graphics.drawString(this.font, node.type.category + " / double-click to edit", x + 7, y + 5, 0xFF78E5A5);
+        graphics.drawString(this.font, this.font.plainSubstrByWidth(node.type.help, width - 14), x + 7, y + 17, AioaScreenUtil.TEXT_SUB);
     }
 
     private void drawHelp(GuiGraphics graphics) {
