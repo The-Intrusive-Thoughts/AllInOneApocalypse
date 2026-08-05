@@ -20,12 +20,22 @@ public final class AioaGraphLibrary {
     private AioaGraphLibrary() { }
 
     public static Path exportGraph(AioaBehaviorGraph graph, AioaConfig config) throws IOException {
+        return exportGraph(graph, config, false);
+    }
+
+    public static Path exportGraphAs(AioaBehaviorGraph graph, AioaConfig config) throws IOException {
+        return exportGraph(graph, config, true);
+    }
+
+    private static Path exportGraph(AioaBehaviorGraph graph, AioaConfig config, boolean uniqueCopy) throws IOException {
         Path directory = libraryDirectory(config);
         Files.createDirectories(directory);
         String slug = graph.name.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_-]+", "-")
                 .replaceAll("^-+|-+$", "");
         if (slug.isBlank()) slug = "behavior";
-        Path target = directory.resolve(slug + ".aioagraph");
+        String suffix = uniqueCopy ? "-" + java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
+                .format(java.time.LocalDateTime.now()) : "";
+        Path target = directory.resolve(slug + suffix + ".aioagraph");
         try (Writer writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
             GSON.toJson(new GraphFile("aioa-behavior-graph", 2, graph.copy()), writer);
         }
