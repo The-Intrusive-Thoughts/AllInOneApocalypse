@@ -115,7 +115,7 @@ final class AioaDocsScreen extends AioaAnimatedScreen {
     }
 
     private void drawScriptDocs(GuiGraphics g, int left, int top, int width) {
-        card(g, left + 20, top, width - 40, "SAFE CREATOR SCRIPT NODE", "Scripts are short semicolon-separated commands, not unrestricted Java. Double-click a Script node and edit its script value. Unknown commands are ignored and validation limits scripts to 1,024 characters.");
+        card(g, left + 20, top, width - 40, "SAFE CREATOR SCRIPT NODE", "Double-click a Script node to open the code editor. Use let variables, if / else blocks, comments, built-in mob and target values, and bounded calls such as say(), actionbar(), rotate(), heal(), damage_target(), move_to_target(), glow(), tag(), and stop(). Scripts are validated and capped at 8,192 characters; unrestricted Java is never executed.");
         card(g, left + 20, top + 76, (width - 50) / 2, "COMMANDS", "say=message; rotate=degrees; glow=true/false; aggressive=true/false; stop. Use {mob} inside say messages to insert the selected mob's display name.");
         card(g, left + 30 + (width - 50) / 2, top + 76, (width - 50) / 2, "TIMING", "Place Every Seconds or Delay Ticks before Script. Connect ready to the script and waiting to the loop. Every Seconds accepts decimals; Delay Ticks uses exact game ticks (20 ticks = 1 second)." );
         card(g, left + 20, top + 228, width - 40, "VALUES & REUSABLE STATE", "Variables, phases, delays, intervals, and cooldowns persist separately for every graph mob. Math supports add, subtract, multiply, divide, min, and max; Compare Variable branches true/false.");
