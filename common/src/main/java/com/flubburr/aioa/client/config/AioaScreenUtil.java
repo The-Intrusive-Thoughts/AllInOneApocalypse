@@ -435,13 +435,13 @@ public final class AioaScreenUtil {
     static void drawEntityViewport(GuiGraphics guiGraphics, Font font, int left, int top, int width, int height,
                                    ResourceLocation id, ViewportFrame frame) {
         drawInsetPanel(guiGraphics, left, top, left + width, top + height, true);
-        guiGraphics.fill(left + 2, top + 20, left + width - 2, top + height - 2, 0xFF080D0A);
+        guiGraphics.fill(left + 2, top + 40, left + width - 2, top + height - 2, 0xFF080D0A);
         guiGraphics.fill(left + 2, top + 2, left + width - 2, top + 20, 0xFF17271E);
         guiGraphics.drawString(font, "3D VIEWPORT", left + 8, top + 7, TEXT_MAIN);
         String clippedState = font.plainSubstrByWidth(frame.label(), Math.max(20, width - 120));
         guiGraphics.drawString(font, clippedState, left + width - font.width(clippedState) - 8, top + 7, TEXT_SUB);
 
-        int floorTop = top + Math.max(36, height / 2);
+        int floorTop = top + Math.max(52, height / 2);
         int floorBottom = top + height - 4;
         for (int row = 0; row <= 5; row++) {
             double t = row / 5.0D;
@@ -457,11 +457,13 @@ public final class AioaScreenUtil {
 
         LivingEntity entity = previewEntity(id);
         if (entity != null) {
-            guiGraphics.enableScissor(left + 2, top + 21, left + width - 2, top + height - 2);
+            guiGraphics.enableScissor(left + 2, top + 41, left + width - 2, top + height - 2);
             float orbitX = (float) Math.sin(Math.toRadians(frame.yaw())) * 28.0F;
             float orbitY = -8.0F + frame.pitch() * 0.12F;
             int scale = Math.max(28, Math.min(72, height / 2));
-            int mobX = width >= 230 ? left + width * 2 / 5 : centerX;
+            int usable = Math.max(20, width - 80);
+            int mobX = centerX + (int) Math.max(-usable / 2.0D, Math.min(usable / 2.0D, frame.mobX() * usable / 10.0D));
+            int mobY = floorBottom - 3 - Math.round(frame.mobZ() * 4.0F);
             entity.tickCount++;
             entity.setYRot(frame.yaw());
             entity.setYHeadRot(frame.headYaw());
@@ -469,25 +471,39 @@ public final class AioaScreenUtil {
             if (entity instanceof Mob previewMob) previewMob.setAggressive(frame.attacking());
             entity.setGlowingTag(frame.glowing());
             entity.walkAnimation.update(frame.walkAmount(), frame.walkAmount());
-            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX - scale, top + 22, mobX + scale,
-                    floorBottom - 3, scale, 0.0F, orbitX, orbitY, entity);
+            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX - scale, top + 42, mobX + scale,
+                    mobY, scale, 0.0F, orbitX, orbitY, entity);
             if (frame.showTarget() && width >= 230 && Minecraft.getInstance().player != null) {
-                int playerX = left + width * 3 / 4;
-                int playerScale = Math.max(24, scale * 3 / 4);
-                InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, playerX - playerScale, top + 22,
-                        playerX + playerScale, floorBottom - 3, playerScale, 0.0F, -orbitX, orbitY,
+                int targetScreenX = centerX + (int) Math.max(-usable / 2.0D, Math.min(usable / 2.0D, frame.targetX() * usable / 10.0D));
+                int targetScreenY = floorBottom - 3 - Math.round(frame.targetZ() * 4.0F);
+                int targetScale = Math.max(24, scale * 3 / 4);
+                InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, targetScreenX - targetScale, top + 42,
+                        targetScreenX + targetScale, targetScreenY, targetScale, 0.0F, -orbitX, orbitY,
                         Minecraft.getInstance().player);
             }
             guiGraphics.disableScissor();
         } else {
             guiGraphics.renderItem(entityPreviewItem(id), centerX - 8, top + height / 2 - 8);
         }
+        int barY = top + height - 13;
+        int barWidth = Math.max(24, width / 4);
+        guiGraphics.fill(left + 6, barY, left + 6 + barWidth, barY + 4, 0xFF281516);
+        guiGraphics.fill(left + 6, barY, left + 6 + Math.round(barWidth * Math.max(0.0F, Math.min(1.0F, frame.health() / Math.max(1.0F, frame.maxHealth())))), barY + 4, 0xFF4DD97B);
+        if (frame.showTarget()) {
+            guiGraphics.fill(left + width - 6 - barWidth, barY, left + width - 6, barY + 4, 0xFF281516);
+            guiGraphics.fill(left + width - 6 - barWidth, barY, left + width - 6 - barWidth + Math.round(barWidth * Math.max(0.0F, Math.min(1.0F, frame.targetHealth() / 20.0F))), barY + 4, 0xFFD95B5B);
+            if (frame.targetGlowing()) guiGraphics.drawString(font, "GLOW", left + width - 35, top + 44, 0xFFFFFF78);
+        }
+        guiGraphics.drawString(font, "PHASE " + frame.phase(), left + 7, top + 44, 0xFF76B991);
     }
 
     record ViewportFrame(String label, float yaw, float headYaw, float pitch, float walkAmount,
-                         boolean attacking, boolean glowing, boolean showTarget) {
+                         boolean attacking, boolean glowing, boolean showTarget, boolean targetGlowing,
+                         float mobX, float mobZ, float targetX, float targetZ,
+                         float health, float maxHealth, float targetHealth, int phase) {
         static ViewportFrame idle() {
-            return new ViewportFrame("IDLE", 25.0F, 25.0F, 0.0F, 0.0F, false, false, false);
+            return new ViewportFrame("STOPPED", 25.0F, 25.0F, 0.0F, 0.0F, false, false, false, false,
+                    -2.5F, 0.0F, 2.5F, 0.0F, 20.0F, 20.0F, 20.0F, 1);
         }
     }
 

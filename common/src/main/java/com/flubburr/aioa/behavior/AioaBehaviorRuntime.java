@@ -133,10 +133,23 @@ public final class AioaBehaviorRuntime {
             case EVERY_SECONDS -> { return timerReady(node, mob, context.state,
                     Math.max(1L, Math.round(number(node, "seconds", 1, 0.05, 600) * 20.0D)), false) ? "ready" : "waiting"; }
             case DELAY_TICKS -> { return timerReady(node, mob, context.state, (long) number(node, "ticks", 20, 1, 12000), true) ? "ready" : "waiting"; }
+            case DELAY_SECONDS -> { return timerReady(node, mob, context.state,
+                    Math.max(1L, Math.round(number(node, "seconds", 1, 0.05, 600) * 20.0D)), true) ? "ready" : "waiting"; }
             case RANDOM_CHANCE -> { return mob.getRandom().nextDouble() <= number(node, "chance", 0.5, 0, 1) ? "success" : "fail"; }
             case COOLDOWN -> { return timerReady(node, mob, context.state,
                     (long) number(node, "ticks", 100, 1, 12000), true) ? "ready" : "waiting"; }
             case SEQUENCE -> { return "then_1"; }
+            case REPEAT_COUNT -> {
+                String key = "repeat:" + node.id;
+                double count = context.state.variables.getOrDefault(key, 0.0D) + 1.0D;
+                double limit = number(node, "count", 3, 1, 1024);
+                if (count < limit) {
+                    context.state.variables.put(key, count);
+                    return "repeat";
+                }
+                context.state.variables.remove(key);
+                return "done";
+            }
             case HAS_TARGET -> { return mob.getTarget() != null && mob.getTarget().isAlive() ? "true" : "false"; }
             case TARGET_IN_RANGE -> {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
@@ -243,6 +256,10 @@ public final class AioaBehaviorRuntime {
                 if (target != null) target.knockback(number(node, "strength", 0.6, 0, 4), mob.getX() - target.getX(), mob.getZ() - target.getZ());
             }
             case DAMAGE_TARGET -> damageTarget(node, mob, context);
+            case HEAL_TARGET -> {
+                LivingEntity target = context.target != null ? context.target : mob.getTarget();
+                if (target != null) target.heal((float) number(node, "amount", 4, 0, 2048));
+            }
             case AREA_DAMAGE -> areaDamage(node, mob);
             case SET_FIRE_TARGET -> {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
@@ -281,6 +298,14 @@ public final class AioaBehaviorRuntime {
                 if (target != null) applyEffect(node, mob, target);
             }
             case CLEAR_EFFECTS_SELF -> mob.removeAllEffects();
+            case CLEAR_EFFECTS_TARGET -> {
+                LivingEntity target = context.target != null ? context.target : mob.getTarget();
+                if (target != null) target.removeAllEffects();
+            }
+            case SET_TARGET_GLOWING -> {
+                LivingEntity target = context.target != null ? context.target : mob.getTarget();
+                if (target != null) target.setGlowingTag(flag(node, "value", true));
+            }
             case SUMMON_LIGHTNING -> summonLightning(node, mob, context);
             case EXPLOSION -> explosion(node, mob, context);
             case SAY_IN_CHAT -> sayInChat(node, mob);
