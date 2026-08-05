@@ -169,6 +169,7 @@ public final class AioaBehaviorGraph {
         SET_BODY_ROTATION("Model", "Separately changes the mob body's display rotation."),
         SET_HEAD_ROTATION("Model", "Separately changes the mob head's display rotation."),
         DESPAWN_SELF("State", "Safely removes the graph mob from the world."),
+        FUNCTION_GROUP("Organization", "Calls a reusable, isolated group of nodes. Double-click it to enter the group's internal workspace."),
         COMMENT("Organization", "A note for creators; it does not execute.");
 
         public final String category;
