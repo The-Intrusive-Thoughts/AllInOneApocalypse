@@ -33,6 +33,13 @@ public final class AioaBehaviorValidator {
             if (node.id.length() > 80) issues.add("Node ids are limited to 80 characters.");
             if (node.parameters.size() > 32) issues.add("A node cannot have more than 32 parameters.");
             validateParameters(node, issues);
+            if (node.type == AioaBehaviorGraph.NodeType.FUNCTION_GROUP) {
+                String groupId = node.parameters.getOrDefault("_groupId", "");
+                if (groupId.isBlank()) issues.add("Function Group needs an internal group id.");
+                else if (graph.nodes.stream().noneMatch(member -> groupId.equals(member.parameters.get("_group")))) {
+                    issues.add("Function Group '" + node.parameters.getOrDefault("name", "Group") + "' is empty.");
+                }
+            }
         }
         Set<String> edgeIds = new HashSet<>();
         for (AioaBehaviorGraph.Edge edge : graph.edges) {
@@ -211,6 +218,7 @@ public final class AioaBehaviorValidator {
             case SET_BODY_ROTATION, SET_HEAD_ROTATION -> Set.of("degrees");
             case SET_PHASE -> Set.of("phase");
             case SCRIPT -> Set.of("script");
+            case FUNCTION_GROUP -> Set.of("name");
             case COMMENT -> Set.of("text");
             default -> Set.of();
         };
@@ -226,7 +234,8 @@ public final class AioaBehaviorValidator {
             String id = queue.removeFirst();
             if (reached.add(id)) queue.addAll(outgoing.getOrDefault(id, List.of()));
         }
-        graph.nodes.stream().filter(node -> node.type != AioaBehaviorGraph.NodeType.COMMENT && !reached.contains(node.id))
+        graph.nodes.stream().filter(node -> node.type != AioaBehaviorGraph.NodeType.COMMENT
+                        && node.parameters.getOrDefault("_group", "").isBlank() && !reached.contains(node.id))
                 .limit(3).forEach(node -> issues.add(node.type.name().replace('_', ' ') + " is not connected to Base Mob."));
     }
 
