@@ -35,7 +35,7 @@ if (selectedMinecraftVersion in ["1.20.5", "26.1", "26.1.1", "26.1.2", "26.2"]) 
     if (selectedMinecraftVersion == "1.20.5") {
         println("AIOA setup: Forge module disabled for Minecraft 1.20.5 (no Forge artifact published for this version).")
     } else {
-        println("AIOA setup: Forge module disabled for Minecraft 26.1 until ForgeGradle supports the required Gradle 9 / Java 25 toolchain.")
+        println("AIOA setup: Forge module disabled for Minecraft ${selectedMinecraftVersion} until ForgeGradle supports the required Gradle 9 / Java 25 toolchain.")
     }
 } else {
     include("forge")

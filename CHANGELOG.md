@@ -3,6 +3,7 @@
 ## 0.2.1 (Unreleased)
 
 - Added a Fabric beta port for Minecraft 26.1.x using Java 25 and Mojang's unobfuscated runtime names. The apocalypse spawning, graph runtime, persistence, validation, networking, and mob AI systems are available; the in-game creator UI is temporarily disabled while its renderer is migrated to the new 26.x graphics API.
+- Added a separate Fabric beta for Minecraft 26.2 using Fabric Loader 0.19.3, Fabric API 0.156.0, Loom 1.17, and Gradle 9.5.1. It carries the same server/runtime feature set and temporary editor-renderer limitation as the 26.1 beta.
 - Replaced the Graph Studio action strip with File, Edit, View, Graph, and Help menus covering new/save/save-as/import/export/quit, undo/redo, layout controls, validation, linking, grouping, preview, guides, and documentation.
 - Added direct curve rerouting: pick up an existing connection anywhere along its Bezier, drop it on another typed input, or release on empty canvas to restore the original link safely.
 - Changed Node Parameters from a draggable persistent window into a cursor-local double-click popover that closes with its `x` or an outside click, while preserving edits and contextual entity/player/script controls.

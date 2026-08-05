@@ -1,5 +1,5 @@
 plugins {
-    id 'net.fabricmc.fabric-loom' version '1.16.0-alpha.13' apply(false)
+    id 'net.fabricmc.fabric-loom' version '1.17.18' apply(false)
     id 'net.minecraftforge.gradle' version '[6.0.24,6.2)' apply(false)
     id 'com.modrinth.minotaur' version '2.+' apply(false)
 }
@@ -19,6 +19,7 @@ def mcVersionProfiles = [
         '1.21.10': [fabricApi: '0.138.4+1.21.10', forge: '60.1.9', forgeLoaderRange: '[60,)', midnightLib: '1.9.2+1.21.10-fabric', modMenu: '16.0.1', fabricGameVersions: ['1.21.10']],
         '1.21.11': [fabricApi: '0.141.3+1.21.11', forge: '61.1.5', forgeLoaderRange: '[61,)', midnightLib: '1.9.2+1.21.11-fabric', modMenu: '17.0.0', fabricGameVersions: ['1.21.11']],
         '26.1.2': [fabricApi: '0.155.2+26.1.2', forge: null, forgeLoaderRange: null, midnightLib: '', modMenu: '', fabricGameVersions: ['26.1', '26.1.1', '26.1.2']],
+        '26.2'  : [fabricApi: '0.156.0+26.2', forge: null, forgeLoaderRange: null, midnightLib: '', modMenu: '', fabricGameVersions: ['26.2']],
 ]
 
 def selectedProfile = mcVersionProfiles[minecraft_version]

@@ -18,6 +18,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LightningBolt;
@@ -257,7 +258,9 @@ public final class AioaBehaviorRuntime {
             }
             case KNOCKBACK_TARGET -> {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
-                if (target != null) target.knockback(number(node, "strength", 0.6, 0, 4), mob.getX() - target.getX(), mob.getZ() - target.getZ());
+                if (target != null) target.knockback(number(node, "strength", 0.6, 0, 4),
+                        mob.getX() - target.getX(), mob.getZ() - target.getZ(),
+                        mob.damageSources().mobAttack(mob), 0.0F);
             }
             case DAMAGE_TARGET -> damageTarget(node, mob, context);
             case HEAL_TARGET -> {
@@ -429,7 +432,7 @@ public final class AioaBehaviorRuntime {
         if (!(mob.level() instanceof ServerLevel level)) return;
         LivingEntity target = context.target != null ? context.target : mob.getTarget();
         Vec3 position = flag(node, "atTarget", true) && target != null ? target.position() : mob.position();
-        LightningBolt lightning = EntityType.LIGHTNING_BOLT.create(level, EntitySpawnReason.EVENT);
+        LightningBolt lightning = EntityTypes.LIGHTNING_BOLT.create(level, EntitySpawnReason.EVENT);
         if (lightning == null) return;
         lightning.snapTo(position.x, position.y, position.z, 0.0F, 0.0F);
         lightning.setVisualOnly(flag(node, "visualOnly", true));
