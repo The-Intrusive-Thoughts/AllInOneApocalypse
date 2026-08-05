@@ -87,7 +87,8 @@ public final class AioaBehaviorValidator {
                 }
             }
             case EVERY_TICKS, DELAY_TICKS, COOLDOWN -> number(node, "ticks", 1, 12000, issues);
-            case EVERY_SECONDS -> number(node, "seconds", 0.05, 600, issues);
+            case EVERY_SECONDS, DELAY_SECONDS -> number(node, "seconds", 0.05, 600, issues);
+            case REPEAT_COUNT -> number(node, "count", 1, 1024, issues);
             case RANDOM_CHANCE -> number(node, "chance", 0, 1, issues);
             case FIND_NEAREST_PLAYER, FIND_PLAYER_NAME, FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB -> number(node, "range", 1, 64, issues);
             case TARGET_IN_RANGE, ATTACK_TARGET -> number(node, "range", 1, 64, issues);
@@ -119,7 +120,7 @@ public final class AioaBehaviorValidator {
             case EXPLOSION -> number(node, "power", 0, 12, issues);
             case SAY_IN_CHAT -> number(node, "range", 1, 256, issues);
             case PARTICLE_PATTERN -> { number(node, "points", 3, 64, issues); number(node, "radius", 0.1, 8, issues); }
-            case HEAL_SELF -> number(node, "amount", 0, 2048, issues);
+            case HEAL_SELF, HEAL_TARGET -> number(node, "amount", 0, 2048, issues);
             case SET_VELOCITY -> { number(node, "x", -8, 8, issues); number(node, "y", -8, 8, issues); number(node, "z", -8, 8, issues); }
             case SET_VARIABLE, MATH_VARIABLE, COMPARE_VARIABLE -> number(node, "value", -1_000_000, 1_000_000, issues);
             case SET_BODY_ROTATION, SET_HEAD_ROTATION -> number(node, "degrees", -360, 360, issues);
@@ -136,7 +137,8 @@ public final class AioaBehaviorValidator {
         return switch (type) {
             case MOB_BASE -> Set.of("entity", "health", "damage", "speed");
             case EVERY_TICKS, DELAY_TICKS, COOLDOWN -> Set.of("ticks");
-            case EVERY_SECONDS -> Set.of("seconds");
+            case EVERY_SECONDS, DELAY_SECONDS -> Set.of("seconds");
+            case REPEAT_COUNT -> Set.of("count");
             case RANDOM_CHANCE -> Set.of("chance");
             case FIND_NEAREST_PLAYER, FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB -> Set.of("range");
             case FIND_PLAYER_NAME -> Set.of("name", "range");
@@ -158,7 +160,7 @@ public final class AioaBehaviorValidator {
             case AREA_DAMAGE -> Set.of("radius", "amount", "includeAllies");
             case SET_FIRE_TARGET -> Set.of("seconds");
             case LAUNCH_TARGET -> Set.of("horizontal", "vertical");
-            case SET_AGGRESSIVE, SET_NO_AI, SET_PERSISTENT, SET_GLOWING, SET_SILENT, SET_INVULNERABLE -> Set.of("value");
+            case SET_AGGRESSIVE, SET_NO_AI, SET_PERSISTENT, SET_GLOWING, SET_SILENT, SET_INVULNERABLE, SET_TARGET_GLOWING -> Set.of("value");
             case SET_CUSTOM_NAME -> Set.of("name", "visible");
             case SET_MAX_HEALTH, SET_ATTACK_DAMAGE, SET_MOVEMENT_SPEED, SET_ARMOR, SET_FOLLOW_RANGE, SET_KNOCKBACK_RESISTANCE -> Set.of("value");
             case EQUIP_ITEM -> Set.of("item", "slot", "dropChance");
@@ -169,7 +171,7 @@ public final class AioaBehaviorValidator {
             case EXPLOSION -> Set.of("power", "atTarget", "breakBlocks", "fire");
             case SAY_IN_CHAT, ACTION_BAR -> Set.of("message", "range");
             case PARTICLE_PATTERN -> Set.of("pattern", "points", "radius");
-            case HEAL_SELF -> Set.of("amount");
+            case HEAL_SELF, HEAL_TARGET -> Set.of("amount");
             case SET_VELOCITY -> Set.of("x", "y", "z");
             case ADD_TAG, REMOVE_TAG, HAS_TAG -> Set.of("tag");
             case SET_VARIABLE -> Set.of("name", "value");
