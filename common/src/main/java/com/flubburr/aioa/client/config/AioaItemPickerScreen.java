@@ -127,7 +127,7 @@ final class AioaItemPickerScreen extends AioaAnimatedScreen {
             graphics.fill(x + 2, y + 2, x + CELL - 2, y + CELL - 2,
                     chosen ? 0xDD17673E : hovered ? 0xDD243A2D : 0xCC101713);
             graphics.fill(x + 2, y + 2, x + CELL - 2, y + 3, chosen ? 0xFF92F5B8 : 0xFF335442);
-            graphics.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(id)), x + 14, y + 8);
+            graphics.renderItem(new ItemStack(BuiltInRegistries.ITEM.getValue(id)), x + 14, y + 8);
             String shortName = this.font.plainSubstrByWidth(itemName(id), CELL - 6);
             graphics.drawCenteredString(this.font, shortName, x + CELL / 2, y + 29, 0xFFD8F7E2);
             if (hovered) hoveredIndex = start + slot;
@@ -136,14 +136,22 @@ final class AioaItemPickerScreen extends AioaAnimatedScreen {
         super.render(graphics, mouseX, mouseY, partialTick);
         if (hoveredIndex >= 0 && hoveredIndex < this.filteredItems.size()) {
             ResourceLocation id = this.filteredItems.get(hoveredIndex);
-            graphics.renderTooltip(this.font, Component.literal(itemName(id) + "\n" + id), mouseX, mouseY);
+            String tooltipName = itemName(id);
+            String registryName = id.toString();
+            int tooltipWidth = Math.max(this.font.width(tooltipName), this.font.width(registryName)) + 12;
+            int tooltipX = Math.max(4, Math.min(this.width - tooltipWidth - 4, mouseX + 10));
+            int tooltipY = Math.max(4, Math.min(this.height - 34, mouseY + 10));
+            graphics.fill(tooltipX, tooltipY, tooltipX + tooltipWidth, tooltipY + 31, 0xF5111814);
+            graphics.fill(tooltipX, tooltipY, tooltipX + tooltipWidth, tooltipY + 1, 0xFF6EFFBA);
+            graphics.drawString(this.font, tooltipName, tooltipX + 6, tooltipY + 5, 0xFFE2F8E9);
+            graphics.drawString(this.font, registryName, tooltipX + 6, tooltipY + 17, 0xFF8CB79B);
         }
         this.finishUiRender(graphics);
     }
 
     private static String itemName(ResourceLocation id) {
-        Item item = BuiltInRegistries.ITEM.get(id);
-        return item == null ? id.getPath() : item.getDescription().getString();
+        Item item = BuiltInRegistries.ITEM.getValue(id);
+        return item == null ? id.getPath() : new ItemStack(item).getHoverName().getString();
     }
 
     @Override
