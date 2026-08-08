@@ -11,6 +11,7 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Comparator;
 import java.util.Optional;
 
@@ -36,8 +37,23 @@ public final class AioaGraphLibrary {
         String suffix = uniqueCopy ? "-" + java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
                 .format(java.time.LocalDateTime.now()) : "";
         Path target = directory.resolve(slug + suffix + ".aioagraph");
-        try (Writer writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
+        return exportGraphTo(graph, target);
+    }
+
+    public static Path exportGraphTo(AioaBehaviorGraph graph, Path requestedTarget) throws IOException {
+        Path target = requestedTarget.toAbsolutePath().normalize();
+        if (!target.getFileName().toString().toLowerCase(java.util.Locale.ROOT).endsWith(".aioagraph")) {
+            target = target.resolveSibling(target.getFileName() + ".aioagraph");
+        }
+        if (target.getParent() != null) Files.createDirectories(target.getParent());
+        Path temporary = target.resolveSibling(target.getFileName() + ".tmp");
+        try (Writer writer = Files.newBufferedWriter(temporary, StandardCharsets.UTF_8)) {
             GSON.toJson(new GraphFile("aioa-behavior-graph", 2, graph.copy()), writer);
+        }
+        try {
+            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
+            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
         }
         return target;
     }
@@ -51,7 +67,12 @@ public final class AioaGraphLibrary {
                     .max(Comparator.comparingLong(AioaGraphLibrary::lastModified));
         }
         if (newest.isEmpty()) return Optional.empty();
-        try (Reader reader = Files.newBufferedReader(newest.get(), StandardCharsets.UTF_8)) {
+        return loadGraph(newest.get());
+    }
+
+    public static Optional<AioaBehaviorGraph> loadGraph(Path source) throws IOException {
+        if (source == null || !Files.isRegularFile(source)) return Optional.empty();
+        try (Reader reader = Files.newBufferedReader(source, StandardCharsets.UTF_8)) {
             GraphFile file = GSON.fromJson(reader, GraphFile.class);
             if (file == null || !"aioa-behavior-graph".equals(file.format)
                     || file.version < 1 || file.version > 2 || file.graph == null) return Optional.empty();
