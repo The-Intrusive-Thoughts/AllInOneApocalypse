@@ -136,7 +136,15 @@ final class AioaItemPickerScreen extends AioaAnimatedScreen {
         super.render(graphics, mouseX, mouseY, partialTick);
         if (hoveredIndex >= 0 && hoveredIndex < this.filteredItems.size()) {
             ResourceLocation id = this.filteredItems.get(hoveredIndex);
-            graphics.renderTooltip(this.font, Component.literal(itemName(id) + "\n" + id), mouseX, mouseY);
+            String tooltipName = itemName(id);
+            String registryName = id.toString();
+            int tooltipWidth = Math.max(this.font.width(tooltipName), this.font.width(registryName)) + 12;
+            int tooltipX = Math.max(4, Math.min(this.width - tooltipWidth - 4, mouseX + 10));
+            int tooltipY = Math.max(4, Math.min(this.height - 34, mouseY + 10));
+            graphics.fill(tooltipX, tooltipY, tooltipX + tooltipWidth, tooltipY + 31, 0xF5111814);
+            graphics.fill(tooltipX, tooltipY, tooltipX + tooltipWidth, tooltipY + 1, 0xFF6EFFBA);
+            graphics.drawString(this.font, tooltipName, tooltipX + 6, tooltipY + 5, 0xFFE2F8E9);
+            graphics.drawString(this.font, registryName, tooltipX + 6, tooltipY + 17, 0xFF8CB79B);
         }
         this.finishUiRender(graphics);
     }
