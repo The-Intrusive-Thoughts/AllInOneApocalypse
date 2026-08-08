@@ -2,6 +2,10 @@
 
 ## 0.2.1 (Unreleased)
 
+- Fixed Graph Studio layering so clicking a draggable Palette or Inspector brings its entire surface forward, fully covered lower controls no longer bleed through, and right-click menus or double-click parameter popups receive modal input and render above editor help/tooltips.
+- Replaced graph filename/path workflows with native operating-system Open and Save dialogs. `.aioagraph` writes now use an atomic temporary-file replacement where supported, while autosave remains available separately.
+- Rebuilt node parameters around visual controls: bounded numbers use labeled sliders, booleans use toggles, enums use controlled choices, mobs use the translated mob browser, and equipment opens a searchable grid containing registered item icons. Raw text remains only for genuinely authored content such as messages, tags, names, comments, and scripts.
+- Added an Equip Armor node with visual armor-piece selection, explicit armor/hand slot controls, drop chance, runtime execution, and validation while preserving the separate numeric Armor Value attribute node.
 - Replaced the Graph Studio action strip with File, Edit, View, Graph, and Help menus covering new/save/save-as/import/export/quit, undo/redo, layout controls, validation, linking, grouping, preview, guides, and documentation.
 - Added direct curve rerouting: pick up an existing connection anywhere along its Bezier, drop it on another typed input, or release on empty canvas to restore the original link safely.
 - Changed Node Parameters from a draggable persistent window into a cursor-local double-click popover that closes with its `x` or an outside click, while preserving edits and contextual entity/player/script controls.
