@@ -1886,7 +1886,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         if (this.selected == null || !"item".equals(currentParameterKey())) return;
         ResourceLocation id = AioaEntityHelper.parseResourceLocation(this.selected.parameters.getOrDefault("item", "minecraft:air"));
         if (id == null) return;
-        graphics.renderItem(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(id)),
+        graphics.renderItem(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(id)),
                 this.parametersX + 14, this.parametersY + 59);
     }
 
