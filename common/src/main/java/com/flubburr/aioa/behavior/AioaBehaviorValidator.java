@@ -79,7 +79,7 @@ public final class AioaBehaviorValidator {
             case SET_MAX_HEALTH -> number(node, "value", 1, 2048, issues);
             case SET_ATTACK_DAMAGE -> number(node, "value", 0, 2048, issues);
             case SET_MOVEMENT_SPEED -> number(node, "value", 0.01, 2, issues);
-            case EQUIP_ITEM -> {
+            case EQUIP_ITEM, EQUIP_ARMOR -> {
                 ResourceLocation id = AioaEntityHelper.parseResourceLocation(node.parameters.get("item"));
                 if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) issues.add("Equip Item needs a valid registered item id.");
                 String slot = node.parameters.getOrDefault("slot", "MAINHAND").toUpperCase(java.util.Locale.ROOT);
@@ -201,7 +201,7 @@ public final class AioaBehaviorValidator {
             case SET_AGGRESSIVE, SET_NO_AI, SET_PERSISTENT, SET_GLOWING, SET_SILENT, SET_INVULNERABLE, SET_TARGET_GLOWING -> Set.of("value");
             case SET_CUSTOM_NAME -> Set.of("name", "visible");
             case SET_MAX_HEALTH, SET_ATTACK_DAMAGE, SET_MOVEMENT_SPEED, SET_ARMOR, SET_FOLLOW_RANGE, SET_KNOCKBACK_RESISTANCE -> Set.of("value");
-            case EQUIP_ITEM -> Set.of("item", "slot", "dropChance");
+            case EQUIP_ITEM, EQUIP_ARMOR -> Set.of("item", "slot", "dropChance");
             case SPAWN_MOB -> Set.of("entity", "cooldown", "nearbyCap", "capRadius", "offsetX", "offsetY", "offsetZ");
             case PLAY_SOUND -> Set.of("sound", "volume", "pitch");
             case APPLY_EFFECT_SELF, APPLY_EFFECT_TARGET -> Set.of("effect", "duration", "amplifier", "ambient", "particles");

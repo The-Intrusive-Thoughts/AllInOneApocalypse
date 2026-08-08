@@ -143,6 +143,7 @@ public final class AioaBehaviorGraph {
         SET_FOLLOW_RANGE("Attributes", "Changes the mob's base follow range."),
         SET_KNOCKBACK_RESISTANCE("Attributes", "Changes base knockback resistance."),
         EQUIP_ITEM("Equipment", "Equips a registered item into a chosen equipment slot."),
+        EQUIP_ARMOR("Equipment", "Visually chooses and equips an armor piece in the selected armor slot."),
         SPAWN_MOB("World", "Safely spawns another configured mob nearby with a cooldown."),
         PLAY_SOUND("Effects", "Plays a registered sound at the mob."),
         APPLY_EFFECT_SELF("Effects", "Applies a registered status effect to the graph mob."),
