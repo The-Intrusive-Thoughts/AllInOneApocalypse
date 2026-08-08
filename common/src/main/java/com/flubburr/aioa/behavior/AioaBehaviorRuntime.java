@@ -288,7 +288,7 @@ public final class AioaBehaviorRuntime {
             case SET_ARMOR -> setAttribute(mob, Attributes.ARMOR, number(node, "value", 0, 0, 2048));
             case SET_FOLLOW_RANGE -> setAttribute(mob, Attributes.FOLLOW_RANGE, number(node, "value", 32, 1, 2048));
             case SET_KNOCKBACK_RESISTANCE -> setAttribute(mob, Attributes.KNOCKBACK_RESISTANCE, number(node, "value", 0, 0, 1));
-            case EQUIP_ITEM -> equipItem(node, mob);
+            case EQUIP_ITEM, EQUIP_ARMOR -> equipItem(node, mob);
             case SPAWN_MOB -> {
                 if (AioaConfigManager.getConfig().behaviorEngine.allowWorldNodes) spawnMob(node, mob, context.state);
             }
