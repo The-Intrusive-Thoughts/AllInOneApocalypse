@@ -20,6 +20,7 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Mob;
 import org.lwjgl.glfw.GLFW;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -30,6 +31,7 @@ import java.util.UUID;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Set;
+import java.nio.file.Path;
 
 public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private static final int WINDOW_WIDTH = 920;
@@ -128,6 +130,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private boolean rebuildingWidgets;
     private long lastMutationAt;
     private long lastAutosaveAt;
+    private boolean parameterSnapshotTaken;
     private final List<FloatingWindow> floatingOrder = new ArrayList<>(List.of(
             FloatingWindow.PALETTE, FloatingWindow.INSPECTOR));
     private final Map<FloatingWindow, List<AbstractWidget>> floatingWidgets = new EnumMap<>(FloatingWindow.class);
@@ -312,20 +315,30 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
 
         int parameterContentX = this.parametersX + 10;
         int parameterContentWidth = this.parametersWidth - 20;
+        String activeParameter = currentParameterKey();
+        String activeValue = this.selected == null || activeParameter.isBlank() ? ""
+                : this.selected.parameters.getOrDefault(activeParameter, "");
         this.parameterKey = new EditBox(this.font, parameterContentX, this.parametersY + 28, parameterContentWidth, 22, Component.literal("Parameter name"));
-        this.parameterKey.setHint(Component.literal("range / speed / ticks..."));
+        this.parameterKey.setValue(activeParameter);
         this.parameterKey.setMaxLength(48);
-        if (!this.parametersCollapsed) addFloatingWidget(FloatingWindow.PARAMETERS, this.parameterKey);
         this.parameterValue = new EditBox(this.font, parameterContentX, this.parametersY + 56, parameterContentWidth, 22, Component.literal("Parameter value"));
         this.parameterValue.setHint(Component.literal("value"));
         this.parameterValue.setMaxLength(8192);
-        if (!this.parametersCollapsed) addFloatingWidget(FloatingWindow.PARAMETERS, this.parameterValue);
+        this.parameterValue.setValue(activeValue);
         if (!this.parametersCollapsed) {
+            addFloatingWidget(FloatingWindow.PARAMETERS, AioaScreenUtil.button(parameterContentX, this.parametersY + 28,
+                    parameterContentWidth, "Parameter: " + friendlyParameter(activeParameter), button -> cycleParameter(1)));
+            boolean visual = addVisualParameterControl(parameterContentX, this.parametersY + 56, parameterContentWidth,
+                    activeParameter, activeValue);
+            if (!visual) addFloatingWidget(FloatingWindow.PARAMETERS, this.parameterValue);
             int half = (parameterContentWidth - 6) / 2;
             addFloatingWidget(FloatingWindow.PARAMETERS, AioaScreenUtil.button(parameterContentX, this.parametersY + 84, half, "< Parameter", button -> cycleParameter(-1)));
             addFloatingWidget(FloatingWindow.PARAMETERS, AioaScreenUtil.button(parameterContentX + half + 6, this.parametersY + 84, half, "Parameter >", button -> cycleParameter(1)));
             addFloatingWidget(FloatingWindow.PARAMETERS, AioaScreenUtil.button(parameterContentX, this.parametersY + 114, parameterContentWidth, parameterToolLabel(), button -> useParameterTool()));
-            addFloatingWidget(FloatingWindow.PARAMETERS, AioaScreenUtil.button(parameterContentX, this.parametersY + 144, parameterContentWidth, "Apply value", button -> setParameter()));
+            addFloatingWidget(FloatingWindow.PARAMETERS, AioaScreenUtil.button(parameterContentX, this.parametersY + 144, parameterContentWidth,
+                    visual ? "Done" : "Apply text", button -> {
+                        if (visual) closeParameterPopover(); else setParameter();
+                    }));
         }
         if (!this.inspectorCollapsed) addFloatingWidget(FloatingWindow.INSPECTOR, AioaScreenUtil.button(inspectorX, inspectorContentY + 88, inspectorWidth, "Spawn a mob...", button ->
                 this.transitionTo(AioaSpawnStudioScreen.create(this))));
@@ -394,16 +407,22 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             boolean collapsed = floatingHeight(window) <= 20;
             for (AbstractWidget widget : this.floatingWidgets.getOrDefault(window, List.of())) {
                 boolean covered = collapsed;
-                int centerX = widget.getX() + widget.getWidth() / 2;
-                int centerY = widget.getY() + widget.getHeight() / 2;
                 for (int above = index + 1; !covered && above < this.floatingOrder.size(); above++) {
                     FloatingWindow upper = this.floatingOrder.get(above);
-                    covered = centerX >= floatingX(upper) && centerX <= floatingX(upper) + floatingWidth(upper)
-                            && centerY >= floatingY(upper) && centerY <= floatingY(upper) + floatingHeight(upper);
+                    covered = rectanglesOverlap(widget.getX(), widget.getY(), widget.getWidth(), widget.getHeight(),
+                            floatingX(upper), floatingY(upper), floatingWidth(upper), floatingHeight(upper));
+                }
+                if (!covered && !this.parametersCollapsed) {
+                    covered = rectanglesOverlap(widget.getX(), widget.getY(), widget.getWidth(), widget.getHeight(),
+                            this.parametersX, this.parametersY, this.parametersWidth, this.parametersHeight);
                 }
                 widget.visible = !covered;
             }
         }
+    }
+
+    private static boolean rectanglesOverlap(int ax, int ay, int aw, int ah, int bx, int by, int bw, int bh) {
+        return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
     }
 
     private FloatingWindow floatingAt(double mouseX, double mouseY) {
@@ -541,18 +560,35 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             return;
         }
         try {
-            this.status = "Saved " + (uniqueCopy ? AioaGraphLibrary.exportGraphAs(this.graph, this.editableConfig)
-                    : AioaGraphLibrary.exportGraph(this.graph, this.editableConfig)).getFileName() + ".";
+            Path directory = AioaGraphLibrary.libraryDirectory(this.editableConfig);
+            String slug = this.graph.name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_-]+", "-")
+                    .replaceAll("^-+|-+$", "");
+            if (slug.isBlank()) slug = "behavior";
+            Path suggestion = directory.resolve(slug + (uniqueCopy ? "-copy" : "") + ".aioagraph");
+            var chosen = AioaNativeFileDialog.chooseGraphToSave(suggestion);
+            if (chosen.isEmpty()) {
+                this.status = "Save cancelled.";
+                return;
+            }
+            Path saved = AioaGraphLibrary.exportGraphTo(this.graph, chosen.get());
+            this.status = "Saved " + saved.getFileName() + ".";
         } catch (java.io.IOException exception) {
             this.status = "Could not export graph: " + exception.getMessage();
+        } catch (RuntimeException exception) {
+            this.status = "The system file picker could not open: " + exception.getMessage();
         }
     }
 
     private void loadNewestGraph() {
         try {
-            var loaded = AioaGraphLibrary.loadNewest(this.editableConfig);
+            var chosen = AioaNativeFileDialog.chooseGraphToOpen(AioaGraphLibrary.libraryDirectory(this.editableConfig));
+            if (chosen.isEmpty()) {
+                this.status = "Import cancelled.";
+                return;
+            }
+            var loaded = AioaGraphLibrary.loadGraph(chosen.get());
             if (loaded.isEmpty()) {
-                this.status = "No .aioagraph files found in the configured graph library.";
+                this.status = "That file is not a valid .aioagraph project.";
                 return;
             }
             this.graph = loaded.get();
@@ -563,6 +599,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             rebuildEditorWidgets();
         } catch (java.io.IOException exception) {
             this.status = "Could not load graph: " + exception.getMessage();
+        } catch (RuntimeException exception) {
+            this.status = "The system file picker could not open: " + exception.getMessage();
         }
     }
 
@@ -665,7 +703,12 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private void loadSelectedParameter(boolean advance) {
         if (this.selected == null || this.selected.parameters.isEmpty()) return;
         boolean opened = advance && this.parametersCollapsed;
-        if (advance) this.parametersCollapsed = false;
+        if (advance) {
+            this.parametersCollapsed = false;
+            this.parameterSnapshotTaken = false;
+            this.showContextMenu = false;
+            this.activeTopMenu = null;
+        }
         List<String> keys = new ArrayList<>(this.selected.parameters.keySet());
         this.parameterIndex = Math.max(0, Math.min(this.parameterIndex, keys.size() - 1));
         String key = keys.get(this.parameterIndex);
@@ -684,6 +727,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         setParameterIfPresent();
         int count = this.selected.parameters.size();
         this.parameterIndex = Math.floorMod(this.parameterIndex + direction, count);
+        this.parameterSnapshotTaken = false;
         loadSelectedParameter(false);
         rebuildEditorWidgets();
         loadSelectedParameter(false);
@@ -710,9 +754,122 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         this.parameterValue.setValue(this.selected.parameters.getOrDefault(key, ""));
     }
 
+    private String currentParameterKey() {
+        if (this.selected == null || this.selected.parameters.isEmpty()) return "";
+        List<String> keys = new ArrayList<>(this.selected.parameters.keySet());
+        this.parameterIndex = Math.max(0, Math.min(this.parameterIndex, keys.size() - 1));
+        return keys.get(this.parameterIndex);
+    }
+
+    private boolean addVisualParameterControl(int x, int y, int width, String key, String value) {
+        if (this.selected == null || key.isBlank() || isFreeTextParameter(this.selected.type, key)) return false;
+        NumericSpec numeric = numericSpec(this.selected.type, key);
+        if (numeric != null) {
+            double initial = parseDouble(value, numeric.minimum);
+            if (numeric.integer) {
+                addFloatingWidget(FloatingWindow.PARAMETERS, AioaScreenUtil.intSlider(x, y, width,
+                        friendlyParameter(key), (int) numeric.minimum, (int) numeric.maximum, (int) numeric.step,
+                        (int) Math.round(initial), changed -> visualParameterChanged(key, Integer.toString(changed))));
+            } else {
+                addFloatingWidget(FloatingWindow.PARAMETERS, AioaScreenUtil.decimalSlider(x, y, width,
+                        friendlyParameter(key), numeric.minimum, numeric.maximum, numeric.step, initial,
+                        changed -> friendlyParameter(key) + ": " + formatNumber(changed),
+                        changed -> visualParameterChanged(key, formatNumber(changed))));
+            }
+            return true;
+        }
+        addFloatingWidget(FloatingWindow.PARAMETERS, AioaScreenUtil.button(x, y, width,
+                visualParameterLabel(key, value), button -> useParameterTool()));
+        return true;
+    }
+
+    private void visualParameterChanged(String key, String value) {
+        if (this.selected == null) return;
+        if (!this.rebuildingWidgets && !this.parameterSnapshotTaken) {
+            snapshot();
+            this.parameterSnapshotTaken = true;
+        }
+        this.selected.parameters.put(key, value);
+        if (this.parameterValue != null) this.parameterValue.setValue(value);
+        if (!this.rebuildingWidgets) {
+            markDirty(true);
+            this.status = friendlyParameter(key) + " set to " + value + ".";
+        }
+    }
+
+    private String visualParameterLabel(String key, String value) {
+        if ("item".equals(key)) return "Browse item icons...";
+        if ("entity".equals(key)) return "Choose mob visually...";
+        if (isBooleanParameter(this.selected.type, key)) return Boolean.parseBoolean(value) ? "Enabled  [ON]" : "Disabled  [OFF]";
+        if ("slot".equals(key)) return "Armor / hand slot: " + friendlyParameter(value);
+        if ("effect".equals(key)) return "Effect preset: " + value.replace("minecraft:", "");
+        if ("sound".equals(key)) return "Sound preset: " + value.replace("minecraft:", "");
+        if ("pattern".equals(key)) return "Pattern: " + friendlyParameter(value);
+        if ("operation".equals(key) || "comparison".equals(key) || "phase".equals(key)) {
+            return friendlyParameter(key) + ": " + value;
+        }
+        return friendlyParameter(key) + ": " + value;
+    }
+
+    private static boolean isFreeTextParameter(AioaBehaviorGraph.NodeType type, String key) {
+        if (key.startsWith("_")) return true;
+        if ("script".equals(key) || "message".equals(key) || "text".equals(key) || "tag".equals(key)) return true;
+        if ("name".equals(key)) {
+            return type == AioaBehaviorGraph.NodeType.SET_CUSTOM_NAME || type == AioaBehaviorGraph.NodeType.FUNCTION_GROUP
+                    || type == AioaBehaviorGraph.NodeType.COMMENT;
+        }
+        return false;
+    }
+
+    private static NumericSpec numericSpec(AioaBehaviorGraph.NodeType type, String key) {
+        if ("chance".equals(key) || "percent".equals(key) || "dropChance".equals(key)) return new NumericSpec(0, 1, 0.05, false);
+        if ("volume".equals(key)) return new NumericSpec(0, 4, 0.05, false);
+        if ("pitch".equals(key)) return new NumericSpec(0.1, 2, 0.05, false);
+        if ("degrees".equals(key)) return new NumericSpec(-360, 360, 5, false);
+        if ("ticks".equals(key) || "duration".equals(key) || "cooldown".equals(key)) return new NumericSpec(0, 72000, 20, true);
+        if ("seconds".equals(key)) return new NumericSpec(0, 600, 1, true);
+        if ("count".equals(key) || "points".equals(key) || "nearbyCap".equals(key) || "amplifier".equals(key)) {
+            return new NumericSpec(0, "amplifier".equals(key) ? 255 : 128, 1, true);
+        }
+        if ("range".equals(key) || "radius".equals(key) || "distance".equals(key) || "blocks".equals(key)
+                || "capRadius".equals(key)) return new NumericSpec(0, 128, 0.5, false);
+        if ("speed".equals(key)) return new NumericSpec(0, 4, 0.05, false);
+        if ("x".equals(key) || "y".equals(key) || "z".equals(key) || key.startsWith("offset")
+                || "forward".equals(key) || "sideways".equals(key) || "horizontal".equals(key)
+                || "vertical".equals(key) || "lift".equals(key)) return new NumericSpec(-16, 16, 0.05, false);
+        if ("strength".equals(key) || "power".equals(key)) return new NumericSpec(0, 16, 0.05, false);
+        if ("amount".equals(key) || "health".equals(key) || "damage".equals(key)) return new NumericSpec(0, 2048, 0.5, false);
+        if ("value".equals(key) && !isBooleanNode(type)) {
+            if (type == AioaBehaviorGraph.NodeType.SET_MOVEMENT_SPEED || type == AioaBehaviorGraph.NodeType.SET_KNOCKBACK_RESISTANCE) {
+                return new NumericSpec(0, type == AioaBehaviorGraph.NodeType.SET_KNOCKBACK_RESISTANCE ? 1 : 4, 0.05, false);
+            }
+            return new NumericSpec(-2048, 2048, 0.5, false);
+        }
+        return null;
+    }
+
+    private static double parseDouble(String value, double fallback) {
+        try { return Double.parseDouble(value); }
+        catch (NumberFormatException ignored) { return fallback; }
+    }
+
+    private static String formatNumber(double value) {
+        if (Math.abs(value - Math.rint(value)) < 0.00001D) return Long.toString(Math.round(value));
+        return String.format(Locale.ROOT, "%.2f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
+    }
+
+    private static String friendlyParameter(String value) {
+        if (value == null || value.isBlank()) return "Value";
+        String text = value.replace('_', ' ').replaceAll("([a-z])([A-Z])", "$1 $2").toLowerCase(Locale.ROOT);
+        return Character.toUpperCase(text.charAt(0)) + text.substring(1);
+    }
+
+    private record NumericSpec(double minimum, double maximum, double step, boolean integer) { }
+
     private String parameterToolLabel() {
         if (this.selected == null || this.parameterKey == null) return "Parameter tools";
         String key = this.parameterKey.getValue();
+        if ("item".equals(key)) return "Browse all item icons...";
         if ("entity".equals(key)) return "Choose mob...";
         if ("name".equals(key) && this.selected.type == AioaBehaviorGraph.NodeType.FIND_PLAYER_NAME) return "Choose online player...";
         if ("name".equals(key) && isVariableNode(this.selected.type)) return "Cycle variable name";
@@ -731,6 +888,19 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private void useParameterTool() {
         if (this.selected == null || this.parameterKey == null) return;
         String key = this.parameterKey.getValue();
+        if ("item".equals(key)) {
+            Identifier current = AioaEntityHelper.parseResourceLocation(this.parameterValue.getValue());
+            this.transitionTo(new AioaItemPickerScreen(this, current, id -> {
+                if (!this.parameterSnapshotTaken) {
+                    snapshot();
+                    this.parameterSnapshotTaken = true;
+                }
+                this.selected.parameters.put("item", id.toString());
+                this.status = "Equipment item set to " + id.getPath().replace('_', ' ') + ".";
+                markDirty(true);
+            }));
+            return;
+        }
         if ("entity".equals(key)) {
             this.transitionTo(new AioaEntityPickerScreen(this, "Choose Node Mob", AioaScreenUtil.allEntityIds(),
                     "Select a mob by name; the registry value is stored safely for this node.", "Use Mob", id -> {
@@ -947,6 +1117,11 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         if (this.activeTopMenu != null && !(mouseY >= this.windowY + 28 && mouseY <= this.windowY + 52)) {
             this.activeTopMenu = null;
         }
+        if (this.showContextMenu) {
+            if (contextMenuClicked(mouseX, mouseY, button)) return true;
+            this.showContextMenu = false;
+            this.contextNode = null;
+        }
         if (!this.parametersCollapsed) {
             boolean insideParameters = mouseX >= this.parametersX && mouseX <= this.parametersX + this.parametersWidth
                     && mouseY >= this.parametersY && mouseY <= this.parametersY + this.parametersHeight;
@@ -960,8 +1135,6 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         }
         FloatingWindow focusedWindow = floatingAt(mouseX, mouseY);
         if (focusedWindow != null) bringToFront(focusedWindow);
-        if (this.showContextMenu && contextMenuClicked(mouseX, mouseY, button)) return true;
-        this.showContextMenu = false;
         int visibleHelpWidth = Math.min(this.helpWidth, this.width - this.helpX);
         int visibleHelpHeight = Math.min(this.helpHeight, this.height - this.helpY);
         if (button == 0 && mouseY >= this.windowY + 2 && mouseY <= this.windowY + 22) {
@@ -1088,6 +1261,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                     }
                 }
                 if (button == 1) {
+                    if (!this.parametersCollapsed) closeParameterPopover();
+                    this.activeTopMenu = null;
                     this.selected = hit;
                     this.selectedEdgeId = null;
                     this.contextNode = hit;
@@ -1147,6 +1322,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 return true;
             }
             if (button == 1) {
+                if (!this.parametersCollapsed) closeParameterPopover();
+                this.activeTopMenu = null;
                 this.contextNode = null;
                 this.showContextMenu = true;
                 this.contextMenuX = Math.min((int) mouseX, this.width - 132);
@@ -1472,7 +1649,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         if (controlDown()) {
             if (keyCode == 90) { undo(); return true; }
             if (keyCode == 89) { redo(); return true; }
-            if (keyCode == 83) { applyAndClose(); return true; }
+            if (keyCode == 83) { exportGraph(false); return true; }
             if (keyCode == 78) { newGraph(); return true; }
             if (keyCode == 68) { duplicateSelected(); return true; }
             if (keyCode == 48) { fitGraph(); return true; }
@@ -1526,10 +1703,11 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         guiGraphics.fill(right - 12, bottom - 2, right, bottom, 0xFF6EFFBA);
         guiGraphics.fill(right - 2, bottom - 12, right, bottom, 0xFF6EFFBA);
         super.render(guiGraphics, mouseX, mouseY, partialTick);
-        if (this.showHelp) drawHelp(guiGraphics);
+        if (!this.parametersCollapsed) drawParameterVisualForeground(guiGraphics);
+        if (this.parametersCollapsed) drawNodeTooltip(guiGraphics, mouseX, mouseY);
+        if (this.showHelp && this.parametersCollapsed) drawHelp(guiGraphics);
         if (this.showContextMenu) drawContextMenu(guiGraphics);
         if (this.activeTopMenu != null) drawTopMenu(guiGraphics);
-        drawNodeTooltip(guiGraphics, mouseX, mouseY);
         this.finishUiRender(guiGraphics);
     }
 
@@ -1704,6 +1882,14 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 this.parametersY + 6, 0xFFFF9A9A);
     }
 
+    private void drawParameterVisualForeground(GuiGraphics graphics) {
+        if (this.selected == null || !"item".equals(currentParameterKey())) return;
+        Identifier id = AioaEntityHelper.parseResourceLocation(this.selected.parameters.getOrDefault("item", "minecraft:air"));
+        if (id == null) return;
+        graphics.renderItem(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(id)),
+                this.parametersX + 14, this.parametersY + 59);
+    }
+
     private void closeParameterPopover() {
         setParameterIfPresent();
         this.parametersCollapsed = true;
@@ -1777,6 +1963,10 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
 
     private void openParameterPopover(int x, int y) {
         if (this.selected == null || this.selected.parameters.isEmpty()) return;
+        this.showContextMenu = false;
+        this.contextNode = null;
+        this.activeTopMenu = null;
+        this.parameterSnapshotTaken = false;
         this.parametersX = Math.max(0, Math.min(this.width - this.parametersWidth, x + 10));
         this.parametersY = Math.max(0, Math.min(this.height - this.parametersHeight, y + 8));
         this.parametersCollapsed = false;
@@ -1864,7 +2054,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     }
 
     private String[] topMenuItems(String menu) {
-        if ("File".equals(menu)) return new String[]{"New graph  Ctrl+N", "Save  Ctrl+S", "Save as library file", "Import newest", "Export", "Quit"};
+        if ("File".equals(menu)) return new String[]{"New graph  Ctrl+N", "Save project...  Ctrl+S", "Save project as...", "Import project...", "Autosave now", "Done"};
         if ("Edit".equals(menu)) return new String[]{"Undo  Ctrl+Z", "Redo  Ctrl+Y", "Duplicate  Ctrl+D", "Delete  Del"};
         if ("View".equals(menu)) return new String[]{"Fit graph  F", "Toggle node palette", "Toggle inspector", "Toggle quick guide"};
         if ("Graph".equals(menu)) return new String[]{"Validate graph", "Start link from selection", "Create function group", this.activeGroupId == null ? "Stop preview" : "Exit function group"};
@@ -1882,8 +2072,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
 
     private void runTopMenuAction(String menu, int action) {
         if ("File".equals(menu)) switch (action) {
-            case 0 -> newGraph(); case 1 -> saveNow(); case 2 -> exportGraphAs(); case 3 -> loadNewestGraph();
-            case 4 -> exportGraph(); case 5 -> applyAndClose();
+            case 0 -> newGraph(); case 1 -> exportGraph(false); case 2 -> exportGraphAs(); case 3 -> loadNewestGraph();
+            case 4 -> saveNow(); case 5 -> applyAndClose();
         } else if ("Edit".equals(menu)) switch (action) {
             case 0 -> undo(); case 1 -> redo(); case 2 -> duplicateSelected(); case 3 -> deleteSelected();
         } else if ("View".equals(menu)) switch (action) {
@@ -2104,6 +2294,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             case SET_FOLLOW_RANGE -> node.parameter("value", "32");
             case SET_KNOCKBACK_RESISTANCE -> node.parameter("value", "0");
             case EQUIP_ITEM -> node.parameter("item", "minecraft:iron_sword").parameter("slot", "MAINHAND").parameter("dropChance", "0");
+            case EQUIP_ARMOR -> node.parameter("item", "minecraft:iron_chestplate").parameter("slot", "CHEST").parameter("dropChance", "0");
             case SPAWN_MOB -> node.parameter("entity", "minecraft:zombie").parameter("cooldown", "200").parameter("nearbyCap", "8");
             case PLAY_SOUND -> node.parameter("sound", "minecraft:entity.zombie.ambient").parameter("volume", "1").parameter("pitch", "1");
             case APPLY_EFFECT_SELF, APPLY_EFFECT_TARGET -> node.parameter("effect", "minecraft:speed").parameter("duration", "200")
