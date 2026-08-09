@@ -2,7 +2,6 @@ package com.flubburr.aioa.api;
 
 import com.flubburr.aioa.behavior.AioaBehaviorGraph;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -14,24 +13,24 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /** Stable common API for data-driven bosses and best-effort modded-mob graph import. */
 public final class AioaBehaviorApi {
-    private static final Map<ResourceLocation, AioaBehaviorGraph> RUNTIME_GRAPHS = new ConcurrentHashMap<>();
-    private static final Map<ResourceLocation, MobGraphContributor> CONTRIBUTORS = new ConcurrentHashMap<>();
+    private static final Map<String, AioaBehaviorGraph> RUNTIME_GRAPHS = new ConcurrentHashMap<>();
+    private static final Map<String, MobGraphContributor> CONTRIBUTORS = new ConcurrentHashMap<>();
 
     private AioaBehaviorApi() {}
 
-    public static void registerGraph(ResourceLocation id, AioaBehaviorGraph graph) {
-        if (id == null || graph == null) throw new IllegalArgumentException("Graph id and graph are required");
+    public static void registerGraph(String id, AioaBehaviorGraph graph) {
+        if (id == null || id.isBlank() || graph == null) throw new IllegalArgumentException("Namespaced graph id and graph are required");
         AioaBehaviorGraph copy = graph.copy();
         copy.id = id.toString();
         RUNTIME_GRAPHS.put(id, copy);
     }
 
-    public static void unregisterGraph(ResourceLocation id) {
+    public static void unregisterGraph(String id) {
         if (id != null) RUNTIME_GRAPHS.remove(id);
     }
 
-    public static void registerMobContributor(ResourceLocation id, MobGraphContributor contributor) {
-        if (id == null || contributor == null) throw new IllegalArgumentException("Contributor id and callback are required");
+    public static void registerMobContributor(String id, MobGraphContributor contributor) {
+        if (id == null || id.isBlank() || contributor == null) throw new IllegalArgumentException("Namespaced contributor id and callback are required");
         CONTRIBUTORS.put(id, contributor);
     }
 
@@ -45,7 +44,7 @@ public final class AioaBehaviorApi {
      */
     public static AioaBehaviorGraph approximateMob(Mob mob) {
         AioaBehaviorGraph graph = new AioaBehaviorGraph();
-        ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+        var typeId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
         graph.name = "Imported " + mob.getDisplayName().getString();
         graph.scope = AioaBehaviorGraph.Scope.SINGLE_ENTITY;
         graph.selector = mob.getUUID().toString();
@@ -53,8 +52,8 @@ public final class AioaBehaviorApi {
         AioaBehaviorGraph.Node base = new AioaBehaviorGraph.Node("base", AioaBehaviorGraph.NodeType.MOB_BASE, -180, 60)
                 .parameter("entity", typeId == null ? "auto" : typeId.toString())
                 .parameter("health", decimal(mob.getMaxHealth()))
-                .parameter("damage", decimal(attribute(mob, Attributes.ATTACK_DAMAGE, 0)))
-                .parameter("speed", decimal(attribute(mob, Attributes.MOVEMENT_SPEED, 0.23)));
+                .parameter("damage", decimal(mob.getAttributeValue(Attributes.ATTACK_DAMAGE)))
+                .parameter("speed", decimal(mob.getAttributeValue(Attributes.MOVEMENT_SPEED)));
         AioaBehaviorGraph.Node tick = new AioaBehaviorGraph.Node("tick", AioaBehaviorGraph.NodeType.ON_TICK, 20, 60);
         graph.nodes.add(base);
         graph.nodes.add(tick);
@@ -66,7 +65,7 @@ public final class AioaBehaviorApi {
         for (EquipmentSlot slot : EquipmentSlot.values()) {
             ItemStack stack = mob.getItemBySlot(slot);
             if (stack.isEmpty()) continue;
-            ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+            var itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
             boolean armorSlot = slot == EquipmentSlot.HEAD || slot == EquipmentSlot.CHEST
                     || slot == EquipmentSlot.LEGS || slot == EquipmentSlot.FEET;
             AioaBehaviorGraph.NodeType nodeType = armorSlot
@@ -86,10 +85,6 @@ public final class AioaBehaviorApi {
         graph.nodes.add(node);
         graph.edges.add(new AioaBehaviorGraph.Edge(tick.id, node.id, "next"));
         return y + 90;
-    }
-
-    private static double attribute(Mob mob, net.minecraft.world.entity.ai.attributes.Attribute attribute, double fallback) {
-        return mob.getAttribute(attribute) == null ? fallback : mob.getAttributeValue(attribute);
     }
 
     private static String decimal(double value) {
