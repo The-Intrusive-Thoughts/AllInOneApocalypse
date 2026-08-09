@@ -108,6 +108,10 @@ public final class AioaBehaviorValidator {
         return result;
     }
 
+    public static Set<String> supportedParameters(AioaBehaviorGraph.NodeType type) {
+        return allowedParameters(type);
+    }
+
     private static void validateParameters(AioaBehaviorGraph.Node node, List<String> issues) {
         Set<String> allowed = allowedParameters(node.type);
         node.parameters.keySet().stream().filter(key -> !key.startsWith("_") && !allowed.contains(key))
