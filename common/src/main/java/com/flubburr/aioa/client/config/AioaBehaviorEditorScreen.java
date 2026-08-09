@@ -21,6 +21,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Mob;
 import org.lwjgl.glfw.GLFW;
 import net.minecraft.world.item.ItemStack;
+import com.mojang.logging.LogUtils;
+import org.slf4j.Logger;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -35,6 +37,7 @@ import java.util.LinkedHashSet;
 import java.nio.file.Path;
 
 public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static final int WINDOW_WIDTH = 920;
     private static final int WINDOW_HEIGHT = 520;
     private static final int PALETTE_WIDTH = 170;
@@ -57,6 +60,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private int viewportHeight = 220;
     private AioaBehaviorGraph.Node selected;
     private final Set<String> selectedNodeIds = new LinkedHashSet<>();
+    private Map<String, List<String>> nodeValidationIssues = Map.of();
+    private Map<String, List<String>> edgeValidationIssues = Map.of();
     private String selectedEdgeId;
     private AioaBehaviorGraph.Node linkStart;
     private AioaBehaviorGraph.Edge reroutingEdge;
@@ -178,6 +183,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         }
         if (!this.graph.id.equals(this.layoutGraphId)) loadGraphLayout();
         clampLayoutToScreen();
+        refreshValidationDiagnostics();
         rebuildEditorWidgets();
     }
 
@@ -1080,8 +1086,17 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
 
     private void validateGraph() {
         syncFields();
+        refreshValidationDiagnostics();
         List<String> issues = AioaBehaviorValidator.validate(this.graph);
         this.status = issues.isEmpty() ? "Graph is valid and ready to run." : issues.get(0) + (issues.size() > 1 ? " (+" + (issues.size() - 1) + ")" : "");
+        if (issues.isEmpty()) LOGGER.info("AIOA graph validation passed: '{}' ({} nodes, {} links)", this.graph.name, this.graph.nodes.size(), this.graph.edges.size());
+        else LOGGER.warn("AIOA graph validation failed for '{}': {} | node diagnostics={} | link diagnostics={}",
+                this.graph.name, issues, this.nodeValidationIssues, this.edgeValidationIssues);
+    }
+
+    private void refreshValidationDiagnostics() {
+        this.nodeValidationIssues = AioaBehaviorValidator.nodeIssues(this.graph);
+        this.edgeValidationIssues = AioaBehaviorValidator.edgeIssues(this.graph);
     }
 
     void bindWorldSelectedMob(Mob mob) {
@@ -1129,6 +1144,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         this.runtimeDirty |= affectsRuntime;
         this.lastMutationAt = System.currentTimeMillis();
         if (affectsRuntime) this.previewSimulation.reset(this.graph);
+        refreshValidationDiagnostics();
     }
 
     private void autosaveIfReady() {
@@ -1854,7 +1870,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             int x2 = screenNodeX(to);
             int y2 = inputPortY(to, edge.input);
             int mid = (x1 + x2) / 2;
-            int edgeColor = edge.id.equals(this.selectedEdgeId) ? 0xFFFFC857 : 0xFF01BF63;
+            boolean badLink = this.edgeValidationIssues.containsKey(edge.id);
+            int edgeColor = badLink ? 0xFFFF405C : edge.id.equals(this.selectedEdgeId) ? 0xFF45A9FF : 0xFF01BF63;
             drawBezier(graphics, x1, y1, x2, y2, edgeColor);
             graphics.drawString(this.font, edge.output == null ? "next" : edge.output, mid + 4,
                     Math.min(y1, y2) + Math.abs(y2 - y1) / 2 - 4, 0xFF9AD6AE);
@@ -1866,7 +1883,17 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             int nodeWidth = nodeWidth();
             int nodeHeight = nodeHeight();
             boolean selectedNode = this.selectedNodeIds.contains(node.id) || node == this.selected;
+            boolean badNode = this.nodeValidationIssues.containsKey(node.id);
             AioaScreenUtil.drawInsetPanel(graphics, x, y, x + nodeWidth, y + nodeHeight, selectedNode);
+            if (badNode) {
+                int pulse = 150 + (int) (Math.sin(System.currentTimeMillis() / 130.0D) * 70.0D);
+                int red = (pulse << 24) | 0x00FF405C;
+                graphics.fill(x, y, x + nodeWidth, y + 2, red);
+                graphics.fill(x, y + nodeHeight - 2, x + nodeWidth, y + nodeHeight, red);
+                graphics.fill(x, y, x + 2, y + nodeHeight, red);
+                graphics.fill(x + nodeWidth - 2, y, x + nodeWidth, y + nodeHeight, red);
+                graphics.drawString(this.font, "!", x + nodeWidth - 10, y + 4, 0xFFFFFFFF);
+            }
             graphics.fill(x + 1, y + 1, x + nodeWidth - 1, y + Math.min(14, nodeHeight - 2), colorFor(node.type.category));
             String nodeLabel = node.parameters.getOrDefault("_label", friendly(node.type));
             graphics.drawString(this.font, this.font.plainSubstrByWidth(nodeLabel, nodeWidth - 10), x + 6, y + 4, 0xFFFFFFFF);

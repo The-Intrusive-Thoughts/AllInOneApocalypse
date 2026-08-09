@@ -1,0 +1,33 @@
+{
+  "ui.click": {
+    "sounds": [
+      "aioa:aioa_ui_click"
+    ]
+  },
+  "ui.hover": {
+    "sounds": [
+      "aioa:aioa_ui_hover"
+    ]
+  },
+  "ui.slider": {
+    "sounds": [
+      "aioa:aioa_ui_slider"
+    ]
+  },
+  "music.menu": {
+    "sounds": [
+      {
+        "name": "aioa:aioa_music_loop_1",
+        "stream": true
+      },
+      {
+        "name": "aioa:aioa_music_loop_2",
+        "stream": true
+      },
+      {
+        "name": "aioa:aioa_music_loop_3",
+        "stream": true
+      }
+    ]
+  }
+}
