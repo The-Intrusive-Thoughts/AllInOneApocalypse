@@ -657,7 +657,8 @@ public final class AioaScreenUtil {
 
     private static void playUiSound(ResourceLocation soundId, float volume, float pitch) {
         Minecraft minecraft = Minecraft.getInstance();
-        float configuredVolume = (float) AioaConfigManager.getConfig().clientUi.uiSoundVolume;
+        float configuredVolume = AioaConfigManager.getConfig().clientUi.audioMuted ? 0.0F
+                : (float) AioaConfigManager.getConfig().clientUi.uiSoundVolume;
         if (configuredVolume <= 0.0F) return;
         minecraft.getSoundManager().play(new SimpleSoundInstance(
                 soundId,
@@ -697,7 +698,8 @@ public final class AioaScreenUtil {
         }
 
         private static float configuredMenuVolume() {
-            return (float) AioaConfigManager.getConfig().clientUi.menuSfxVolume;
+            return AioaConfigManager.getConfig().clientUi.audioMuted ? 0.0F
+                    : (float) AioaConfigManager.getConfig().clientUi.menuSfxVolume;
         }
     }
 
