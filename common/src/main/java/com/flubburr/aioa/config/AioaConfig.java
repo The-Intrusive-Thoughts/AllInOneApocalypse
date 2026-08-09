@@ -103,6 +103,7 @@ public final class AioaConfig {
         public int editorScalePercent = 100;
         public double menuSfxVolume = 0.35D;
         public double uiSoundVolume = 0.70D;
+        public boolean audioMuted = false;
         public boolean showDocsHint = true;
         public boolean tutorialCompleted = false;
 
@@ -111,6 +112,7 @@ public final class AioaConfig {
             copy.editorScalePercent = this.editorScalePercent;
             copy.menuSfxVolume = this.menuSfxVolume;
             copy.uiSoundVolume = this.uiSoundVolume;
+            copy.audioMuted = this.audioMuted;
             copy.showDocsHint = this.showDocsHint;
             copy.tutorialCompleted = this.tutorialCompleted;
             return copy;
