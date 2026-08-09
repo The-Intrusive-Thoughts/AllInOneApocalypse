@@ -8,6 +8,9 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 @Mixin(Mob.class)
 public interface MobAccessor {
 
+    @Accessor("goalSelector")
+    GoalSelector aioa$getGoalSelector();
+
     @Accessor("targetSelector")
     GoalSelector aioa$getTargetSelector();
 }
