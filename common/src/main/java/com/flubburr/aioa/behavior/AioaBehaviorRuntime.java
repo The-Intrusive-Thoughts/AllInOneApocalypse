@@ -174,15 +174,28 @@ public final class AioaBehaviorRuntime {
                         <= number(node, "percent", 0.5, 0, 1) ? "true" : "false";
             }
             case IS_RAINING -> { return mob.level().isRainingAt(mob.blockPosition()) ? "true" : "false"; }
-            case FIND_NEAREST_PLAYER -> context.target = nearest(mob, Player.class, range, candidate -> !candidate.isSpectator());
+            case FIND_NEAREST_PLAYER -> {
+                context.target = nearest(mob, Player.class, range, candidate -> !candidate.isSpectator());
+                return context.target == null ? "missing" : "found";
+            }
             case FIND_PLAYER_NAME -> {
                 String playerName = node.parameters.getOrDefault("name", "");
                 context.target = nearest(mob, Player.class, range, candidate -> !candidate.isSpectator()
                         && candidate.getGameProfile().getName().equalsIgnoreCase(playerName));
+                return context.target == null ? "missing" : "found";
             }
-            case FIND_NEAREST_ANIMAL -> context.target = nearest(mob, Animal.class, range, LivingEntity::isAlive);
-            case FIND_NEAREST_MOB -> context.target = nearest(mob, Mob.class, range, candidate -> candidate != mob && candidate.isAlive());
-            case FIND_ENTITY_TYPE -> context.target = findEntityType(node, mob, range);
+            case FIND_NEAREST_ANIMAL -> {
+                context.target = nearest(mob, Animal.class, range, LivingEntity::isAlive);
+                return context.target == null ? "missing" : "found";
+            }
+            case FIND_NEAREST_MOB -> {
+                context.target = nearest(mob, Mob.class, range, candidate -> candidate != mob && candidate.isAlive());
+                return context.target == null ? "missing" : "found";
+            }
+            case FIND_ENTITY_TYPE -> {
+                context.target = findEntityType(node, mob, range);
+                return context.target == null ? "missing" : "found";
+            }
             case SET_TARGET -> {
                 if (context.target != null && AioaZombieBehaviour.canTarget(mob, context.target)) mob.setTarget(context.target);
             }
@@ -197,15 +210,23 @@ public final class AioaBehaviorRuntime {
             case MOVE_TO_TARGET -> {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
                 if (target != null && mob instanceof PathfinderMob pathfinder) {
-                    pathfinder.getNavigation().moveTo(target, number(node, "speed", 1.0D, 0.1D, 3.0D));
+                    double stopDistance = number(node, "stopDistance", 1.5D, 0.1D, 16.0D);
+                    pathfinder.getNavigation().stop();
+                    if (mob.distanceToSqr(target) > stopDistance * stopDistance) {
+                        pathfinder.getNavigation().moveTo(target, number(node, "speed", 1.0D, 0.1D, 3.0D));
+                    }
                 }
             }
             case FLEE_TARGET -> {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
                 if (target != null && mob instanceof PathfinderMob pathfinder) {
-                    Vec3 away = mob.position().subtract(target.position()).normalize().scale(number(node, "distance", 12, 2, 32));
-                    pathfinder.getNavigation().moveTo(mob.getX() + away.x, mob.getY(), mob.getZ() + away.z,
-                            number(node, "speed", 1.1D, 0.1D, 3.0D));
+                    double distance = number(node, "distance", 12, 2, 32);
+                    pathfinder.getNavigation().stop();
+                    if (mob.distanceToSqr(target) < distance * distance) {
+                        Vec3 away = mob.position().subtract(target.position()).normalize().scale(distance);
+                        pathfinder.getNavigation().moveTo(mob.getX() + away.x, mob.getY(), mob.getZ() + away.z,
+                                number(node, "speed", 1.1D, 0.1D, 3.0D));
+                    }
                 }
             }
             case WALL_CLIMB -> AioaZombieBehaviour.tickWallClimbing(mob, true, true);
@@ -250,7 +271,11 @@ public final class AioaBehaviorRuntime {
             case DASH_TO_TARGET -> dashToTarget(node, mob, context);
             case ATTACK_TARGET -> {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
-                if (target != null && mob.distanceToSqr(target) <= number(node, "range", 3, 1, 8) * number(node, "range", 3, 1, 8)) mob.doHurtTarget(target);
+                if (target != null && mob.distanceToSqr(target) <= number(node, "range", 3, 1, 8) * number(node, "range", 3, 1, 8)) {
+                    mob.getNavigation().stop();
+                    mob.getLookControl().setLookAt(target, 60.0F, 60.0F);
+                    mob.doHurtTarget(target);
+                }
             }
             case KNOCKBACK_TARGET -> {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
@@ -269,7 +294,11 @@ public final class AioaBehaviorRuntime {
             case LAUNCH_TARGET -> launchTarget(node, mob, context);
             case SET_AGGRESSIVE -> mob.setAggressive(flag(node, "value", true));
             case SHARE_TARGET -> AioaZombieBehaviour.coordinateNearbyMobs(mob, AioaConfigManager.getConfig().daySurfaceSpawns);
-            case STOP_MOVING -> mob.getNavigation().stop();
+            case STOP_MOVING -> {
+                mob.getNavigation().stop();
+                mob.getMoveControl().strafe(0.0F, 0.0F);
+                mob.setDeltaMovement(0.0D, mob.getDeltaMovement().y, 0.0D);
+            }
             case SET_NO_AI -> mob.setNoAi(flag(node, "value", true));
             case SET_PERSISTENT -> { if (flag(node, "value", true)) mob.setPersistenceRequired(); }
             case SET_GLOWING -> mob.setGlowingTag(flag(node, "value", true));
@@ -330,7 +359,7 @@ public final class AioaBehaviorRuntime {
             case DESPAWN_SELF -> mob.discard();
             case FUNCTION_GROUP -> executeFunctionGroup(node, mob, context);
         }
-        return context.target == null ? "missing" : "found";
+        return "next";
     }
 
     private static void executeFunctionGroup(AioaBehaviorGraph.Node groupNode, Mob mob, ExecutionContext context) {
@@ -370,7 +399,8 @@ public final class AioaBehaviorRuntime {
         if (target == null || !(mob instanceof PathfinderMob pathfinder)) return;
         double radius = number(node, "radius", 5, 1, 24);
         double angle = Math.atan2(mob.getZ() - target.getZ(), mob.getX() - target.getX())
-                + Math.toRadians(number(node, "degrees", 35, -180, 180));
+                + Math.toRadians(number(node, "degrees", 35, -180, 180)) * 0.05D;
+        pathfinder.getNavigation().stop();
         pathfinder.getNavigation().moveTo(target.getX() + Math.cos(angle) * radius, target.getY(),
                 target.getZ() + Math.sin(angle) * radius, number(node, "speed", 1.1, 0.1, 3));
     }
@@ -378,6 +408,7 @@ public final class AioaBehaviorRuntime {
     private static void dashToTarget(AioaBehaviorGraph.Node node, Mob mob, ExecutionContext context) {
         LivingEntity target = context.target != null ? context.target : mob.getTarget();
         if (target == null) return;
+        mob.getNavigation().stop();
         Vec3 direction = target.position().add(0, target.getBbHeight() * 0.35, 0)
                 .subtract(mob.position()).normalize();
         double strength = number(node, "strength", 1.25, 0.1, 4);
