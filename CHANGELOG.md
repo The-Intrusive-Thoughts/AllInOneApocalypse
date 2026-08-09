@@ -4,6 +4,8 @@
 
 - Added a Fabric beta port for Minecraft 26.1.x using Java 25 and Mojang's unobfuscated runtime names. The apocalypse spawning, graph runtime, persistence, validation, networking, and mob AI systems are available; the in-game creator UI is temporarily disabled while its renderer is migrated to the new 26.x graphics API.
 - Added build-time page, checksum, truncation, and end-of-stream validation for every bundled OGG audio asset.
+- Added a procedural Auto Fix Graph action in both the Inspector and Graph menu. It safely reconstructs missing roots, defaults, IDs, stale typed ports, broken links, unsupported parameters, empty function groups, unsafe blank scopes, and isolated graph regions while reporting ambiguous creator decisions it intentionally leaves unresolved.
+- Added compact pulsing error explanations directly above invalid nodes, synchronized with detailed validation logs and the red/blue graph diagnostics.
 - Fixed false graph validation that required a separate Event node and required Base Mob to occupy list index zero even though Base Mob is the executable root. Validation now exposes per-node and per-link diagnostics, logs detailed debug context, draws invalid nodes with a pulsing red outline, invalid links in red, and selected valid links in blue.
 - Added three clean numbered menu loops (`aioa_music_loop_1` through `3`) and randomized the selected streamed track whenever a new AIOA menu session opens.
 - Added live Node Palette search across node names, categories, and descriptions, with filtered paging and scrollbar feedback.
