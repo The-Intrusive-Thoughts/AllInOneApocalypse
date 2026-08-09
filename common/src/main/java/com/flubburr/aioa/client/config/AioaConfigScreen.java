@@ -7,13 +7,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-<<<<<<< HEAD
 import net.minecraft.client.renderer.RenderPipelines;
-=======
 import net.minecraft.Util;
 
 import java.net.URI;
->>>>>>> 71fe826 (Harden UI exits and add community controls)
 
 public final class AioaConfigScreen extends AioaScrollableScreen {
 
