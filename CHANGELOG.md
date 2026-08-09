@@ -4,6 +4,9 @@
 
 - Added a Fabric beta port for Minecraft 26.1.x using Java 25 and Mojang's unobfuscated runtime names. The apocalypse spawning, graph runtime, persistence, validation, networking, and mob AI systems are available; the in-game creator UI is temporarily disabled while its renderer is migrated to the new 26.x graphics API.
 - Added build-time page, checksum, truncation, and end-of-stream validation for every bundled OGG audio asset.
+- Mob right-click import now creates and focuses a separate graph tab instead of replacing the creator's current graph.
+- Function groups now open with a dedicated draggable Group Graph inspector that exposes the group name, member count, and close action, and disappears completely when the group workspace closes.
+- Increased tutorial contrast and z-order with an opaque foreground card, and added width-aware shared button labels to prevent UI text from overlapping neighboring controls.
 - Added a public common `AioaBehaviorApi` for registering data-driven boss graphs and mod-specific live-mob graph contributors without loader-specific or renderer dependencies.
 - Right-click world selection now imports an editable best-effort graph from the mob's live type, attributes, equipment, state, and registered mod contributors; opaque Java goals are labeled honestly instead of being represented as exact decompiled logic.
 - Kept shader/render compatibility soft and isolated: Essential, Sodium, Iris, entity/model mods, and boss mods require no hard dependency, while custom behavior can integrate through the common API.
