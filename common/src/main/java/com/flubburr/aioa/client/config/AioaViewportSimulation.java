@@ -97,6 +97,8 @@ final class AioaViewportSimulation {
         int budget = 12;
         while (this.tickAccumulator >= 1.0D && budget-- > 0) {
             simulateTick(graph);
+            this.mobX = Math.max(-10.0F, Math.min(10.0F, this.mobX));
+            this.mobZ = Math.max(-10.0F, Math.min(10.0F, this.mobZ));
             this.tickAccumulator -= 1.0D;
         }
     }
@@ -200,8 +202,16 @@ final class AioaViewportSimulation {
             case PHASE_BRANCH -> "phase_" + this.phase;
             case SET_TARGET, TARGET_ATTACKER -> { this.hasTarget = true; yield "next"; }
             case CLEAR_TARGET -> { this.hasTarget = false; yield "next"; }
-            case MOVE_TO_TARGET -> { moveToward((float) number(node, "speed", 1.0D) * 0.055F); yield "next"; }
-            case FLEE_TARGET -> { moveAway((float) number(node, "speed", 1.0D) * 0.055F); yield "next"; }
+            case MOVE_TO_TARGET -> {
+                if (distance() > number(node, "stopDistance", 1.5D)) moveToward((float) number(node, "speed", 1.0D) * 0.055F);
+                else this.walk = 0.0F;
+                yield "next";
+            }
+            case FLEE_TARGET -> {
+                if (distance() < number(node, "distance", 12.0D)) moveAway((float) number(node, "speed", 1.0D) * 0.055F);
+                else this.walk = 0.0F;
+                yield "next";
+            }
             case WALK_BLOCKS, STRAFE, WANDER, SET_VELOCITY, DASH_TO_TARGET, ORBIT_TARGET -> { movePreview(node); yield "next"; }
             case TELEPORT_RELATIVE -> { this.mobX += number(node, "x", 0.0D); this.mobZ += number(node, "z", 0.0D); yield "next"; }
             case TELEPORT_TO_TARGET -> { this.mobX = this.targetX + (float) number(node, "offsetX", 0.0D); this.mobZ = this.targetZ + (float) number(node, "offsetZ", 0.0D); yield "next"; }
@@ -282,9 +292,15 @@ final class AioaViewportSimulation {
     }
 
     private void attack(AioaBehaviorGraph.Node node) {
+        if (node.type == AioaBehaviorGraph.NodeType.ATTACK_TARGET && distance() > number(node, "range", 3.0D)) return;
         this.attackTicks = 6;
         float amount = node.type == AioaBehaviorGraph.NodeType.ATTACK_TARGET ? this.attackDamage : (float) number(node, "amount", 4.0D);
-        if (this.hasTarget) this.targetHealth = Math.max(0.0F, this.targetHealth - amount);
+        if (this.hasTarget) {
+            this.walk = 0.0F;
+            faceTarget();
+            this.targetHealth = Math.max(0.0F, this.targetHealth - amount);
+            if (this.targetHealth <= 0.0F) this.hasTarget = false;
+        }
     }
 
     private void mutateVariable(AioaBehaviorGraph.Node node) {
