@@ -17,7 +17,15 @@
   "music.menu": {
     "sounds": [
       {
-        "name": "aioa:aioa_menu_music",
+        "name": "aioa:aioa_music_loop_1",
+        "stream": true
+      },
+      {
+        "name": "aioa:aioa_music_loop_2",
+        "stream": true
+      },
+      {
+        "name": "aioa:aioa_music_loop_3",
         "stream": true
       }
     ]

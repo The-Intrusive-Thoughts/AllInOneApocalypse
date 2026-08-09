@@ -2,6 +2,8 @@
 
 ## 0.2.1 (Unreleased)
 
+- Fixed false graph validation that required a separate Event node and required Base Mob to occupy list index zero even though Base Mob is the executable root. Validation now exposes per-node and per-link diagnostics, logs detailed debug context, draws invalid nodes with a pulsing red outline, invalid links in red, and selected valid links in blue.
+- Added three clean numbered menu loops (`aioa_music_loop_1` through `3`) and randomized the selected streamed track whenever a new AIOA menu session opens.
 - Re-encoded the corrupted looping menu-music OGG that caused `Failed to read Ogg file 21`, and added build-time page, checksum, truncation, and end-of-stream validation for every bundled audio asset.
 - Added live Node Palette search across node names, categories, and descriptions, with filtered paging and scrollbar feedback.
 - Added Blueprint-style multi-selection: Shift-click toggles nodes, Shift-drag creates a marquee, Ctrl+A selects the visible graph, and dragging, duplicating, or deleting operates on the complete selection while protecting Base Mob.
