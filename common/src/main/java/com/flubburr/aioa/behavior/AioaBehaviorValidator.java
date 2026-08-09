@@ -22,11 +22,8 @@ public final class AioaBehaviorValidator {
         if (graph.selector.length() > 160) issues.add("Graph selectors are limited to 160 characters.");
         if (graph.nodes.size() > 128) issues.add("Graph exceeds the 128-node safety limit.");
         if (graph.edges.size() > 256) issues.add("Graph exceeds the 256-link safety limit.");
-        long entries = graph.nodes.stream().filter(node -> "Events".equals(node.type.category)).count();
-        if (entries == 0) issues.add("Add at least one event node.");
         long bases = graph.nodes.stream().filter(node -> node.type == AioaBehaviorGraph.NodeType.MOB_BASE).count();
         if (bases != 1) issues.add("Every graph needs exactly one Base Mob node.");
-        if (!graph.nodes.isEmpty() && graph.nodes.get(0).type != AioaBehaviorGraph.NodeType.MOB_BASE) issues.add("Base Mob must be the first node.");
         Set<String> ids = new HashSet<>();
         for (AioaBehaviorGraph.Node node : graph.nodes) {
             if (!ids.add(node.id)) issues.add("Duplicate node id: " + node.id);
@@ -66,6 +63,51 @@ public final class AioaBehaviorValidator {
         return issues;
     }
 
+    public static Map<String, List<String>> nodeIssues(AioaBehaviorGraph graph) {
+        Map<String, List<String>> result = new HashMap<>();
+        Set<String> seen = new HashSet<>();
+        Set<String> reached = reachableNodeIds(graph);
+        for (AioaBehaviorGraph.Node node : graph.nodes) {
+            List<String> issues = new ArrayList<>();
+            if (!seen.add(node.id)) issues.add("Duplicate node id.");
+            if (node.id.length() > 80) issues.add("Node id exceeds 80 characters.");
+            if (node.parameters.size() > 32) issues.add("Node exceeds 32 parameters.");
+            validateParameters(node, issues);
+            if (node.type == AioaBehaviorGraph.NodeType.FUNCTION_GROUP) {
+                String groupId = node.parameters.getOrDefault("_groupId", "");
+                if (groupId.isBlank()) issues.add("Function Group needs an internal group id.");
+                else if (graph.nodes.stream().noneMatch(member -> groupId.equals(member.parameters.get("_group")))) {
+                    issues.add("Function Group is empty.");
+                }
+            }
+            if (node.type != AioaBehaviorGraph.NodeType.COMMENT
+                    && node.parameters.getOrDefault("_group", "").isBlank() && !reached.contains(node.id)) {
+                issues.add("Node is not connected to Base Mob.");
+            }
+            if (!issues.isEmpty()) result.put(node.id, List.copyOf(issues));
+        }
+        return result;
+    }
+
+    public static Map<String, List<String>> edgeIssues(AioaBehaviorGraph graph) {
+        Map<String, List<String>> result = new HashMap<>();
+        Map<String, AioaBehaviorGraph.Node> nodes = new HashMap<>();
+        graph.nodes.forEach(node -> nodes.put(node.id, node));
+        Set<String> ids = new HashSet<>();
+        for (AioaBehaviorGraph.Edge edge : graph.edges) {
+            List<String> issues = new ArrayList<>();
+            AioaBehaviorGraph.Node source = nodes.get(edge.from);
+            AioaBehaviorGraph.Node target = nodes.get(edge.to);
+            if (source == null || target == null) issues.add("Link points to a missing node.");
+            if (edge.from.equals(edge.to)) issues.add("A node cannot link to itself.");
+            if (edge.id == null || edge.id.isBlank() || !ids.add(edge.id)) issues.add("Link id is missing or duplicated.");
+            if (source != null && !AioaNodeSchema.emits(source.type, edge.output)) issues.add("Unknown output port '" + edge.output + "'.");
+            if (target != null && !AioaNodeSchema.accepts(target.type, edge.input)) issues.add("Unknown input port '" + edge.input + "'.");
+            if (!issues.isEmpty()) result.put(edge.id == null ? edge.from + "->" + edge.to : edge.id, List.copyOf(issues));
+        }
+        return result;
+    }
+
     private static void validateParameters(AioaBehaviorGraph.Node node, List<String> issues) {
         Set<String> allowed = allowedParameters(node.type);
         node.parameters.keySet().stream().filter(key -> !key.startsWith("_") && !allowed.contains(key))
@@ -100,7 +142,7 @@ public final class AioaBehaviorValidator {
             case FIND_NEAREST_PLAYER, FIND_PLAYER_NAME, FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB -> number(node, "range", 1, 64, issues);
             case TARGET_IN_RANGE, ATTACK_TARGET -> number(node, "range", 1, 64, issues);
             case HEALTH_BELOW, TARGET_HEALTH_BELOW -> number(node, "percent", 0, 1, issues);
-            case MOVE_TO_TARGET -> number(node, "speed", 0.1, 3, issues);
+            case MOVE_TO_TARGET -> { number(node, "speed", 0.1, 3, issues); if (node.parameters.containsKey("stopDistance")) number(node, "stopDistance", 0.1, 16, issues); }
             case FLEE_TARGET -> { number(node, "distance", 2, 32, issues); number(node, "speed", 0.1, 3, issues); }
             case WALK_BLOCKS -> { number(node, "blocks", 0.25, 32, issues); number(node, "speed", 0.1, 3, issues); }
             case WANDER -> { number(node, "radius", 1, 32, issues); number(node, "speed", 0.1, 3, issues); }
@@ -183,7 +225,7 @@ public final class AioaBehaviorValidator {
             case FIND_ENTITY_TYPE -> Set.of("entity", "range");
             case TARGET_IN_RANGE, ATTACK_TARGET -> Set.of("range");
             case HEALTH_BELOW, TARGET_HEALTH_BELOW -> Set.of("percent");
-            case MOVE_TO_TARGET -> Set.of("speed");
+            case MOVE_TO_TARGET -> Set.of("speed", "stopDistance");
             case FLEE_TARGET -> Set.of("distance", "speed");
             case WALK_BLOCKS -> Set.of("blocks", "speed");
             case WANDER -> Set.of("radius", "speed");
@@ -225,6 +267,13 @@ public final class AioaBehaviorValidator {
     }
 
     private static void validateReachability(AioaBehaviorGraph graph, List<String> issues) {
+        Set<String> reached = reachableNodeIds(graph);
+        graph.nodes.stream().filter(node -> node.type != AioaBehaviorGraph.NodeType.COMMENT
+                        && node.parameters.getOrDefault("_group", "").isBlank() && !reached.contains(node.id))
+                .limit(3).forEach(node -> issues.add(node.type.name().replace('_', ' ') + " is not connected to Base Mob."));
+    }
+
+    private static Set<String> reachableNodeIds(AioaBehaviorGraph graph) {
         Map<String, List<String>> outgoing = new HashMap<>();
         graph.edges.forEach(edge -> outgoing.computeIfAbsent(edge.from, key -> new ArrayList<>()).add(edge.to));
         ArrayDeque<String> queue = new ArrayDeque<>();
@@ -234,9 +283,7 @@ public final class AioaBehaviorValidator {
             String id = queue.removeFirst();
             if (reached.add(id)) queue.addAll(outgoing.getOrDefault(id, List.of()));
         }
-        graph.nodes.stream().filter(node -> node.type != AioaBehaviorGraph.NodeType.COMMENT
-                        && node.parameters.getOrDefault("_group", "").isBlank() && !reached.contains(node.id))
-                .limit(3).forEach(node -> issues.add(node.type.name().replace('_', ' ') + " is not connected to Base Mob."));
+        return reached;
     }
 
     private static void number(AioaBehaviorGraph.Node node, String key, double min, double max, List<String> issues) {
