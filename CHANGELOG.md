@@ -3,6 +3,9 @@
 ## 0.2.1 (Unreleased)
 
 - Added build-time page, checksum, truncation, and end-of-stream validation for every bundled OGG audio asset.
+- Made tutorial and mob-picker closing bypass the scroll widget dispatcher with direct visible-control hit testing, eliminating the remaining modal trap even under unusual GUI scales or overlapping widget layers.
+- Added a persistent bottom-right Audio ON/OFF button to the F6 configuration screen, documented it in the tutorial, and made it mute both menu music and UI feedback without losing the configured volume levels.
+- Added clickable community and credits links for the AIOA Discord, DarkFox Studios YouTube channel, and flubburr YouTube channel.
 - Fixed the first-run tutorial controls being clipped out of view by the scroll viewport. Back, Next/Open Docs, Skip, and a top-right Close button now render above the modal and persist dismissal immediately.
 - Fixed the behavior mob picker trap by rendering its Select, Cancel/Return, and top-right Close controls outside the scrolling clip while retaining Escape return. Graph targeting is now scope-aware: entity types use the visual mob browser, tags stay as an inline Inspector field, managed mobs target the active area automatically, all mobs need no picker, and exact entities use the cancellable world right-click flow.
 - Added a procedural Auto Fix Graph action in both the Inspector and Graph menu. It safely reconstructs missing roots, defaults, IDs, stale typed ports, broken links, unsupported parameters, empty function groups, unsafe blank scopes, and isolated graph regions while reporting ambiguous creator decisions it intentionally leaves unresolved.
