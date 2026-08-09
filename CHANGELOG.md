@@ -3,8 +3,12 @@
 ## 0.2.1 (Unreleased)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 - Added a Fabric beta port for Minecraft 26.1.x using Java 25 and Mojang's unobfuscated runtime names. The apocalypse spawning, graph runtime, persistence, validation, networking, and mob AI systems are available; the in-game creator UI is temporarily disabled while its renderer is migrated to the new 26.x graphics API.
 =======
+=======
+- Added build-time page, checksum, truncation, and end-of-stream validation for every bundled OGG audio asset.
+>>>>>>> 8a91541 (Repair menu music OGG stream)
 - Added live Node Palette search across node names, categories, and descriptions, with filtered paging and scrollbar feedback.
 - Added Blueprint-style multi-selection: Shift-click toggles nodes, Shift-drag creates a marquee, Ctrl+A selects the visible graph, and dragging, duplicating, or deleting operates on the complete selection while protecting Base Mob.
 - Fixed the behavior runtime's core output routing so ordinary movement, combat, state, world, and creator nodes correctly continue through their `next` links; sensing nodes now exclusively emit truthful `found` or `missing` branches.
