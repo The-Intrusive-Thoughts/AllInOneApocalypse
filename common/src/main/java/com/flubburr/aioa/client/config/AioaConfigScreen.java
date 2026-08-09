@@ -221,9 +221,10 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
     private void drawTutorial(GuiGraphics graphics) {
         int boxWidth = Math.min(520, this.width - 32);
         int left = this.width / 2 - boxWidth / 2;
-        int top = this.height - 130 + (int) Math.round(Math.sin(System.currentTimeMillis() / 420.0D) * 2.0D);
-        graphics.fill(0, 0, this.width, this.height, 0x52000000);
-        graphics.fill(left, top, left + boxWidth, top + 54, 0xF518271E);
+        int top = this.height - 158;
+        graphics.fill(0, 0, this.width, this.height, 0xC8000000);
+        graphics.fill(left - 2, top - 2, left + boxWidth + 2, this.height - 26, 0xFF62E99C);
+        graphics.fill(left, top, left + boxWidth, this.height - 28, 0xFF101713);
         String title = switch (this.tutorialStep) {
             case 1 -> "2 / 4  BUILD BEHAVIOR WITH NODES";
             case 2 -> "3 / 4  PREVIEW, SPAWN, AND SELECT";
@@ -237,8 +238,8 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
             default -> "Balanced, Cinematic, and Horde presets give a safe base before you customize individual systems.";
         };
         graphics.drawString(this.font, title, left + 12, top + 9, 0xFF78E5A5);
-        AioaScreenUtil.drawWrappedCenteredText(graphics, this.font, Component.literal(body), left + boxWidth / 2, top + 24,
-                boxWidth - 24, AioaScreenUtil.TEXT_SUB);
+        AioaScreenUtil.drawWrappedCenteredText(graphics, this.font, Component.literal(body), left + boxWidth / 2, top + 30,
+                boxWidth - 36, 0xFFFFFFFF);
     }
 
     private static void drawDocsArrow(GuiGraphics graphics, int x1, int y1, int x2, int y2) {
