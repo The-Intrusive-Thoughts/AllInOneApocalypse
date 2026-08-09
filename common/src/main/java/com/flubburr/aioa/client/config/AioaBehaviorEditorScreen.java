@@ -87,6 +87,10 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private int parametersY;
     private int parametersWidth = 210;
     private int parametersHeight = 188;
+    private int groupInspectorX;
+    private int groupInspectorY;
+    private int groupInspectorWidth = 230;
+    private int groupInspectorHeight = 122;
     private boolean paletteCollapsed;
     private boolean inspectorCollapsed;
     private boolean parametersCollapsed = true;
@@ -173,6 +177,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     @Override
     protected void init() {
         this.clearWidgets();
+        this.floatingOrder.remove(FloatingWindow.GROUP_INSPECTOR);
+        if (this.activeGroupId != null) this.floatingOrder.add(FloatingWindow.GROUP_INSPECTOR);
         if (!this.configuredScaleApplied) {
             double minecraftScale = this.minecraft == null ? 2.0D : Math.max(1.0D, this.minecraft.getWindow().getGuiScale());
             this.effectiveUiScale = this.editableConfig.clientUi.editorScalePercent / 100.0D * Math.min(1.0D, 2.0D / minecraftScale);
@@ -382,6 +388,30 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                     issueCount == 0 ? "Auto Fix: graph is clean" : "Auto Fix Graph (" + issueCount + ")", button -> autoFixGraph()));
         }
 
+        if (this.activeGroupId != null) {
+            if (this.groupInspectorX == 0 && this.groupInspectorY == 0) {
+                this.groupInspectorX = Math.max(8, this.windowX + this.workspaceWidth - this.groupInspectorWidth - 24);
+                this.groupInspectorY = Math.max(28, this.windowY + 78);
+            }
+            AioaBehaviorGraph.Node groupNode = activeGroupNode();
+            EditBox groupName = new EditBox(this.font, this.groupInspectorX + 10, this.groupInspectorY + 28,
+                    this.groupInspectorWidth - 20, 22, Component.literal("Group name"));
+            groupName.setValue(groupNode == null ? "Function group" : groupNode.parameters.getOrDefault("name", "Function group"));
+            groupName.setResponder(value -> {
+                if (!this.rebuildingWidgets && groupNode != null) {
+                    groupNode.parameters.put("name", value.isBlank() ? "Function group" : value.trim());
+                    markDirty(true);
+                }
+            });
+            addFloatingWidget(FloatingWindow.GROUP_INSPECTOR, groupName);
+            addFloatingWidget(FloatingWindow.GROUP_INSPECTOR, AioaScreenUtil.button(this.groupInspectorX + 10,
+                    this.groupInspectorY + 58, this.groupInspectorWidth - 20, "Close group workspace", button -> closeActiveGroup()));
+            Button memberCount = AioaScreenUtil.button(this.groupInspectorX + 10, this.groupInspectorY + 88,
+                    this.groupInspectorWidth - 20, "Members: " + groupMemberCount(), button -> { });
+            memberCount.active = false;
+            addFloatingWidget(FloatingWindow.GROUP_INSPECTOR, memberCount);
+        }
+
         int paletteX = this.paletteX + 10;
         int paletteY = this.paletteY + 56;
         this.paletteSearch = new EditBox(this.font, paletteX, this.paletteY + 27, this.paletteWidth - 20, 20,
@@ -424,7 +454,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         this.rebuildingWidgets = false;
     }
 
-    private enum FloatingWindow { PALETTE, INSPECTOR, PARAMETERS }
+    private enum FloatingWindow { PALETTE, INSPECTOR, PARAMETERS, GROUP_INSPECTOR }
 
     private <T extends AbstractWidget> T addFloatingWidget(FloatingWindow window, T widget) {
         this.floatingWidgets.computeIfAbsent(window, ignored -> new ArrayList<>()).add(widget);
@@ -1242,10 +1272,13 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     void bindWorldSelectedMob(Mob mob) {
         snapshot();
         AioaBehaviorGraph imported = AioaBehaviorApi.approximateMob(mob);
-        int index = this.graphs.indexOf(this.graph);
-        if (index >= 0) this.graphs.set(index, imported);
+        this.graphs.add(imported);
+        this.graphIndex = this.graphs.size() - 1;
         this.graph = imported;
-        this.status = "Imported an approximate live graph for " + mob.getDisplayName().getString() + ".";
+        this.activeGroupId = null;
+        this.selected = null;
+        this.selectedNodeIds.clear();
+        this.status = "Imported " + mob.getDisplayName().getString() + " into a new graph tab.";
         markDirty(true);
         rebuildEditorWidgets();
     }
@@ -1367,6 +1400,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         }
         if (button == 0 && floatingHeaderClicked(mouseX, mouseY, FloatingWindow.INSPECTOR)) return true;
         if (button == 0 && floatingHeaderClicked(mouseX, mouseY, FloatingWindow.PALETTE)) return true;
+        if (button == 0 && this.activeGroupId != null
+                && floatingHeaderClicked(mouseX, mouseY, FloatingWindow.GROUP_INSPECTOR)) return true;
         if (button == 0 && mouseX >= this.viewportX + this.viewportWidth - 12 && mouseX <= this.viewportX + this.viewportWidth
                 && mouseY >= this.viewportY + this.viewportHeight - 12 && mouseY <= this.viewportY + this.viewportHeight) {
             this.resizingViewport = true;
@@ -1698,6 +1733,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 case PALETTE -> this.paletteCollapsed = !this.paletteCollapsed;
                 case INSPECTOR -> this.inspectorCollapsed = !this.inspectorCollapsed;
                 case PARAMETERS -> this.parametersCollapsed = !this.parametersCollapsed;
+                case GROUP_INSPECTOR -> { closeActiveGroup(); return true; }
             }
             rebuildEditorWidgets();
             saveGraphLayout();
@@ -1716,23 +1752,25 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             case PALETTE -> { this.paletteX = x; this.paletteY = y; }
             case INSPECTOR -> { this.inspectorX = x; this.inspectorY = y; }
             case PARAMETERS -> { this.parametersX = x; this.parametersY = y; }
+            case GROUP_INSPECTOR -> { this.groupInspectorX = x; this.groupInspectorY = y; }
         }
     }
 
     private int floatingX(FloatingWindow window) { return switch (window) {
-        case PALETTE -> this.paletteX; case INSPECTOR -> this.inspectorX; case PARAMETERS -> this.parametersX;
+        case PALETTE -> this.paletteX; case INSPECTOR -> this.inspectorX; case PARAMETERS -> this.parametersX; case GROUP_INSPECTOR -> this.groupInspectorX;
     }; }
     private int floatingY(FloatingWindow window) { return switch (window) {
-        case PALETTE -> this.paletteY; case INSPECTOR -> this.inspectorY; case PARAMETERS -> this.parametersY;
+        case PALETTE -> this.paletteY; case INSPECTOR -> this.inspectorY; case PARAMETERS -> this.parametersY; case GROUP_INSPECTOR -> this.groupInspectorY;
     }; }
     private int floatingWidth(FloatingWindow window) { return switch (window) {
-        case PALETTE -> this.paletteWidth; case INSPECTOR -> this.inspectorWidth; case PARAMETERS -> this.parametersWidth;
+        case PALETTE -> this.paletteWidth; case INSPECTOR -> this.inspectorWidth; case PARAMETERS -> this.parametersWidth; case GROUP_INSPECTOR -> this.groupInspectorWidth;
     }; }
 
     private int floatingHeight(FloatingWindow window) { return switch (window) {
         case PALETTE -> this.paletteCollapsed ? 20 : this.paletteHeight;
         case INSPECTOR -> this.inspectorCollapsed ? 20 : this.inspectorHeight;
         case PARAMETERS -> this.parametersCollapsed ? 20 : this.parametersHeight;
+        case GROUP_INSPECTOR -> this.groupInspectorHeight;
     }; }
 
     private boolean floatingResizeHandleClicked(double mouseX, double mouseY, FloatingWindow window) {
@@ -1752,6 +1790,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             case PALETTE -> { this.paletteWidth = width; this.paletteHeight = height; }
             case INSPECTOR -> { this.inspectorWidth = width; this.inspectorHeight = height; }
             case PARAMETERS -> { this.parametersWidth = width; this.parametersHeight = height; }
+            case GROUP_INSPECTOR -> { this.groupInspectorWidth = width; this.groupInspectorHeight = height; }
         }
     }
 
@@ -2108,11 +2147,13 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         graphics.fill(x, y, x + width, y + height, 0xF2101713);
         graphics.fill(x, y, x + width, y + 20, 0xFF1A2B21);
         graphics.fill(x, y, x + 2, y + height, 0xFF396B4D);
-        graphics.drawString(this.font, title + "  ::", x + 8, y + 6, AioaScreenUtil.TEXT_MAIN);
+        String safeTitle = this.font.plainSubstrByWidth(title + "  ::", Math.max(10, width - 34));
+        graphics.drawString(this.font, safeTitle, x + 8, y + 6, AioaScreenUtil.TEXT_MAIN);
         boolean collapsed = switch (window) {
             case PALETTE -> this.paletteCollapsed;
             case INSPECTOR -> this.inspectorCollapsed;
             case PARAMETERS -> this.parametersCollapsed;
+            case GROUP_INSPECTOR -> false;
         };
         graphics.drawString(this.font, collapsed ? "+" : "-", x + width - 16, y + 6, 0xFF92F5B8);
         if (!collapsed) drawResizeHandle(graphics, x + width, y + height);
@@ -2124,6 +2165,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 case PALETTE -> "NODE PALETTE";
                 case INSPECTOR -> "INSPECTOR :: " + (this.selected == null ? "GRAPH" : friendly(this.selected.type));
                 case PARAMETERS -> "NODE PARAMETERS";
+                case GROUP_INSPECTOR -> "GROUP GRAPH :: " + activeGroupName();
             };
             drawFloatingPanel(graphics, window, title, floatingHeight(window));
             if (window == FloatingWindow.INSPECTOR && !this.inspectorCollapsed
@@ -2509,6 +2551,26 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     }
 
     private String activeGroupName() { return groupName(this.activeGroupId); }
+
+    private AioaBehaviorGraph.Node activeGroupNode() {
+        if (this.activeGroupId == null) return null;
+        return this.graph.nodes.stream().filter(node -> node.type == AioaBehaviorGraph.NodeType.FUNCTION_GROUP
+                && this.activeGroupId.equals(node.parameters.get("_groupId"))).findFirst().orElse(null);
+    }
+
+    private long groupMemberCount() {
+        if (this.activeGroupId == null) return 0;
+        return this.graph.nodes.stream().filter(node -> this.activeGroupId.equals(node.parameters.get("_group"))).count();
+    }
+
+    private void closeActiveGroup() {
+        this.activeGroupId = null;
+        this.selected = null;
+        this.selectedNodeIds.clear();
+        this.floatingOrder.remove(FloatingWindow.GROUP_INSPECTOR);
+        this.status = "Closed group workspace.";
+        rebuildEditorWidgets();
+    }
 
     private static String defaultOutput(AioaBehaviorGraph.NodeType type) {
         return outputsFor(type)[0];
