@@ -4,6 +4,7 @@ import com.flubburr.aioa.AioaConstants;
 import com.flubburr.aioa.compat.AioaEntityHelper;
 import com.flubburr.aioa.compat.AioaRegistryCompat;
 import com.flubburr.aioa.config.AioaConfigManager;
+import com.flubburr.aioa.mixin.accessor.MobAccessor;
 import com.flubburr.aioa.spawn.AioaZombieBehaviour;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.Holder;
@@ -16,6 +17,7 @@ import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -28,6 +30,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -59,6 +62,7 @@ public final class AioaBehaviorRuntime {
         for (AioaBehaviorGraph graph : AioaConfigManager.getConfig().behaviorGraphs) {
             if (executed >= engine.maxGraphsPerMob) break;
             if (graph.enabled && matches(graph, mob)) {
+                stripVanillaAi(mob);
                 RuntimeKey key = new RuntimeKey(graph.id, mob.getUUID());
                 RuntimeState state = STATES.computeIfAbsent(key, ignored -> new RuntimeState());
                 state.lastTouchedTick = mob.level().getGameTime();
@@ -66,6 +70,14 @@ public final class AioaBehaviorRuntime {
                 executed++;
             }
         }
+    }
+
+    /** Graph-controlled mobs keep navigation/controllers but lose every vanilla behavior and target goal. */
+    private static void stripVanillaAi(Mob mob) {
+        MobAccessor accessor = (MobAccessor) mob;
+        accessor.aioa$getGoalSelector().removeAllGoals(goal -> true);
+        accessor.aioa$getTargetSelector().removeAllGoals(goal -> true);
+        mob.setNoAi(false);
     }
 
     public static boolean allowsWallClimbing(Mob mob) {
@@ -174,6 +186,10 @@ public final class AioaBehaviorRuntime {
                         <= number(node, "percent", 0.5, 0, 1) ? "true" : "false";
             }
             case IS_RAINING -> { return mob.level().isRainingAt(mob.blockPosition()) ? "true" : "false"; }
+            case TARGET_IS_SURVIVAL -> { return targetGameMode(mob, context, GameType.SURVIVAL); }
+            case TARGET_IS_CREATIVE -> { return targetGameMode(mob, context, GameType.CREATIVE); }
+            case TARGET_IS_ADVENTURE -> { return targetGameMode(mob, context, GameType.ADVENTURE); }
+            case TARGET_IS_SPECTATOR -> { return targetGameMode(mob, context, GameType.SPECTATOR); }
             case FIND_NEAREST_PLAYER -> {
                 context.target = nearest(mob, Player.class, range, candidate -> !candidate.isSpectator());
                 return context.target == null ? "missing" : "found";
@@ -361,6 +377,12 @@ public final class AioaBehaviorRuntime {
             case FUNCTION_GROUP -> executeFunctionGroup(node, mob, context);
         }
         return "next";
+    }
+
+    private static String targetGameMode(Mob mob, ExecutionContext context, GameType expected) {
+        LivingEntity target = context.target != null ? context.target : mob.getTarget();
+        if (!(target instanceof ServerPlayer player)) return "false";
+        return player.gameMode.getGameModeForPlayer() == expected ? "true" : "false";
     }
 
     private static void executeFunctionGroup(AioaBehaviorGraph.Node groupNode, Mob mob, ExecutionContext context) {
