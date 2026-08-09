@@ -2,9 +2,14 @@
 
 ## 0.2.1 (Unreleased)
 
+<<<<<<< HEAD
 - Added a Fabric beta port for Minecraft 26.1.x using Java 25 and Mojang's unobfuscated runtime names. The apocalypse spawning, graph runtime, persistence, validation, networking, and mob AI systems are available; the in-game creator UI is temporarily disabled while its renderer is migrated to the new 26.x graphics API.
 - Added a separate Fabric beta for Minecraft 26.2 using Fabric Loader 0.19.3, Fabric API 0.156.0, Loom 1.17, and Gradle 9.5.1. It carries the same server/runtime feature set and temporary editor-renderer limitation as the 26.1 beta.
 - Added build-time page, checksum, truncation, and end-of-stream validation for every bundled OGG audio asset.
+=======
+- Graph-managed mobs now have all vanilla action and targeting goals stripped while retaining navigation/controllers for Blueprint commands, preventing base AI from fighting graph movement, targeting, attacks, phases, or scripted boss behavior.
+- Added Survival, Creative, Adventure, and Spectator target-condition nodes with explicit true/false outputs for player-aware encounters and creator logic.
+>>>>>>> 67373ff (Give behavior graphs exclusive mob control)
 - Made tutorial and mob-picker closing bypass the scroll widget dispatcher with direct visible-control hit testing, eliminating the remaining modal trap even under unusual GUI scales or overlapping widget layers.
 - Added a persistent bottom-right Audio ON/OFF button to the F6 configuration screen, documented it in the tutorial, and made it mute both menu music and UI feedback without losing the configured volume levels.
 - Added clickable community and credits links for the AIOA Discord, DarkFox Studios YouTube channel, and flubburr YouTube channel.
