@@ -475,9 +475,9 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private String graphTargetLabel() {
         return switch (this.graph.scope) {
             case ENTITY_TYPE -> "Choose mob type...";
-            case SINGLE_ENTITY -> "Pick mob in world...";
-            case ENTITY_TAG -> "Choose tagged mob type...";
-            case MANAGED_MOBS -> "Target: managed mobs";
+            case SINGLE_ENTITY -> "Pick exact mob in world...";
+            case ENTITY_TAG -> "Edit mob tag above";
+            case MANAGED_MOBS -> "Target: managed mobs in area";
             case ALL_MOBS -> "Target: every mob";
         };
     }
@@ -487,8 +487,15 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             AioaMobSelectionController.arm(this);
             return;
         }
+        if (this.graph.scope == AioaBehaviorGraph.Scope.ENTITY_TAG) {
+            this.selector.setFocused(true);
+            this.status = "Enter a scoreboard mob tag directly in the Inspector; no mob browser is used for tags.";
+            return;
+        }
         if (this.graph.scope == AioaBehaviorGraph.Scope.MANAGED_MOBS || this.graph.scope == AioaBehaviorGraph.Scope.ALL_MOBS) {
-            this.status = "This scope selects mobs automatically; no raw id is needed.";
+            this.status = this.graph.scope == AioaBehaviorGraph.Scope.MANAGED_MOBS
+                    ? "Managed mobs are selected automatically in the active area."
+                    : "Every loaded mob is selected automatically; no picker is needed.";
             return;
         }
         this.transitionTo(new AioaEntityPickerScreen(this, "Choose Graph Mob", AioaScreenUtil.allEntityIds(),
