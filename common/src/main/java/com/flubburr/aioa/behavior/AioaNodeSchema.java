@@ -28,6 +28,8 @@ public final class AioaNodeSchema {
             case SEQUENCE -> List.of("then_1", "then_2", "then_3", "then_4");
             case PHASE_BRANCH -> List.of("phase_1", "phase_2", "phase_3", "phase_4");
             case TARGET_IS_PLAYER, TARGET_HEALTH_BELOW, IS_RAINING -> List.of("true", "false");
+            case TARGET_IS_SURVIVAL, TARGET_IS_CREATIVE, TARGET_IS_ADVENTURE, TARGET_IS_SPECTATOR ->
+                    List.of("true", "false");
             default -> List.of("next");
         };
     }
