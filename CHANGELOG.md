@@ -2,20 +2,16 @@
 
 ## 0.2.1 (Unreleased)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 - Added a Fabric beta port for Minecraft 26.1.x using Java 25 and Mojang's unobfuscated runtime names. The apocalypse spawning, graph runtime, persistence, validation, networking, and mob AI systems are available; the in-game creator UI is temporarily disabled while its renderer is migrated to the new 26.x graphics API.
 - Added a separate Fabric beta for Minecraft 26.2 using Fabric Loader 0.19.3, Fabric API 0.156.0, Loom 1.17, and Gradle 9.5.1. It carries the same server/runtime feature set and temporary editor-renderer limitation as the 26.1 beta.
-=======
-=======
 - Added build-time page, checksum, truncation, and end-of-stream validation for every bundled OGG audio asset.
->>>>>>> 8a91541 (Repair menu music OGG stream)
+- Fixed false graph validation that required a separate Event node and required Base Mob to occupy list index zero even though Base Mob is the executable root. Validation now exposes per-node and per-link diagnostics, logs detailed debug context, draws invalid nodes with a pulsing red outline, invalid links in red, and selected valid links in blue.
+- Added three clean numbered menu loops (`aioa_music_loop_1` through `3`) and randomized the selected streamed track whenever a new AIOA menu session opens.
 - Added live Node Palette search across node names, categories, and descriptions, with filtered paging and scrollbar feedback.
 - Added Blueprint-style multi-selection: Shift-click toggles nodes, Shift-drag creates a marquee, Ctrl+A selects the visible graph, and dragging, duplicating, or deleting operates on the complete selection while protecting Base Mob.
 - Fixed the behavior runtime's core output routing so ordinary movement, combat, state, world, and creator nodes correctly continue through their `next` links; sensing nodes now exclusively emit truthful `found` or `missing` branches.
 - Strengthened forced movement behavior: Move stops at its target distance, Flee stops after reaching safety, Orbit advances smoothly instead of jumping around its target, attacks face and halt at valid range, Dash cancels competing navigation, and Stop Movement also clears residual horizontal motion.
 - Stabilized the deterministic 3D viewport with real range-aware movement/combat, target defeat state, forced-action stopping, and bounded simulation coordinates so previews no longer run indefinitely out of frame.
->>>>>>> ef1d240 (Polish graph selection and behavior execution)
 - Fixed Graph Studio layering so clicking a draggable Palette or Inspector brings its entire surface forward, fully covered lower controls no longer bleed through, and right-click menus or double-click parameter popups receive modal input and render above editor help/tooltips.
 - Replaced graph filename/path workflows with native operating-system Open and Save dialogs. `.aioagraph` writes now use an atomic temporary-file replacement where supported, while autosave remains available separately.
 - Rebuilt node parameters around visual controls: bounded numbers use labeled sliders, booleans use toggles, enums use controlled choices, mobs use the translated mob browser, and equipment opens a searchable grid containing registered item icons. Raw text remains only for genuinely authored content such as messages, tags, names, comments, and scripts.
