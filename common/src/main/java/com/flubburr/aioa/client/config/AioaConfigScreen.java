@@ -7,8 +7,14 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+<<<<<<< HEAD
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.input.MouseButtonEvent;
+=======
+import net.minecraft.Util;
+
+import java.net.URI;
+>>>>>>> 71fe826 (Harden UI exits and add community controls)
 
 public final class AioaConfigScreen extends AioaScrollableScreen {
 
@@ -24,6 +30,7 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
     private Button tutorialBackButton;
     private Button tutorialNextButton;
     private Button tutorialCloseButton;
+    private Button audioToggleButton;
     private int tutorialStep;
 
     private AioaConfigScreen(Screen parent, AioaConfig editableConfig) {
@@ -88,6 +95,15 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
                 this.transitionTo(AioaBiomeToggleScreen.create(this, this.editableConfig))), singleColumn ? y + step : y);
         y += singleColumn ? step * 2 : step + 14;
 
+        this.addScrollable(AioaScreenUtil.button(leftX, 0, singleColumn ? columnWidth : this.panelWidth - 44,
+                "Community Discord", b -> openExternal("https://discord.gg/uHqJNDewnU")), y);
+        y += step;
+        this.addScrollable(AioaScreenUtil.button(leftX, 0, columnWidth, "Credits: DarkFox Studios", b ->
+                openExternal("https://www.youtube.com/@DarkFoxStudiosOF")), y);
+        this.addScrollable(AioaScreenUtil.button(rightX, 0, columnWidth, "Credits: flubburr", b ->
+                openExternal("https://www.youtube.com/@flubburr")), singleColumn ? y + step : y);
+        y += singleColumn ? step * 2 : step + 10;
+
         int actionWidth = singleColumn ? columnWidth : (this.panelWidth - 58) / 2;
         this.addScrollable(AioaScreenUtil.button(singleColumn ? leftX : centerX - actionWidth - (gap / 2), 0, actionWidth, "Reset to Defaults", b ->
                 this.transitionTo(new AioaConfigScreen(this.parent, AioaConfig.createDefault()))), y);
@@ -102,6 +118,9 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         }), y);
         doneButton.active = this.canSave;
         this.finishScrollLayout(y + AioaScreenUtil.BUTTON_HEIGHT);
+
+        this.audioToggleButton = this.addRenderableWidget(AioaScreenUtil.button(this.width - 158, this.height - 32, 148,
+                this.editableConfig.clientUi.audioMuted ? "Audio: OFF" : "Audio: ON", b -> toggleAudio()));
 
         if (!this.editableConfig.clientUi.tutorialCompleted) {
             this.tutorialSkipButton = this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 - 174, this.height - 66, 108, "Skip tutorial", b -> finishTutorial(false)));
@@ -179,6 +198,7 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         AioaScreenUtil.drawClippedContent(guiGraphics, this.panelLeft + 8, this.contentTop, this.panelLeft + this.panelWidth - 20, this.contentBottom,
                 () -> AioaConfigScreen.super.render(guiGraphics, mouseX, mouseY, partialTick));
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
+        this.audioToggleButton.render(guiGraphics, mouseX, mouseY, partialTick);
         if (this.editableConfig.clientUi.showDocsHint) {
             int hintWidth = Math.min(390, this.width - 30);
             int hintX = this.width - hintWidth - 14;
@@ -217,7 +237,7 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         String body = switch (this.tutorialStep) {
             case 1 -> "Open Graph Studio or press F7 in game. Its palette, inspector, parameters, viewport, and guide are draggable windows.";
             case 2 -> "Use the real 3D viewport, Spawn Studio, or leave the UI and right-click a mob to bind a graph safely.";
-            case 3 -> "Docs explains every node without code. Interface settings control compact scale and menu/mob sound volume.";
+            case 3 -> "Docs explains every node without code. Use the small Audio button at bottom-right for instant mute, or Interface settings for exact volumes.";
             default -> "Balanced, Cinematic, and Horde presets give a safe base before you customize individual systems.";
         };
         graphics.drawString(this.font, title, left + 12, top + 9, 0xFF78E5A5);
@@ -247,11 +267,31 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         AioaConfigManager.save(persisted);
     }
 
+    private void toggleAudio() {
+        this.editableConfig.clientUi.audioMuted = !this.editableConfig.clientUi.audioMuted;
+        AioaConfig persisted = AioaConfigManager.getConfigCopy();
+        persisted.clientUi.audioMuted = this.editableConfig.clientUi.audioMuted;
+        AioaConfigManager.save(persisted);
+        this.audioToggleButton.setMessage(Component.literal(this.editableConfig.clientUi.audioMuted ? "Audio: OFF" : "Audio: ON"));
+    }
+
+    private static void openExternal(String url) {
+        Util.getPlatform().openUri(URI.create(url));
+    }
+
     @Override
+<<<<<<< HEAD
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         double mouseX = event.x();
         double mouseY = event.y();
         int button = event.button();
+=======
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && this.audioToggleButton != null && this.audioToggleButton.isMouseOver(mouseX, mouseY)) {
+            toggleAudio();
+            return true;
+        }
+>>>>>>> 71fe826 (Harden UI exits and add community controls)
         if (!this.editableConfig.clientUi.tutorialCompleted) {
             int boxWidth = Math.min(520, this.width - 32);
             boolean footerControls = mouseY >= this.height - 72 && mouseY <= this.height - 34
@@ -259,6 +299,18 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
             boolean closeControl = mouseX >= this.width / 2 + boxWidth / 2 - 34
                     && mouseX <= this.width / 2 + boxWidth / 2
                     && mouseY >= this.height - 132 && mouseY <= this.height - 96;
+            if (button == 0 && closeControl) { finishTutorial(false); return true; }
+            if (button == 0 && footerControls) {
+                if (this.tutorialSkipButton.isMouseOver(mouseX, mouseY)) { finishTutorial(false); return true; }
+                if (this.tutorialBackButton.isMouseOver(mouseX, mouseY) && this.tutorialBackButton.active) {
+                    this.tutorialStep = Math.max(0, this.tutorialStep - 1); this.rebuildWidgets(); return true;
+                }
+                if (this.tutorialNextButton.isMouseOver(mouseX, mouseY)) {
+                    if (this.tutorialStep >= 3) finishTutorial(true);
+                    else { this.tutorialStep++; this.rebuildWidgets(); }
+                    return true;
+                }
+            }
             if (!footerControls && !closeControl) return true;
         }
         if (button == 0 && this.editableConfig.clientUi.showDocsHint) {
