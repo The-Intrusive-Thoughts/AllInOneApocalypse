@@ -1,6 +1,7 @@
 package com.flubburr.aioa.behavior;
 
 import com.flubburr.aioa.AioaConstants;
+import com.flubburr.aioa.api.AioaBehaviorApi;
 import com.flubburr.aioa.compat.AioaEntityHelper;
 import com.flubburr.aioa.compat.AioaRegistryCompat;
 import com.flubburr.aioa.config.AioaConfigManager;
@@ -59,7 +60,9 @@ public final class AioaBehaviorRuntime {
         }
         int executed = 0;
         cleanupStates(mob.level().getGameTime());
-        for (AioaBehaviorGraph graph : AioaConfigManager.getConfig().behaviorGraphs) {
+        List<AioaBehaviorGraph> runtimeGraphs = new java.util.ArrayList<>(AioaConfigManager.getConfig().behaviorGraphs);
+        runtimeGraphs.addAll(AioaBehaviorApi.registeredGraphs());
+        for (AioaBehaviorGraph graph : runtimeGraphs) {
             if (executed >= engine.maxGraphsPerMob) break;
             if (graph.enabled && matches(graph, mob)) {
                 stripVanillaAi(mob);

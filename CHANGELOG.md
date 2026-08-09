@@ -3,6 +3,9 @@
 ## 0.2.1 (Unreleased)
 
 - Added build-time page, checksum, truncation, and end-of-stream validation for every bundled OGG audio asset.
+- Added a public common `AioaBehaviorApi` for registering data-driven boss graphs and mod-specific live-mob graph contributors without loader-specific or renderer dependencies.
+- Right-click world selection now imports an editable best-effort graph from the mob's live type, attributes, equipment, state, and registered mod contributors; opaque Java goals are labeled honestly instead of being represented as exact decompiled logic.
+- Kept shader/render compatibility soft and isolated: Essential, Sodium, Iris, entity/model mods, and boss mods require no hard dependency, while custom behavior can integrate through the common API.
 - Graph-managed mobs now have all vanilla action and targeting goals stripped while retaining navigation/controllers for Blueprint commands, preventing base AI from fighting graph movement, targeting, attacks, phases, or scripted boss behavior.
 - Added Survival, Creative, Adventure, and Spectator target-condition nodes with explicit true/false outputs for player-aware encounters and creator logic.
 - Made tutorial and mob-picker closing bypass the scroll widget dispatcher with direct visible-control hit testing, eliminating the remaining modal trap even under unusual GUI scales or overlapping widget layers.
