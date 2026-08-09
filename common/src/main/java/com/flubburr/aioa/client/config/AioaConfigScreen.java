@@ -9,8 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.Util;
-
+import java.awt.Desktop;
 import java.net.URI;
 
 public final class AioaConfigScreen extends AioaScrollableScreen {
@@ -273,7 +272,11 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
     }
 
     private static void openExternal(String url) {
-        Util.getPlatform().openUri(URI.create(url));
+        try {
+            if (Desktop.isDesktopSupported()) Desktop.getDesktop().browse(URI.create(url));
+        } catch (Exception ignored) {
+            // External links are optional; never trap or crash the configuration screen.
+        }
     }
 
     @Override
