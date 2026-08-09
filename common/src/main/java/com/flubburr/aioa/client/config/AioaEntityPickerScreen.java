@@ -130,6 +130,25 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
     }
 
     @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0) {
+            if (this.closeButton != null && this.closeButton.isMouseOver(mouseX, mouseY)) {
+                this.transitionTo(this.parent);
+                return true;
+            }
+            if (this.backButton != null && this.backButton.isMouseOver(mouseX, mouseY)) {
+                this.transitionTo(this.parent);
+                return true;
+            }
+            if (this.addButton != null && this.addButton.isMouseOver(mouseX, mouseY) && this.addButton.active) {
+                confirmSelection();
+                return true;
+            }
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.beginUiRender(guiGraphics);
         AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
