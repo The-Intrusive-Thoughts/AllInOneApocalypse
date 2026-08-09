@@ -2,6 +2,7 @@
 
 ## 0.2.1 (Unreleased)
 
+- Re-encoded the corrupted looping menu-music OGG that caused `Failed to read Ogg file 21`, and added build-time page, checksum, truncation, and end-of-stream validation for every bundled audio asset.
 - Added live Node Palette search across node names, categories, and descriptions, with filtered paging and scrollbar feedback.
 - Added Blueprint-style multi-selection: Shift-click toggles nodes, Shift-drag creates a marquee, Ctrl+A selects the visible graph, and dragging, duplicating, or deleting operates on the complete selection while protecting Base Mob.
 - Fixed the behavior runtime's core output routing so ordinary movement, combat, state, world, and creator nodes correctly continue through their `next` links; sensing nodes now exclusively emit truthful `found` or `missing` branches.
