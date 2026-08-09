@@ -25,6 +25,7 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
     private EditBox searchBox;
     private Button addButton;
     private Button backButton;
+    private Button closeButton;
     private ResourceLocation selectedOption;
     private String searchQuery = "";
     private List<ResourceLocation> filteredOptions = List.of();
@@ -68,7 +69,8 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
 
         int footerY = this.height - 92;
         this.addButton = this.addRenderableWidget(AioaScreenUtil.button(left, footerY, (width - 10) / 2, this.actionLabel, b -> this.confirmSelection()));
-        this.backButton = this.addRenderableWidget(AioaScreenUtil.button(left + (width + 10) / 2, footerY, (width - 10) / 2, "Back", b -> this.transitionTo(this.parent)));
+        this.backButton = this.addRenderableWidget(AioaScreenUtil.button(left + (width + 10) / 2, footerY, (width - 10) / 2, "Cancel / Return", b -> this.transitionTo(this.parent)));
+        this.closeButton = this.addRenderableWidget(AioaScreenUtil.button(this.panelLeft + this.panelWidth - 48, 30, 26, "x", b -> this.transitionTo(this.parent)));
 
         this.refreshList();
         this.setInitialFocus(this.searchBox);
@@ -160,6 +162,9 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
         });
 
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
+        this.addButton.render(guiGraphics, mouseX, mouseY, partialTick);
+        this.backButton.render(guiGraphics, mouseX, mouseY, partialTick);
+        this.closeButton.render(guiGraphics, mouseX, mouseY, partialTick);
         this.finishUiRender(guiGraphics);
     }
 
