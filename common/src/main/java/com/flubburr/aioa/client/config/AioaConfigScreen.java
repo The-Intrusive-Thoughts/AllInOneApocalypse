@@ -18,6 +18,10 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
     private AioaConfig editableConfig;
     private boolean canSave;
     private Button docsButton;
+    private Button tutorialSkipButton;
+    private Button tutorialBackButton;
+    private Button tutorialNextButton;
+    private Button tutorialCloseButton;
     private int tutorialStep;
 
     private AioaConfigScreen(Screen parent, AioaConfig editableConfig) {
@@ -98,16 +102,19 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         this.finishScrollLayout(y + AioaScreenUtil.BUTTON_HEIGHT);
 
         if (!this.editableConfig.clientUi.tutorialCompleted) {
-            this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 - 174, this.height - 66, 108, "Skip tutorial", b -> finishTutorial(false)));
-            Button back = this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 - 54, this.height - 66, 108, "Back", b -> {
+            this.tutorialSkipButton = this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 - 174, this.height - 66, 108, "Skip tutorial", b -> finishTutorial(false)));
+            this.tutorialBackButton = this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 - 54, this.height - 66, 108, "Back", b -> {
                 this.tutorialStep = Math.max(0, this.tutorialStep - 1); this.rebuildWidgets();
             }));
-            back.active = this.tutorialStep > 0;
-            this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 + 66, this.height - 66, 108,
+            this.tutorialBackButton.active = this.tutorialStep > 0;
+            this.tutorialNextButton = this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 + 66, this.height - 66, 108,
                     this.tutorialStep == 3 ? "Open docs" : "Next", b -> {
                 if (this.tutorialStep >= 3) finishTutorial(true);
                 else { this.tutorialStep++; this.rebuildWidgets(); }
             }));
+            int boxWidth = Math.min(520, this.width - 32);
+            this.tutorialCloseButton = this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 + boxWidth / 2 - 30,
+                    this.height - 127, 24, "x", b -> finishTutorial(false)));
         }
     }
 
@@ -183,7 +190,13 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
             if (this.docsButton != null) drawDocsArrow(guiGraphics, hintX + 18, hintY + 52,
                     this.docsButton.getX() + this.docsButton.getWidth() / 2, this.docsButton.getY());
         }
-        if (!this.editableConfig.clientUi.tutorialCompleted) drawTutorial(guiGraphics);
+        if (!this.editableConfig.clientUi.tutorialCompleted) {
+            drawTutorial(guiGraphics);
+            this.tutorialSkipButton.render(guiGraphics, mouseX, mouseY, partialTick);
+            this.tutorialBackButton.render(guiGraphics, mouseX, mouseY, partialTick);
+            this.tutorialNextButton.render(guiGraphics, mouseX, mouseY, partialTick);
+            this.tutorialCloseButton.render(guiGraphics, mouseX, mouseY, partialTick);
+        }
         this.finishUiRender(guiGraphics);
     }
 
@@ -234,8 +247,15 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (!this.editableConfig.clientUi.tutorialCompleted && !(mouseY >= this.height - 72 && mouseY <= this.height - 34
-                && mouseX >= this.width / 2 - 184 && mouseX <= this.width / 2 + 184)) return true;
+        if (!this.editableConfig.clientUi.tutorialCompleted) {
+            int boxWidth = Math.min(520, this.width - 32);
+            boolean footerControls = mouseY >= this.height - 72 && mouseY <= this.height - 34
+                    && mouseX >= this.width / 2 - 184 && mouseX <= this.width / 2 + 184;
+            boolean closeControl = mouseX >= this.width / 2 + boxWidth / 2 - 34
+                    && mouseX <= this.width / 2 + boxWidth / 2
+                    && mouseY >= this.height - 132 && mouseY <= this.height - 96;
+            if (!footerControls && !closeControl) return true;
+        }
         if (button == 0 && this.editableConfig.clientUi.showDocsHint) {
             int hintWidth = Math.min(390, this.width - 30);
             int hintX = this.width - hintWidth - 14;
