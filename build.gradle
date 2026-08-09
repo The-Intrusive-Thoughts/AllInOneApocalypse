@@ -22,6 +22,56 @@ ext.forge_loader_version_range = selectedProfile.forgeLoaderRange ?: "[0,)"
 ext.midnightlib_version = selectedProfile.midnightLib
 ext.modmenu_version = selectedProfile.modMenu
 
+tasks.register('verifyOggAssets') {
+    group = 'verification'
+    description = 'Validates every bundled OGG page, checksum, and end-of-stream marker.'
+    def oggFiles = fileTree('common/src/main/resources') { include '**/*.ogg' }
+    inputs.files(oggFiles)
+
+    doLast {
+        oggFiles.each { oggFile ->
+            byte[] data = oggFile.bytes
+            int offset = 0
+            boolean foundEndOfStream = false
+            while (offset < data.length) {
+                if (offset + 27 > data.length || new String(data, offset, 4, 'US-ASCII') != 'OggS') {
+                    throw new GradleException("Malformed OGG capture pattern at byte ${offset}: ${oggFile}")
+                }
+                int segmentCount = data[offset + 26] & 0xFF
+                int headerEnd = offset + 27 + segmentCount
+                if (headerEnd > data.length) throw new GradleException("Truncated OGG header: ${oggFile}")
+                int payloadLength = 0
+                for (int index = offset + 27; index < headerEnd; index++) payloadLength += data[index] & 0xFF
+                int pageEnd = headerEnd + payloadLength
+                if (pageEnd > data.length) throw new GradleException("Truncated OGG page: ${oggFile}")
+
+                long expected = 0L
+                for (int index = 0; index < 4; index++) expected |= (long) (data[offset + 22 + index] & 0xFF) << (index * 8)
+                long checksum = 0L
+                for (int index = offset; index < pageEnd; index++) {
+                    int value = index >= offset + 22 && index < offset + 26 ? 0 : data[index] & 0xFF
+                    checksum ^= (long) value << 24
+                    for (int bit = 0; bit < 8; bit++) {
+                        checksum = (checksum & 0x80000000L) != 0L
+                                ? ((checksum << 1) ^ 0x04C11DB7L) & 0xFFFFFFFFL
+                                : (checksum << 1) & 0xFFFFFFFFL
+                    }
+                }
+                if (checksum != expected) throw new GradleException("Invalid OGG checksum at byte ${offset}: ${oggFile}")
+                foundEndOfStream |= (data[offset + 5] & 0x04) != 0
+                offset = pageEnd
+            }
+            if (!foundEndOfStream) throw new GradleException("OGG has no end-of-stream page: ${oggFile}")
+        }
+    }
+}
+
+gradle.projectsEvaluated {
+    project(':common').tasks.named('processResources').configure {
+        dependsOn(rootProject.tasks.named('verifyOggAssets'))
+    }
+}
+
 tasks.register('publishModrinth') {
     group = 'publishing'
     description = 'Publishes all configured loader artifacts to Modrinth without changing the project body.'
