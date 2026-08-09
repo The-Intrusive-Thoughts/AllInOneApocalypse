@@ -1327,7 +1327,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                     rebuildEditorWidgets();
                     return true;
                 }
-                if (Screen.hasShiftDown()) {
+                if (shiftDown()) {
                     if (!this.selectedNodeIds.add(hit.id)) {
                         this.selectedNodeIds.remove(hit.id);
                         if (this.selected == hit) this.selected = null;
@@ -1389,7 +1389,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 this.contextMenuY = Math.min((int) mouseY, this.height - 132);
                 return true;
             }
-            if (button == 0 && Screen.hasShiftDown()) {
+            if (button == 0 && shiftDown()) {
                 this.marqueeSelecting = true;
                 this.marqueeStartX = this.marqueeEndX = (int) mouseX;
                 this.marqueeStartY = this.marqueeEndY = (int) mouseY;
@@ -1802,7 +1802,10 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             int top = Math.min(this.marqueeStartY, this.marqueeEndY);
             int bottomBox = Math.max(this.marqueeStartY, this.marqueeEndY);
             guiGraphics.fill(left, top, rightBox, bottomBox, 0x332FEA83);
-            guiGraphics.renderOutline(left, top, Math.max(1, rightBox - left), Math.max(1, bottomBox - top), 0xFF6EFFBA);
+            guiGraphics.fill(left, top, rightBox, top + 1, 0xFF6EFFBA);
+            guiGraphics.fill(left, bottomBox - 1, rightBox, bottomBox, 0xFF6EFFBA);
+            guiGraphics.fill(left, top, left + 1, bottomBox, 0xFF6EFFBA);
+            guiGraphics.fill(rightBox - 1, top, rightBox, bottomBox, 0xFF6EFFBA);
         }
         if (this.draggingLink && this.linkStart != null) {
             drawBezier(guiGraphics, screenNodeX(this.linkStart) + nodeWidth(), outputPortY(this.linkStart, this.linkOutput),
