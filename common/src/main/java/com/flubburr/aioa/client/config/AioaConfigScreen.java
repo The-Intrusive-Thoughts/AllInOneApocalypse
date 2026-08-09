@@ -6,16 +6,12 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
-<<<<<<< HEAD
 import net.minecraft.resources.Identifier;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.input.MouseButtonEvent;
-=======
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.Util;
 
 import java.net.URI;
->>>>>>> 71fe826 (Harden UI exits and add community controls)
 
 public final class AioaConfigScreen extends AioaScrollableScreen {
 
@@ -281,18 +277,14 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
     }
 
     @Override
-<<<<<<< HEAD
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         double mouseX = event.x();
         double mouseY = event.y();
         int button = event.button();
-=======
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0 && this.audioToggleButton != null && this.audioToggleButton.isMouseOver(mouseX, mouseY)) {
             toggleAudio();
             return true;
         }
->>>>>>> 71fe826 (Harden UI exits and add community controls)
         if (!this.editableConfig.clientUi.tutorialCompleted) {
             int boxWidth = Math.min(520, this.width - 32);
             boolean footerControls = mouseY >= this.height - 72 && mouseY <= this.height - 34
