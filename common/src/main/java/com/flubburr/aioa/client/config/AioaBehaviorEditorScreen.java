@@ -1,6 +1,7 @@
 package com.flubburr.aioa.client.config;
 
 import com.flubburr.aioa.behavior.AioaBehaviorGraph;
+import com.flubburr.aioa.api.AioaBehaviorApi;
 import com.flubburr.aioa.behavior.AioaBehaviorValidator;
 import com.flubburr.aioa.behavior.AioaGraphLibrary;
 import com.flubburr.aioa.behavior.AioaNodeSchema;
@@ -1239,15 +1240,11 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
 
     void bindWorldSelectedMob(Mob mob) {
         snapshot();
-        this.graph.scope = AioaBehaviorGraph.Scope.SINGLE_ENTITY;
-        this.graph.selector = mob.getUUID().toString();
-        AioaBehaviorGraph.Node base = this.graph.nodes.stream()
-                .filter(node -> node.type == AioaBehaviorGraph.NodeType.MOB_BASE).findFirst().orElse(null);
-        if (base != null) {
-            ResourceLocation mobId = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
-            base.parameters.put("entity", mobId == null ? "auto" : mobId.toString());
-        }
-        this.status = "Bound graph to " + mob.getDisplayName().getString() + ".";
+        AioaBehaviorGraph imported = AioaBehaviorApi.approximateMob(mob);
+        int index = this.graphs.indexOf(this.graph);
+        if (index >= 0) this.graphs.set(index, imported);
+        this.graph = imported;
+        this.status = "Imported an approximate live graph for " + mob.getDisplayName().getString() + ".";
         markDirty(true);
         rebuildEditorWidgets();
     }
