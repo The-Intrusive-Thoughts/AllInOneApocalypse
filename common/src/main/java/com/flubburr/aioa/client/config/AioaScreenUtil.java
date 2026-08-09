@@ -908,7 +908,9 @@ public final class AioaScreenUtil {
                 guiGraphics.fill(left + 2, bottom - 3, left + 2 + sweepWidth, bottom - 1, 0xCCB4FFD4);
             }
 
-            guiGraphics.drawCenteredString(Minecraft.getInstance().font, this.getMessage(), (left + right) / 2, (top + bottom - 8) / 2, text);
+            var font = Minecraft.getInstance().font;
+            String label = font.plainSubstrByWidth(this.getMessage().getString(), Math.max(8, right - left - 10));
+            guiGraphics.drawCenteredString(font, label, (left + right) / 2, (top + bottom - 8) / 2, text);
         }
     }
 
