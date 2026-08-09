@@ -31,6 +31,7 @@ import java.util.UUID;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.nio.file.Path;
 
@@ -374,6 +375,11 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 }))));
         if (!this.inspectorCollapsed) addFloatingWidget(FloatingWindow.INSPECTOR, AioaScreenUtil.button(inspectorX, inspectorContentY + 152, inspectorWidth, "Pick in world (right-click)", button ->
                 AioaMobSelectionController.arm(this)));
+        if (!this.inspectorCollapsed) {
+            int issueCount = AioaBehaviorValidator.validate(this.graph).size();
+            addFloatingWidget(FloatingWindow.INSPECTOR, AioaScreenUtil.button(inspectorX, inspectorContentY + 184, inspectorWidth,
+                    issueCount == 0 ? "Auto Fix: graph is clean" : "Auto Fix Graph (" + issueCount + ")", button -> autoFixGraph()));
+        }
 
         int paletteX = this.paletteX + 10;
         int paletteY = this.paletteY + 56;
@@ -1095,6 +1101,134 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
     private void refreshValidationDiagnostics() {
         this.nodeValidationIssues = AioaBehaviorValidator.nodeIssues(this.graph);
         this.edgeValidationIssues = AioaBehaviorValidator.edgeIssues(this.graph);
+    }
+
+    private void autoFixGraph() {
+        syncFields();
+        snapshot();
+        int repairs = 0;
+        List<AioaBehaviorGraph.Node> bases = this.graph.nodes.stream()
+                .filter(node -> node.type == AioaBehaviorGraph.NodeType.MOB_BASE).toList();
+        AioaBehaviorGraph.Node base;
+        if (bases.isEmpty()) {
+            base = new AioaBehaviorGraph.Node("node_" + UUID.randomUUID().toString().substring(0, 8),
+                    AioaBehaviorGraph.NodeType.MOB_BASE, 20, 40);
+            applyDefaultParameters(base);
+            this.graph.nodes.add(0, base);
+            repairs++;
+        } else {
+            base = bases.get(0);
+            if (this.graph.nodes.get(0) != base) {
+                this.graph.nodes.remove(base);
+                this.graph.nodes.add(0, base);
+                repairs++;
+            }
+            if (bases.size() > 1) {
+                Set<String> extras = bases.subList(1, bases.size()).stream().map(node -> node.id)
+                        .collect(java.util.stream.Collectors.toSet());
+                this.graph.nodes.removeIf(node -> extras.contains(node.id));
+                this.graph.edges.removeIf(edge -> extras.contains(edge.from) || extras.contains(edge.to));
+                repairs += extras.size();
+            }
+        }
+
+        Set<String> nodeIds = new HashSet<>();
+        for (AioaBehaviorGraph.Node node : this.graph.nodes) {
+            if (node.id == null || node.id.isBlank() || !nodeIds.add(node.id)) {
+                node.id = "node_" + UUID.randomUUID().toString().substring(0, 8);
+                nodeIds.add(node.id);
+                repairs++;
+            }
+            AioaBehaviorGraph.Node defaults = new AioaBehaviorGraph.Node("defaults", node.type, node.x, node.y);
+            applyDefaultParameters(defaults);
+            for (Map.Entry<String, String> entry : defaults.parameters.entrySet()) {
+                if (node.parameters.getOrDefault(entry.getKey(), "").isBlank()) {
+                    node.parameters.put(entry.getKey(), entry.getValue());
+                    repairs++;
+                }
+            }
+            Set<String> supported = AioaBehaviorValidator.supportedParameters(node.type);
+            int before = node.parameters.size();
+            node.parameters.keySet().removeIf(key -> !key.startsWith("_") && !supported.contains(key));
+            repairs += before - node.parameters.size();
+        }
+
+        Map<String, List<String>> parameterIssues = AioaBehaviorValidator.nodeIssues(this.graph);
+        for (AioaBehaviorGraph.Node node : new ArrayList<>(this.graph.nodes)) {
+            List<String> issues = parameterIssues.getOrDefault(node.id, List.of());
+            if (issues.isEmpty()) continue;
+            AioaBehaviorGraph.Node defaults = new AioaBehaviorGraph.Node("defaults", node.type, node.x, node.y);
+            applyDefaultParameters(defaults);
+            for (Map.Entry<String, String> entry : defaults.parameters.entrySet()) {
+                String key = entry.getKey();
+                boolean invalid = issues.stream().anyMatch(issue -> issue.contains("needs " + key + " ")
+                        || ("entity".equals(key) && issue.contains("valid mob selection"))
+                        || ("item".equals(key) && issue.contains("valid registered item"))
+                        || ("effect".equals(key) && issue.contains("valid effect")));
+                if (invalid && !entry.getValue().equals(node.parameters.put(key, entry.getValue()))) repairs++;
+            }
+            if (node.type == AioaBehaviorGraph.NodeType.FUNCTION_GROUP && issues.stream().anyMatch(issue -> issue.contains("empty"))) {
+                String groupId = node.parameters.get("_groupId");
+                AioaBehaviorGraph.Node note = new AioaBehaviorGraph.Node("node_" + UUID.randomUUID().toString().substring(0, 8),
+                        AioaBehaviorGraph.NodeType.COMMENT, node.x + 180, node.y).parameter("text", "Add function nodes here");
+                note.parameters.put("_group", groupId);
+                this.graph.nodes.add(note);
+                repairs++;
+            }
+        }
+
+        Map<String, AioaBehaviorGraph.Node> nodesById = this.graph.nodes.stream()
+                .collect(java.util.stream.Collectors.toMap(node -> node.id, node -> node, (first, ignored) -> first));
+        int edgeCount = this.graph.edges.size();
+        this.graph.edges.removeIf(edge -> !nodesById.containsKey(edge.from) || !nodesById.containsKey(edge.to) || edge.from.equals(edge.to));
+        repairs += edgeCount - this.graph.edges.size();
+        Set<String> edgeIds = new HashSet<>();
+        for (AioaBehaviorGraph.Edge edge : this.graph.edges) {
+            if (edge.id == null || edge.id.isBlank() || !edgeIds.add(edge.id)) {
+                edge.id = UUID.randomUUID().toString();
+                edgeIds.add(edge.id);
+                repairs++;
+            }
+            AioaBehaviorGraph.Node source = nodesById.get(edge.from);
+            AioaBehaviorGraph.Node target = nodesById.get(edge.to);
+            if (!AioaNodeSchema.emits(source.type, edge.output)) {
+                edge.output = AioaNodeSchema.outputs(source.type).get(0);
+                repairs++;
+            }
+            if (!AioaNodeSchema.accepts(target.type, edge.input)) {
+                edge.input = AioaNodeSchema.inputs(target.type).stream().findFirst().orElse("exec");
+                repairs++;
+            }
+        }
+
+        if (this.graph.selector.isBlank() && (this.graph.scope == AioaBehaviorGraph.Scope.ENTITY_TYPE
+                || this.graph.scope == AioaBehaviorGraph.Scope.ENTITY_TAG || this.graph.scope == AioaBehaviorGraph.Scope.SINGLE_ENTITY)) {
+            this.graph.scope = AioaBehaviorGraph.Scope.MANAGED_MOBS;
+            repairs++;
+        }
+
+        refreshValidationDiagnostics();
+        AioaBehaviorGraph.Node chain = base;
+        List<AioaBehaviorGraph.Node> disconnected = this.graph.nodes.stream()
+                .filter(node -> this.nodeValidationIssues.getOrDefault(node.id, List.of()).stream()
+                        .anyMatch(issue -> issue.contains("not connected")))
+                .sorted(java.util.Comparator.comparingInt((AioaBehaviorGraph.Node node) -> node.x).thenComparingInt(node -> node.y)).toList();
+        for (AioaBehaviorGraph.Node node : disconnected) {
+            if (node == base || node.type == AioaBehaviorGraph.NodeType.MOB_BASE) continue;
+            String output = AioaNodeSchema.outputs(chain.type).contains("next") ? "next" : AioaNodeSchema.outputs(chain.type).get(0);
+            this.graph.edges.add(new AioaBehaviorGraph.Edge(UUID.randomUUID().toString(), chain.id, output, node.id, "exec"));
+            chain = node;
+            repairs++;
+        }
+
+        refreshValidationDiagnostics();
+        List<String> remaining = AioaBehaviorValidator.validate(this.graph);
+        markDirty(true);
+        rebuildEditorWidgets();
+        this.status = remaining.isEmpty()
+                ? "Auto Fix completed " + repairs + " safe repair" + (repairs == 1 ? "" : "s") + ". Graph is valid."
+                : "Auto Fix completed " + repairs + " repairs; " + remaining.size() + " creator decision" + (remaining.size() == 1 ? " remains." : "s remain.");
+        LOGGER.info("AIOA Auto Fix '{}' applied {} repairs; remaining issues={}", this.graph.name, repairs, remaining);
     }
 
     void bindWorldSelectedMob(Mob mob) {
@@ -1865,6 +1999,13 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 graphics.fill(x, y, x + 2, y + nodeHeight, red);
                 graphics.fill(x + nodeWidth - 2, y, x + nodeWidth, y + nodeHeight, red);
                 graphics.drawString(this.font, "!", x + nodeWidth - 10, y + 4, 0xFFFFFFFF);
+                String explanation = this.nodeValidationIssues.get(node.id).get(0);
+                int bubbleWidth = Math.min(210, Math.max(92, this.font.width(explanation) + 12));
+                int bubbleX = Math.max(canvasLeft() + 2, Math.min(canvasRight() - bubbleWidth - 2, x));
+                int bubbleY = Math.max(canvasTop() + 2, y - 17);
+                graphics.fill(bubbleX, bubbleY, bubbleX + bubbleWidth, bubbleY + 14, 0xF5221014);
+                graphics.fill(bubbleX, bubbleY + 13, bubbleX + bubbleWidth, bubbleY + 14, 0xFFFF405C);
+                graphics.drawString(this.font, this.font.plainSubstrByWidth(explanation, bubbleWidth - 10), bubbleX + 5, bubbleY + 3, 0xFFFFCED5);
             }
             graphics.fill(x + 1, y + 1, x + nodeWidth - 1, y + Math.min(14, nodeHeight - 2), colorFor(node.type.category));
             String nodeLabel = node.parameters.getOrDefault("_label", friendly(node.type));
@@ -2181,7 +2322,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         if ("File".equals(menu)) return new String[]{"New graph  Ctrl+N", "Save project...  Ctrl+S", "Save project as...", "Import project...", "Autosave now", "Done"};
         if ("Edit".equals(menu)) return new String[]{"Undo  Ctrl+Z", "Redo  Ctrl+Y", "Duplicate  Ctrl+D", "Delete  Del"};
         if ("View".equals(menu)) return new String[]{"Fit graph  F", "Toggle node palette", "Toggle inspector", "Toggle quick guide"};
-        if ("Graph".equals(menu)) return new String[]{"Validate graph", "Start link from selection", "Create function group", this.activeGroupId == null ? "Stop preview" : "Exit function group"};
+        if ("Graph".equals(menu)) return new String[]{"Validate graph", "Auto Fix graph", "Start link from selection", "Create function group", this.activeGroupId == null ? "Stop preview" : "Exit function group"};
         return new String[]{"Quick guide", "Documentation", "Keyboard shortcuts"};
     }
 
@@ -2206,8 +2347,9 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             case 3 -> this.showHelp = !this.showHelp;
         } else if ("Graph".equals(menu)) switch (action) {
             case 0 -> validateGraph();
-            case 1 -> { this.linkStart = this.selected; if (this.selected != null) this.linkOutput = defaultOutput(this.selected.type); }
-            case 2 -> addSelectedToGroup(true); case 3 -> { if (this.activeGroupId == null) stopPreview(); else { this.activeGroupId = null; this.selected = null; rebuildEditorWidgets(); } }
+            case 1 -> autoFixGraph();
+            case 2 -> { this.linkStart = this.selected; if (this.selected != null) this.linkOutput = defaultOutput(this.selected.type); }
+            case 3 -> addSelectedToGroup(true); case 4 -> { if (this.activeGroupId == null) stopPreview(); else { this.activeGroupId = null; this.selected = null; rebuildEditorWidgets(); } }
         } else switch (action) {
             case 0 -> this.showHelp = true; case 1 -> this.transitionTo(new AioaDocsScreen(this));
             case 2 -> this.status = "Ctrl+Z/Y undo/redo, Ctrl+D duplicate, Del delete, F fit, wheel zoom, Shift+wheel pan.";
