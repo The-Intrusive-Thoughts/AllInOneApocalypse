@@ -92,6 +92,8 @@ def prepare(game, selected):
             write(meta.with_name("mods.toml"), meta.read_text().replace('type="required"', "mandatory=true"))
             meta.unlink()
         if modern:
+            if game == "26.3":
+                shutil.copy2(PORTS / game / "AioaNativeFileDialog.java", staging)
             port_client(staging, game)
         metadata = staging / "fabric/src/main/resources/fabric.mod.json"
         descriptor = json.loads(metadata.read_text(encoding="utf-8"))
@@ -112,7 +114,7 @@ def prepare(game, selected):
     java = 25 if modern else 17 if game in ("1.20.3", "1.20.4") else 21
     overrides = dict(minecraft_version=game, java_version=java, enabled_loaders=",".join(loaders),
                      fabric_version=fabric, forge_version=forge, neoforge_version=neo,
-                     fabric_loader_version="0.19.3" if modern else "0.18.6",
+                     fabric_loader_version="0.20.1" if game == "26.3" else "0.19.3" if modern else "0.18.6",
                      midnightlib_version=midnight, modmenu_version=menu)
     if modern and "forge" in loaders:
         overrides["net.minecraftforge.gradle.merge-source-sets"] = "true"
