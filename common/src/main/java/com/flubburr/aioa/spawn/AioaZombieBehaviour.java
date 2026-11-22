@@ -6,7 +6,6 @@ import com.flubburr.aioa.config.AioaConfig;
 import com.flubburr.aioa.config.AioaConfigManager;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
@@ -26,11 +25,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 public final class AioaZombieBehaviour {
 
@@ -48,21 +45,15 @@ public final class AioaZombieBehaviour {
             0.08D,
             AttributeModifier.Operation.MULTIPLY_TOTAL
     );
-    private static final ConcurrentHashMap<Class<?>, Optional<Method>> SET_BABY_METHOD_CACHE = new ConcurrentHashMap<>();
 
     private AioaZombieBehaviour() {
     }
 
     public static boolean applyVariantMode(Mob mob, AioaConfig.DaySurfaceSpawns settings) {
-        if (!(mob instanceof Zombie)) {
-            return true;
+        if (mob instanceof Zombie zombie && settings.zombieVariantMode != AioaConfig.ZombieVariantMode.REGULAR_AND_BABY) {
+            zombie.setBaby(settings.zombieVariantMode == AioaConfig.ZombieVariantMode.BABY_ONLY);
         }
-
-        return switch (settings.zombieVariantMode) {
-            case REGULAR_ONLY -> setBabyState(mob, false);
-            case REGULAR_AND_BABY -> true;
-            case BABY_ONLY -> setBabyState(mob, true);
-        };
+        return true;
     }
 
     public static AioaConfig.ZombieTargetMode getTargetMode(Mob mob, AioaConfig.DaySurfaceSpawns settings) {
@@ -184,13 +175,10 @@ public final class AioaZombieBehaviour {
         mob.fallDistance = 0.0F;
         mob.hasImpulse = true;
 
-        if (mob instanceof PathfinderMob pathfinderMob) {
-            double speed = refinedAiEnabled ? 1.15D : 1.0D;
-            pathfinderMob.getNavigation().moveTo(target, speed);
-        }
+
     }
 
-    public static void applyRefinedAi(Mob mob, boolean refinedAiEnabled, boolean openDoors) {
+    public static void applyRefinedAi(Mob mob, boolean refinedAiEnabled) {
         AttributeInstance followRange = mob.getAttribute(Attributes.FOLLOW_RANGE);
         AttributeInstance movementSpeed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
         if (followRange == null || movementSpeed == null) {
@@ -205,15 +193,6 @@ public final class AioaZombieBehaviour {
                 if (!movementSpeed.hasModifier(CHASE_SPEED_MODIFIER)) {
                     movementSpeed.addTransientModifier(CHASE_SPEED_MODIFIER);
                 }
-                if (mob instanceof PathfinderMob pathfinderMob) {
-                    if (openDoors && pathfinderMob.getNavigation() instanceof GroundPathNavigation groundNavigation) {
-                        groundNavigation.setCanOpenDoors(true);
-                        groundNavigation.setCanPassDoors(true);
-                    }
-                    if (mob.tickCount % 10 == 0) {
-                        pathfinderMob.getNavigation().moveTo(mob.getTarget(), 1.15D);
-                    }
-                }
             } else if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER)) {
                 movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
             }
@@ -226,15 +205,11 @@ public final class AioaZombieBehaviour {
         if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER)) {
             movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
         }
-        if (mob instanceof PathfinderMob pathfinderMob
-                && pathfinderMob.getNavigation() instanceof GroundPathNavigation groundNavigation) {
-            groundNavigation.setCanOpenDoors(false);
-            groundNavigation.setCanPassDoors(false);
-        }
+
     }
 
     public static void coordinateNearbyMobs(Mob mob, AioaConfig.DaySurfaceSpawns settings) {
-        if (!settings.coordinatedHordeAi || mob.level().isClientSide() || mob.tickCount % 20 != 0) {
+        if (!settings.coordinatedHordeAi || mob.level().isClientSide() || (mob.tickCount + mob.getId()) % 20 != 0) {
             return;
         }
         LivingEntity target = mob.getTarget();
@@ -242,13 +217,13 @@ public final class AioaZombieBehaviour {
             return;
         }
 
+        if (!mob.getSensing().hasLineOfSight(target)) return;
+        int alerted = 0;
         AABB awareness = mob.getBoundingBox().inflate(24.0D, 10.0D, 24.0D);
         for (Mob ally : mob.level().getEntitiesOfClass(Mob.class, awareness, candidate -> candidate != mob && candidate.getTarget() == null)) {
-            if (usesRefinedAi(ally, settings) && canTarget(ally, target)) {
+            if (usesRefinedAi(ally, settings) && ally.canAttack(target) && canTarget(ally, target)) {
                 ally.setTarget(target);
-                if (ally instanceof PathfinderMob pathfinderMob) {
-                    pathfinderMob.getNavigation().moveTo(target, 1.1D);
-                }
+                if (++alerted >= 4) break;
             }
         }
     }
@@ -265,42 +240,5 @@ public final class AioaZombieBehaviour {
             }
         }
         return false;
-    }
-
-    private static boolean setBabyState(Mob mob, boolean baby) {
-        if (mob instanceof AgeableMob ageableMob && !baby) {
-            ageableMob.setAge(0);
-        }
-
-        Optional<Method> setBabyMethod = resolveSetBabyMethod(mob.getClass());
-        if (setBabyMethod.isPresent()) {
-            try {
-                setBabyMethod.get().invoke(mob, baby);
-            } catch (Exception exception) {
-                AioaConstants.LOG.debug("AIOA could not switch '{}' baby state to '{}'.", mob.getType(), baby, exception);
-            }
-        }
-
-        if (mob.isBaby() != baby) {
-            AioaConfigManager.warnOnce(
-                    "zombie-variant-unsupported:" + mob.getType() + ":" + baby,
-                    "AIOA skipped spawning '" + mob.getType() + "' because it could not apply the configured zombie age mode."
-            );
-            return false;
-        }
-
-        return true;
-    }
-
-    private static Optional<Method> resolveSetBabyMethod(Class<?> type) {
-        return SET_BABY_METHOD_CACHE.computeIfAbsent(type, key -> {
-            try {
-                Method method = key.getMethod("setBaby", boolean.class);
-                method.setAccessible(true);
-                return Optional.of(method);
-            } catch (Exception ignored) {
-                return Optional.empty();
-            }
-        });
     }
 }

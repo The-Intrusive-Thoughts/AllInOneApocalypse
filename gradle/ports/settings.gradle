@@ -1,0 +1,22 @@
+pluginManagement {
+    repositories {
+        maven { url = 'https://maven.fabricmc.net/' }
+        maven { url = 'https://maven.minecraftforge.net/' }
+        maven { url = 'https://maven.neoforged.net/releases/' }
+        gradlePluginPortal()
+    }
+    plugins {
+        id 'fabric-loom' version '1.13.6'
+        id 'net.fabricmc.fabric-loom' version '1.17.18'
+        id 'net.minecraftforge.gradle' version '6.0.54'
+        id 'net.neoforged.moddev' version '2.0.148'
+        id 'com.modrinth.minotaur' version '2.9.0'
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.8.0'
+}
+
+rootProject.name = "AIOA-${minecraft_version}"
+enabled_loaders.split(',').each { include(it) }

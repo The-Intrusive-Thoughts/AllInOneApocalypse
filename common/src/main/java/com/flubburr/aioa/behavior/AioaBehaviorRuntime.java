@@ -43,49 +43,122 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import com.flubburr.aioa.config.AioaConfig;
+import net.minecraft.world.entity.ai.goal.GoalSelector;
+import net.minecraft.world.entity.ai.goal.WrappedGoal;
+import net.minecraft.world.entity.ai.util.DefaultRandomPos;
 
 public final class AioaBehaviorRuntime {
-    private static final Map<RuntimeKey, RuntimeState> STATES = new ConcurrentHashMap<>();
-    private static long lastCleanupTick;
+    private static volatile Plans activePlans;
 
-    private AioaBehaviorRuntime() {
+    private AioaBehaviorRuntime() {}
+
+    // Config saves and API registrations replace graph snapshots. Compile edges once per revision.
+    private static Plans plans(AioaConfig config) {
+        long revision = AioaBehaviorApi.graphRevision();
+        Plans plans = activePlans;
+        if (plans == null || plans.config != config || plans.revision != revision) {
+            var graphs = new java.util.ArrayList<>(config.behaviorGraphs);
+            graphs.addAll(AioaBehaviorApi.registeredGraphs());
+            plans = new Plans(config, revision, graphs.stream().filter(g -> g.enabled).map(Plan::new).toList());
+            activePlans = plans;
+        }
+        return plans;
     }
 
     public static void tick(Mob mob) {
-        var engine = AioaConfigManager.getConfig().behaviorEngine;
-        if (mob.level().isClientSide() || !engine.enabled || mob.tickCount % engine.tickInterval != 0) {
-            return;
-        }
+        if (mob.level().isClientSide()) return;
+        var config = AioaConfigManager.getConfig();
+        var engine = config.behaviorEngine;
+        if ((mob.tickCount + mob.getId()) % engine.tickInterval != 0) return;
+        MobData owner = (MobData) mob;
+        MobState state = owner.aioa$getGraphState();
         int executed = 0;
-        cleanupStates(mob.level().getGameTime());
-        List<AioaBehaviorGraph> runtimeGraphs = new java.util.ArrayList<>(AioaConfigManager.getConfig().behaviorGraphs);
-        runtimeGraphs.addAll(AioaBehaviorApi.registeredGraphs());
-        for (AioaBehaviorGraph graph : runtimeGraphs) {
-            if (executed >= engine.maxGraphsPerMob) break;
-            if (graph.enabled && matches(graph, mob)) {
-                stripVanillaAi(mob);
-                RuntimeKey key = new RuntimeKey(graph.id, mob.getUUID());
-                RuntimeState state = STATES.computeIfAbsent(key, ignored -> new RuntimeState());
-                state.lastTouchedTick = mob.level().getGameTime();
-                execute(graph, mob, engine.maxStepsPerGraph, state);
-                executed++;
+        if (engine.enabled) {
+            Plans plans = plans(config);
+            for (Plan plan : plans.graphs) {
+                if (!matches(plan.graph, mob)) continue;
+                if (state == null) {
+                    owner.aioa$releaseAmbientAi();
+                    state = new MobState(mob);
+                    owner.aioa$setGraphState(state);
+                }
+                if (state.plans != plans) {
+                    state.states.keySet().retainAll(plans.graphs.stream().map(p -> p.graph.id).toList());
+                    state.plans = plans;
+                }
+                execute(plan, mob, engine.maxStepsPerGraph, state.states.computeIfAbsent(plan.graph.id, id -> new RuntimeState()));
+                if (++executed >= engine.maxGraphsPerMob) break;
             }
+        }
+        if (executed == 0 && state != null) {
+            state.restore(mob);
+            owner.aioa$setGraphState(null);
         }
     }
 
-    /** Graph-controlled mobs keep navigation/controllers but lose every vanilla behavior and target goal. */
-    private static void stripVanillaAi(Mob mob) {
-        MobAccessor accessor = (MobAccessor) mob;
-        accessor.aioa$getGoalSelector().removeAllGoals(goal -> true);
-        accessor.aioa$getTargetSelector().removeAllGoals(goal -> true);
-        mob.setNoAi(false);
+    public interface MobData {
+        void aioa$releaseAmbientAi();
+        MobState aioa$getGraphState();
+        void aioa$setGraphState(MobState state);
+    }
+
+    public static final class MobState {
+        private final Map<String, RuntimeState> states = new HashMap<>();
+        private final List<WrappedGoal> goals;
+        private final List<WrappedGoal> targets;
+        private final boolean originalNoAi;
+        private Plans plans;
+
+        private MobState(Mob mob) {
+            MobAccessor accessor = (MobAccessor) mob;
+            goals = suspend(accessor.aioa$getGoalSelector());
+            targets = suspend(accessor.aioa$getTargetSelector());
+            originalNoAi = mob.isNoAi();
+            mob.setNoAi(false);
+        }
+
+        private static List<WrappedGoal> suspend(GoalSelector selector) {
+            var saved = List.copyOf(selector.getAvailableGoals());
+            saved.forEach(goal -> selector.removeGoal(goal.getGoal()));
+            return saved;
+        }
+
+        private void restore(Mob mob) {
+            MobAccessor accessor = (MobAccessor) mob;
+            goals.forEach(g -> accessor.aioa$getGoalSelector().addGoal(g.getPriority(), g.getGoal()));
+            targets.forEach(g -> accessor.aioa$getTargetSelector().addGoal(g.getPriority(), g.getGoal()));
+            mob.getNavigation().stop();
+            mob.setNoAi(originalNoAi);
+        }
+    }
+
+    private record Plans(AioaConfig config, long revision, List<Plan> graphs) {}
+
+    private static final class Plan {
+        final AioaBehaviorGraph graph;
+        final Map<String, AioaBehaviorGraph.Node> nodes = new HashMap<>();
+        final Map<String, List<AioaBehaviorGraph.Edge>> outgoing;
+        final List<AioaBehaviorGraph.Node> entries;
+        final boolean climbs;
+
+        Plan(AioaBehaviorGraph graph) {
+            this.graph = graph;
+            graph.nodes.forEach(n -> nodes.put(n.id, n));
+            outgoing = graph.edges.stream().collect(java.util.stream.Collectors.groupingBy(e -> e.from));
+            var bases = graph.nodes.stream().filter(n -> n.type == AioaBehaviorGraph.NodeType.MOB_BASE).toList();
+            entries = bases.isEmpty() ? graph.nodes.stream().filter(n -> n.type == AioaBehaviorGraph.NodeType.ON_TICK).toList() : bases;
+            climbs = graph.nodes.stream().anyMatch(n -> n.type == AioaBehaviorGraph.NodeType.WALL_CLIMB);
+        }
     }
 
     public static boolean allowsWallClimbing(Mob mob) {
-        return AioaConfigManager.getConfig().behaviorGraphs.stream()
-                .filter(graph -> graph.enabled && matches(graph, mob))
-                .anyMatch(graph -> graph.nodes.stream().anyMatch(node -> node.type == AioaBehaviorGraph.NodeType.WALL_CLIMB));
+        var config = AioaConfigManager.getConfig();
+        if (!config.behaviorEngine.enabled) return false;
+        for (Plan plan : plans(config).graphs) {
+            if (plan.climbs && matches(plan.graph, mob)) return true;
+        }
+        return false;
     }
 
     private static boolean matches(AioaBehaviorGraph graph, Mob mob) {
@@ -101,14 +174,11 @@ public final class AioaBehaviorRuntime {
         };
     }
 
-    private static void execute(AioaBehaviorGraph graph, Mob mob, int maxSteps, RuntimeState state) {
-        Map<String, AioaBehaviorGraph.Node> nodes = new HashMap<>();
-        graph.nodes.forEach(node -> nodes.put(node.id, node));
-        Map<String, List<AioaBehaviorGraph.Edge>> outgoing = graph.edges.stream()
-                .collect(java.util.stream.Collectors.groupingBy(edge -> edge.from));
-        ArrayDeque<AioaBehaviorGraph.Node> queue = new ArrayDeque<>();
-        graph.nodes.stream().filter(node -> node.type == AioaBehaviorGraph.NodeType.MOB_BASE).forEach(queue::add);
-        if (queue.isEmpty()) graph.nodes.stream().filter(node -> node.type == AioaBehaviorGraph.NodeType.ON_TICK).forEach(queue::add);
+    private static void execute(Plan plan, Mob mob, int maxSteps, RuntimeState state) {
+        var graph = plan.graph;
+        var nodes = plan.nodes;
+        var outgoing = plan.outgoing;
+        ArrayDeque<AioaBehaviorGraph.Node> queue = new ArrayDeque<>(plan.entries);
         Set<String> visited = new HashSet<>();
         ExecutionContext context = new ExecutionContext(graph, mob.getTarget(), state);
         int steps = 0;
@@ -193,7 +263,9 @@ public final class AioaBehaviorRuntime {
             case TARGET_IS_ADVENTURE -> { return targetGameMode(mob, context, GameType.ADVENTURE); }
             case TARGET_IS_SPECTATOR -> { return targetGameMode(mob, context, GameType.SPECTATOR); }
             case FIND_NEAREST_PLAYER -> {
-                context.target = nearest(mob, Player.class, range, candidate -> !candidate.isSpectator());
+                context.target = nearest(mob, Player.class, range, candidate -> !candidate.isSpectator()
+                        && (!flag(node, "survivalOnly", false) || !candidate.isCreative())
+                        && (!flag(node, "lineOfSight", false) || mob.getSensing().hasLineOfSight(candidate)));
                 return context.target == null ? "missing" : "found";
             }
             case FIND_PLAYER_NAME -> {
@@ -229,21 +301,16 @@ public final class AioaBehaviorRuntime {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
                 if (target != null && mob instanceof PathfinderMob pathfinder) {
                     double stopDistance = number(node, "stopDistance", 1.5D, 0.1D, 16.0D);
-                    pathfinder.getNavigation().stop();
-                    if (mob.distanceToSqr(target) > stopDistance * stopDistance) {
-                        pathfinder.getNavigation().moveTo(target, number(node, "speed", 1.0D, 0.1D, 3.0D));
-                    }
+                    context.state.pursuit.follow(pathfinder, target, stopDistance, number(node, "speed", 1.0D, 0.1D, 3.0D));
                 }
             }
             case FLEE_TARGET -> {
                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
                 if (target != null && mob instanceof PathfinderMob pathfinder) {
                     double distance = number(node, "distance", 12, 2, 32);
-                    pathfinder.getNavigation().stop();
-                    if (mob.distanceToSqr(target) < distance * distance) {
-                        Vec3 away = mob.position().subtract(target.position()).normalize().scale(distance);
-                        pathfinder.getNavigation().moveTo(mob.getX() + away.x, mob.getY(), mob.getZ() + away.z,
-                                number(node, "speed", 1.1D, 0.1D, 3.0D));
+                    if (mob.distanceToSqr(target) < distance * distance && timerReady(node, mob, context.state, 12, false)) {
+                        Vec3 away = DefaultRandomPos.getPosAway(pathfinder, (int) Math.ceil(distance), 7, target.position());
+                        if (away != null) pathfinder.getNavigation().moveTo(away.x, away.y, away.z, number(node, "speed", 1.1D, 0.1D, 3.0D));
                     }
                 }
             }
@@ -256,11 +323,10 @@ public final class AioaBehaviorRuntime {
                 }
             }
             case WANDER -> {
-                if (mob instanceof PathfinderMob pathfinder) {
-                    double radius = number(node, "radius", 8, 1, 32);
-                    pathfinder.getNavigation().moveTo(mob.getX() + (mob.getRandom().nextDouble() - 0.5) * radius * 2,
-                            mob.getY(), mob.getZ() + (mob.getRandom().nextDouble() - 0.5) * radius * 2,
-                            number(node, "speed", 0.9, 0.1, 3));
+                if (mob instanceof PathfinderMob pathfinder && pathfinder.getNavigation().isDone()
+                        && timerReady(node, mob, context.state, 16, false)) {
+                    Vec3 next = DefaultRandomPos.getPos(pathfinder, (int) number(node, "radius", 8, 1, 32), 7);
+                    if (next != null) pathfinder.getNavigation().moveTo(next.x, next.y, next.z, number(node, "speed", 0.9, 0.1, 3));
                 }
             }
             case ROTATE_DEGREES -> {
@@ -739,7 +805,7 @@ public final class AioaBehaviorRuntime {
 
     private static <T extends LivingEntity> T nearest(Mob mob, Class<T> type, double range, java.util.function.Predicate<T> predicate) {
         AABB box = mob.getBoundingBox().inflate(range);
-        return mob.level().getEntitiesOfClass(type, box, predicate).stream()
+        return mob.level().getEntitiesOfClass(type, box, entity -> entity.isAlive() && mob.distanceToSqr(entity) <= range * range && predicate.test(entity)).stream()
                 .min(Comparator.comparingDouble(mob::distanceToSqr)).orElse(null);
     }
 
@@ -754,7 +820,7 @@ public final class AioaBehaviorRuntime {
 
     private static void setAttribute(Mob mob, net.minecraft.world.entity.ai.attributes.Attribute attribute, double value) {
         AttributeInstance instance = mob.getAttribute(attribute);
-        if (instance != null) instance.setBaseValue(value);
+        if (instance != null && instance.getBaseValue() != value) instance.setBaseValue(value);
     }
 
     private static void equipItem(AioaBehaviorGraph.Node node, Mob mob) {
@@ -794,12 +860,6 @@ public final class AioaBehaviorRuntime {
         return true;
     }
 
-    private static void cleanupStates(long gameTime) {
-        if (gameTime - lastCleanupTick < 1200L) return;
-        lastCleanupTick = gameTime;
-        STATES.entrySet().removeIf(entry -> gameTime - entry.getValue().lastTouchedTick > 2400L);
-    }
-
     private static final class ExecutionContext {
         private final AioaBehaviorGraph graph;
         private LivingEntity target;
@@ -816,13 +876,12 @@ public final class AioaBehaviorRuntime {
         }
     }
 
-    private record RuntimeKey(String graphId, UUID entityId) { }
 
     private static final class RuntimeState {
         private final Map<String, Double> variables = new HashMap<>();
         private final Map<String, Long> timers = new HashMap<>();
         private final Map<String, Long> cooldowns = new HashMap<>();
         private final Set<String> firedOnce = new HashSet<>();
-        private long lastTouchedTick;
+        private final AioaPursuit pursuit = new AioaPursuit();
     }
 }

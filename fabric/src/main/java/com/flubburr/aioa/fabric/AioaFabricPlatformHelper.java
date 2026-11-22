@@ -9,7 +9,7 @@ public final class AioaFabricPlatformHelper implements IPlatformHelper {
 
     @Override
     public String getPlatformName() {
-        return "Fabric";
+        return isModLoaded("quilt_loader") ? "Quilt" : "Fabric";
     }
 
     @Override

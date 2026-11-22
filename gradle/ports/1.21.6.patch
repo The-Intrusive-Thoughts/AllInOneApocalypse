@@ -1,0 +1,289 @@
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaAnimatedScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaAnimatedScreen.java
+@@ -50,11 +50,11 @@
+     }
+ 
+     protected final void beginUiRender(GuiGraphics guiGraphics) {
+-        guiGraphics.pose().pushPose();
++        guiGraphics.pose().pushMatrix();
+     }
+ 
+     protected final void finishUiRender(GuiGraphics guiGraphics) {
+-        guiGraphics.pose().popPose();
++        guiGraphics.pose().popMatrix();
+         int scrimColor = this.transitionScrimColor();
+         if ((scrimColor >>> 24) > 0) {
+             guiGraphics.fillGradient(0, 0, this.width, this.height, scrimColor, scrimColor);
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaConfigScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaConfigScreen.java
+@@ -7,7 +7,7 @@
+ import net.minecraft.client.gui.components.Button;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.resources.ResourceLocation;
+-import net.minecraft.client.renderer.RenderType;
++import net.minecraft.client.renderer.RenderPipelines;
+ import net.minecraft.Util;
+ 
+ import java.net.URI;
+@@ -159,11 +159,11 @@
+         int logoY = 38;
+ 
+         float logoScale = logoWidth / (float) LOGO_TEXTURE_WIDTH;
+-        guiGraphics.pose().pushPose();
+-        guiGraphics.pose().translate(logoX, logoY, 0.0F);
+-        guiGraphics.pose().scale(logoScale, logoScale, 1.0F);
+-        guiGraphics.blit(RenderType::guiTextured, LOGO, 0, 0, 0.0F, 0.0F, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT);
+-        guiGraphics.pose().popPose();
++        guiGraphics.pose().pushMatrix();
++        guiGraphics.pose().translate(logoX, logoY);
++        guiGraphics.pose().scale(logoScale, logoScale);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, LOGO, 0, 0, 0.0F, 0.0F, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT);
++        guiGraphics.pose().popMatrix();
+         int titleY = Math.min(logoY + logoHeight + 10, headerBottom - (compactHeader ? 12 : 26));
+         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, titleY, AioaScreenUtil.TEXT_MAIN);
+         if (!compactHeader) {
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaScreenUtil.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaScreenUtil.java
+@@ -100,6 +100,10 @@
+ 
+     public static void drawScreenBackground(GuiGraphics guiGraphics, int width, int height) {
+         guiGraphics.fillGradient(0, 0, width, height, 0xFF111A18, 0xFF0B100F);
++    }
++
++    static void drawBackdrop(GuiGraphics guiGraphics, int width, int height) {
++        drawScreenBackground(guiGraphics, width, height);
+     }
+ 
+     static void drawInsetPanel(GuiGraphics guiGraphics, int left, int top, int right, int bottom, boolean selected) {
+@@ -936,10 +940,10 @@
+             int bottom = top + this.getHeight();
+             drawInsetPanel(guiGraphics, left, top, right, bottom, this.isFocused());
+             guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, 0x55000000);
+-            guiGraphics.pose().pushPose();
+-            guiGraphics.pose().translate(6.0F, 2.0F, 0.0F);
++            guiGraphics.pose().pushMatrix();
++            guiGraphics.pose().translate(6.0F, 2.0F);
+             super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
+-            guiGraphics.pose().popPose();
++            guiGraphics.pose().popMatrix();
+         }
+     }
+ }
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaScrollableScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaScrollableScreen.java
+@@ -86,4 +86,9 @@
+     public boolean mouseScrolled(double mouseX, double mouseY, double deltaX, double deltaY) {
+         return this.handleScroll(deltaY, 28) || super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
+     }
++
++    @Override
++    public void renderBackground(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++        AioaScreenUtil.drawBackdrop(guiGraphics, this.width, this.height);
++    }
+ }
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaTextListScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaTextListScreen.java
+@@ -38,15 +38,12 @@
+ 
+     @Override
+     protected void init() {
+-        this.editor = new MultiLineEditBox(
+-                this.font,
+-                this.width / 2 - 180,
+-                62,
+-                360,
+-                Math.max(100, this.height - 116),
+-                Component.literal("Entries"),
+-                Component.literal("One value per line")
+-        );
++        this.editor = MultiLineEditBox.builder()
++                .setX(this.width / 2 - 180).setY(62)
++                .setPlaceholder(Component.literal("One value per line"))
++                .setTextColor(AioaScreenUtil.TEXT_MAIN).setCursorColor(AioaScreenUtil.TEXT_MAIN)
++                .setShowBackground(false).setShowDecorations(false)
++                .build(this.font, 360, Math.max(100, this.height - 116), Component.literal("Entries"));
+         this.editor.setCharacterLimit(32767);
+         this.editor.setValue(String.join("\n", this.initialValues));
+         this.addRenderableWidget(this.editor);
+--- a/common/src/main/java/com/flubburr/aioa/spawn/AioaSpawnStudioHandler.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/AioaSpawnStudioHandler.java
+@@ -34,7 +34,7 @@
+             return;
+         }
+ 
+-        ServerLevel level = player.serverLevel();
++        ServerLevel level = (ServerLevel) player.level();
+         if (position.y < level.getMinY() || position.y >= level.getMaxY()) {
+             return;
+         }
+--- a/forge/src/main/java/com/flubburr/aioa/forge/AioaForge.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/AioaForge.java
+@@ -9,7 +9,6 @@
+ import com.flubburr.aioa.network.AioaGraphUpdateRequest;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.server.level.ServerLevel;
+-import net.minecraftforge.common.MinecraftForge;
+ import net.minecraftforge.event.TickEvent;
+ import net.minecraftforge.fml.common.Mod;
+ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+@@ -41,7 +40,7 @@
+             .simpleChannel();
+ 
+     public AioaForge() {
+-        SOUND_EVENTS.register(FMLJavaModLoadingContext.get().getModEventBus());
++        SOUND_EVENTS.register(FMLJavaModLoadingContext.get().getModBusGroup());
+         AioaCommon.init();
+         NETWORK.messageBuilder(AioaSpawnRequest.class, 0)
+                 .encoder(AioaForge::encodeSpawnRequest)
+@@ -53,11 +52,11 @@
+                 .decoder(buffer -> new AioaGraphUpdateRequest(buffer.readUtf(65_536)))
+                 .consumerMainThread(AioaForge::handleGraphUpdate)
+                 .add();
+-        MinecraftForge.EVENT_BUS.addListener(this::onLevelTick);
++        TickEvent.LevelTickEvent.Post.BUS.addListener(this::onLevelTick);
+ 
+         if (FMLEnvironment.dist.isClient()) {
+             AioaForgeClient.registerConfigScreen();
+-            MinecraftForge.EVENT_BUS.addListener(this::onClientTick);
++            TickEvent.ClientTickEvent.Post.BUS.addListener(this::onClientTick);
+         }
+     }
+ 
+@@ -90,8 +89,8 @@
+         context.setPacketHandled(true);
+     }
+ 
+-    private void onLevelTick(TickEvent.LevelTickEvent event) {
+-        if (event.phase != TickEvent.Phase.END || event.level.isClientSide()) {
++    private void onLevelTick(TickEvent.LevelTickEvent.Post event) {
++        if (event.level.isClientSide()) {
+             return;
+         }
+ 
+@@ -100,11 +99,7 @@
+         }
+     }
+ 
+-    private void onClientTick(TickEvent.ClientTickEvent event) {
+-        if (event.phase != TickEvent.Phase.END) {
+-            return;
+-        }
+-
++    private void onClientTick(TickEvent.ClientTickEvent.Post event) {
+         Minecraft minecraft = Minecraft.getInstance();
+         com.flubburr.aioa.client.config.AioaMobSelectionController.tick(minecraft);
+         while (AioaForgeClient.openConfigKey().consumeClick()) {
+--- a/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeClient.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeClient.java
+@@ -8,8 +8,8 @@
+ import com.mojang.blaze3d.platform.InputConstants;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.client.KeyMapping;
+-import net.minecraftforge.client.ConfigScreenHandler;
+ import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
++import net.minecraftforge.common.MinecraftForge;
+ import net.minecraftforge.fml.ModLoadingContext;
+ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+ import org.lwjgl.glfw.GLFW;
+@@ -31,11 +31,8 @@
+     }
+ 
+     public static void registerConfigScreen() {
+-        FMLJavaModLoadingContext.get().getModEventBus().addListener(AioaForgeClient::onRegisterKeyMappings);
+-        ModLoadingContext.get().registerExtensionPoint(
+-                ConfigScreenHandler.ConfigScreenFactory.class,
+-                () -> new ConfigScreenHandler.ConfigScreenFactory(parent -> AioaForgeClient.createScreen(parent))
+-        );
++        RegisterKeyMappingsEvent.getBus(FMLJavaModLoadingContext.get().getModBusGroup()).addListener(AioaForgeClient::onRegisterKeyMappings);
++        MinecraftForge.registerConfigScreen(AioaForgeClient::createScreen);
+         AioaClientNetworking.registerSender(request -> AioaForge.NETWORK.send(request, net.minecraftforge.network.PacketDistributor.SERVER.noArg()));
+         AioaClientNetworking.registerGraphSender(request -> AioaForge.NETWORK.send(request, net.minecraftforge.network.PacketDistributor.SERVER.noArg()));
+     }
+--- a/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeFallbackConfigScreen.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeFallbackConfigScreen.java
+@@ -110,7 +110,7 @@
+ 
+     @Override
+     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
++        guiGraphics.fillGradient(0, 0, this.width, this.height, 0xE0101010, 0xF0050706);
+         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+         guiGraphics.drawCenteredString(
+                 this.font,
+@@ -227,7 +227,7 @@
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
++            guiGraphics.fillGradient(0, 0, this.width, this.height, 0xE0101010, 0xF0050706);
+             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+             super.render(guiGraphics, mouseX, mouseY, partialTick);
+         }
+@@ -393,7 +393,7 @@
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
++            guiGraphics.fillGradient(0, 0, this.width, this.height, 0xE0101010, 0xF0050706);
+             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+ 
+             int labelX = this.width / 2 - 150;
+@@ -463,15 +463,13 @@
+             int editorWidth = 340;
+             int editorHeight = Math.max(90, this.height - 110);
+ 
+-            this.editor = new MultiLineEditBox(
+-                    this.font,
+-                    editorX,
+-                    editorY,
+-                    editorWidth,
+-                    editorHeight,
+-                    tr("aioa.forge.fallback.list.entries"),
+-                    tr("aioa.forge.fallback.list.entries_hint")
+-            );
++            this.editor = MultiLineEditBox.builder()
++                    .setX(editorX)
++                    .setY(editorY)
++                    .setPlaceholder(tr("aioa.forge.fallback.list.entries_hint"))
++                    .setShowBackground(false)
++                    .setShowDecorations(false)
++                    .build(this.font, editorWidth, editorHeight, tr("aioa.forge.fallback.list.entries"));
+             this.editor.setCharacterLimit(32767);
+             this.editor.setValue(String.join("\n", this.initialValues));
+             this.addRenderableWidget(this.editor);
+@@ -507,7 +505,7 @@
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
++            guiGraphics.fillGradient(0, 0, this.width, this.height, 0xE0101010, 0xF0050706);
+             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+             guiGraphics.drawCenteredString(this.font, this.description, this.width / 2, 30, 0xA0A0A0);
+             super.render(guiGraphics, mouseX, mouseY, partialTick);
+--- a/common/src/main/java/com/flubburr/aioa/client/config/BehaviorBoard.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/BehaviorBoard.java
+@@ -18,7 +18,7 @@
+         private static final ResourceLocation ATLAS = AioaEntityHelper.parseResourceLocation("aioa:textures/gui/behavior_parts.png");
+ 
+         void draw(GuiGraphics g, int x, int y) {
+-            g.blit(net.minecraft.client.renderer.RenderType::guiTextured, ATLAS, x, y, ordinal() * 16, 0, 16, 16, 176, 16);
++            g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, ATLAS, x, y, ordinal() * 16, 0, 16, 16, 176, 16);
+         }
+ 
+         static Part of(Node node) {
+@@ -184,10 +184,10 @@
+                     var pose = g.pose();
+-                    pose.pushPose();
+-                    pose.translate(ax, ay, 0);
+-                    pose.mulPose(com.mojang.math.Axis.ZP.rotation((float) Math.atan2(by - ay, bx - ax)));
++                    pose.pushMatrix();
++                    pose.translate((float) ax, (float) ay);
++                    pose.rotate((float) Math.atan2(by - ay, bx - ax));
+                     g.fill(0, 0, (int) Math.ceil(Math.hypot(bx - ax, by - ay)) + 1, 2, color);
+-                    pose.popPose();
++                    pose.popMatrix();
+                 }
+                 return false;
+             });
+         }
+ 

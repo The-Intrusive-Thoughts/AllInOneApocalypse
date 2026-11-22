@@ -1,0 +1,15 @@
+--- a/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabric.java
++++ b/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabric.java
+@@ -34,10 +34,10 @@
+         PayloadTypeRegistry.playC2S().register(AioaSpawnPayload.TYPE, AioaSpawnPayload.CODEC);
+         PayloadTypeRegistry.playC2S().register(AioaGraphPayload.TYPE, AioaGraphPayload.CODEC);
+         ServerPlayNetworking.registerGlobalReceiver(AioaSpawnPayload.TYPE, (payload, context) -> {
+-            context.server().execute(() -> AioaSpawnStudioHandler.handle(context.player(), payload.request()));
++            context.player().server.execute(() -> AioaSpawnStudioHandler.handle(context.player(), payload.request()));
+         });
+         ServerPlayNetworking.registerGlobalReceiver(AioaGraphPayload.TYPE, (payload, context) -> {
+-            context.server().execute(() -> AioaGraphUpdateHandler.handle(context.player(), payload.request()));
++            context.player().server.execute(() -> AioaGraphUpdateHandler.handle(context.player(), payload.request()));
+         });
+     }
+ }

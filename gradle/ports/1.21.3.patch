@@ -1,0 +1,539 @@
+--- a/common/src/main/java/com/flubburr/aioa/behavior/AioaBehaviorRuntime.java
++++ b/common/src/main/java/com/flubburr/aioa/behavior/AioaBehaviorRuntime.java
+@@ -21,7 +21,7 @@
+ import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityType;
+-import net.minecraft.world.entity.MobSpawnType;
++import net.minecraft.world.entity.EntitySpawnReason;
+ import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.entity.LightningBolt;
+ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+@@ -356,10 +356,11 @@
+             case DASH_TO_TARGET -> dashToTarget(node, mob, context);
+             case ATTACK_TARGET -> {
+                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
+-                if (target != null && mob.distanceToSqr(target) <= number(node, "range", 3, 1, 8) * number(node, "range", 3, 1, 8)) {
++                if (target != null && mob.level() instanceof ServerLevel serverLevel
++                        && mob.distanceToSqr(target) <= number(node, "range", 3, 1, 8) * number(node, "range", 3, 1, 8)) {
+                     mob.getNavigation().stop();
+                     mob.getLookControl().setLookAt(target, 60.0F, 60.0F);
+-                    mob.doHurtTarget(target);
++                    mob.doHurtTarget(serverLevel, target);
+                 }
+             }
+             case KNOCKBACK_TARGET -> {
+@@ -536,7 +537,7 @@
+     private static void applyEffect(AioaBehaviorGraph.Node node, Mob source, LivingEntity target) {
+         ResourceLocation id = AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("effect", "minecraft:speed"));
+         if (id == null || !BuiltInRegistries.MOB_EFFECT.containsKey(id)) return;
+-        Holder<MobEffect> effect = BuiltInRegistries.MOB_EFFECT.getHolder(id).orElse(null);
++        Holder<MobEffect> effect = BuiltInRegistries.MOB_EFFECT.get(id).orElse(null);
+         if (effect == null) return;
+         target.addEffect(new MobEffectInstance(effect,
+                 (int) number(node, "duration", 200, 1, 72000),
+@@ -548,7 +549,7 @@
+         if (!(mob.level() instanceof ServerLevel level)) return;
+         LivingEntity target = context.target != null ? context.target : mob.getTarget();
+         Vec3 position = flag(node, "atTarget", true) && target != null ? target.position() : mob.position();
+-        LightningBolt lightning = EntityType.LIGHTNING_BOLT.create(level);
++        LightningBolt lightning = EntityType.LIGHTNING_BOLT.create(level, EntitySpawnReason.EVENT);
+         if (lightning == null) return;
+         lightning.moveTo(position.x, position.y, position.z);
+         lightning.setVisualOnly(flag(node, "visualOnly", true));
+@@ -794,12 +795,12 @@
+         if (level.getEntitiesOfClass(Mob.class, source.getBoundingBox().inflate(radius)).size() >= cap) return;
+         Optional<EntityType<?>> type = AioaEntityHelper.resolveEntityType(node.parameters.getOrDefault("entity", "minecraft:zombie"));
+         if (type.isEmpty()) return;
+-        Entity created = type.get().create(level);
++        Entity created = type.get().create(level, EntitySpawnReason.EVENT);
+         if (!(created instanceof Mob spawned)) return;
+         spawned.moveTo(source.getX() + number(node, "offsetX", 1, -8, 8), source.getY() + number(node, "offsetY", 0, -8, 8),
+                 source.getZ() + number(node, "offsetZ", 1, -8, 8), source.getYRot(), 0);
+         if (!level.noCollision(spawned)) return;
+-        spawned.finalizeSpawn(level, level.getCurrentDifficultyAt(spawned.blockPosition()), MobSpawnType.EVENT, null);
++        spawned.finalizeSpawn(level, level.getCurrentDifficultyAt(spawned.blockPosition()), EntitySpawnReason.EVENT, null);
+         spawned.addTag(AioaConstants.STUDIO_SPAWN_TAG);
+         level.addFreshEntityWithPassengers(spawned);
+     }
+@@ -833,7 +834,7 @@
+         } catch (IllegalArgumentException ignored) {
+             return;
+         }
+-        mob.setItemSlot(slot, new ItemStack(BuiltInRegistries.ITEM.get(id)));
++        BuiltInRegistries.ITEM.get(id).ifPresent(item -> mob.setItemSlot(slot, new ItemStack(item)));
+         mob.setDropChance(slot, (float) number(node, "dropChance", 0, 0, 1));
+     }
+ 
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaBehaviorEditorScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaBehaviorEditorScreen.java
+@@ -2223,7 +2223,7 @@
+         if (this.selected == null || !"item".equals(currentParameterKey())) return;
+         ResourceLocation id = AioaEntityHelper.parseResourceLocation(this.selected.parameters.getOrDefault("item", "minecraft:air"));
+         if (id == null) return;
+-        graphics.renderItem(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(id)),
++        graphics.renderItem(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(id)),
+                 this.parametersX + 14, this.parametersY + 59);
+     }
+ 
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaConfigScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaConfigScreen.java
+@@ -7,6 +7,7 @@
+ import net.minecraft.client.gui.components.Button;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.resources.ResourceLocation;
++import net.minecraft.client.renderer.RenderType;
+ import net.minecraft.Util;
+ 
+ import java.net.URI;
+@@ -168,7 +169,7 @@
+         guiGraphics.pose().pushPose();
+         guiGraphics.pose().translate(logoX, logoY, 0.0F);
+         guiGraphics.pose().scale(logoScale, logoScale, 1.0F);
+-        guiGraphics.blit(LOGO, 0, 0, 0, 0, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT);
++        guiGraphics.blit(RenderType::guiTextured, LOGO, 0, 0, 0.0F, 0.0F, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT);
+         guiGraphics.pose().popPose();
+         int titleY = Math.min(logoY + logoHeight + 10, headerBottom - (compactHeader ? 12 : 26));
+         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, titleY, AioaScreenUtil.TEXT_MAIN);
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaItemPickerScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaItemPickerScreen.java
+@@ -127,7 +127,7 @@
+             graphics.fill(x + 2, y + 2, x + CELL - 2, y + CELL - 2,
+                     chosen ? 0xDD17673E : hovered ? 0xDD243A2D : 0xCC101713);
+             graphics.fill(x + 2, y + 2, x + CELL - 2, y + 3, chosen ? 0xFF92F5B8 : 0xFF335442);
+-            graphics.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(id)), x + 14, y + 8);
++            graphics.renderItem(new ItemStack(BuiltInRegistries.ITEM.getValue(id)), x + 14, y + 8);
+             String shortName = this.font.plainSubstrByWidth(itemName(id), CELL - 6);
+             graphics.drawCenteredString(this.font, shortName, x + CELL / 2, y + 29, 0xFFD8F7E2);
+             if (hovered) hoveredIndex = start + slot;
+@@ -150,8 +150,8 @@
+     }
+ 
+     private static String itemName(ResourceLocation id) {
+-        Item item = BuiltInRegistries.ITEM.get(id);
+-        return item == null ? id.getPath() : item.getDescription().getString();
++        Item item = BuiltInRegistries.ITEM.getValue(id);
++        return item == null ? id.getPath() : new ItemStack(item).getHoverName().getString();
+     }
+ 
+     @Override
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaScreenUtil.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaScreenUtil.java
+@@ -29,6 +29,7 @@
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.MobCategory;
++import net.minecraft.world.entity.EntitySpawnReason;
+ import net.minecraft.world.entity.Mob;
+ 
+ import java.util.ArrayList;
+@@ -220,14 +221,12 @@
+     static List<ResourceLocation> allBiomeIds() {
+         Minecraft minecraft = Minecraft.getInstance();
+         if (minecraft.level != null) {
+-            return new ArrayList<>(minecraft.level.registryAccess().registryOrThrow(Registries.BIOME).keySet().stream()
+-                    .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString))
+-                    .toList());
++            return new ArrayList<>(minecraft.level.registryAccess().lookupOrThrow(Registries.BIOME).listElementIds()
++                    .map(key -> key.location()).sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString)).toList());
+         }
+         if (minecraft.getConnection() != null) {
+-            return new ArrayList<>(minecraft.getConnection().registryAccess().registryOrThrow(Registries.BIOME).keySet().stream()
+-                    .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString))
+-                    .toList());
++            return new ArrayList<>(minecraft.getConnection().registryAccess().lookupOrThrow(Registries.BIOME).listElementIds()
++                    .map(key -> key.location()).sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString)).toList());
+         }
+         return defaultBiomeIds();
+     }
+@@ -307,7 +306,7 @@
+     }
+ 
+     static String entityDisplayName(ResourceLocation id) {
+-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
++        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+         if (type == null) {
+             return id.toString();
+         }
+@@ -316,13 +315,13 @@
+     }
+ 
+     static String entityLine(ResourceLocation id) {
+-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
++        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+         String category = type == null ? "unknown" : type.getCategory().getName();
+         return entityDisplayName(id) + " [" + category + "] - " + id;
+     }
+ 
+     static String categoryLabel(ResourceLocation id) {
+-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
++        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+         return type == null ? "unknown" : humanizeEnum(type.getCategory().getName());
+     }
+ 
+@@ -388,7 +387,7 @@
+         if (eggId == null) {
+             return new ItemStack(Items.BARRIER);
+         }
+-        var item = BuiltInRegistries.ITEM.get(eggId);
++        var item = BuiltInRegistries.ITEM.getValue(eggId);
+         if (item instanceof SpawnEggItem) {
+             return new ItemStack(item);
+         }
+@@ -470,9 +469,8 @@
+             entity.setYBodyRot(frame.yaw());
+             if (entity instanceof Mob previewMob) previewMob.setAggressive(frame.attacking());
+             entity.setGlowingTag(frame.glowing());
+-            entity.walkAnimation.update(frame.walkAmount(), frame.walkAmount());
+-            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX - scale, top + 42, mobX + scale,
+-                    mobY, scale, 0.0F, orbitX, orbitY, entity);
++            entity.walkAnimation.update(frame.walkAmount(), frame.walkAmount(), 1.0F);
++            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX - scale, top + 42, mobX + scale, mobY, scale, 0.0F, orbitX, orbitY, entity);
+             if (frame.showTarget() && width >= 230 && Minecraft.getInstance().player != null) {
+                 int targetScreenX = centerX + (int) Math.max(-usable / 2.0D, Math.min(usable / 2.0D, frame.targetX() * usable / 10.0D));
+                 int targetScreenY = floorBottom - 3 - Math.round(frame.targetZ() * 4.0F);
+@@ -593,14 +591,14 @@
+             return null;
+         }
+ 
+-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
++        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+         if (type == null) {
+             return null;
+         }
+ 
+         Entity entity;
+         try {
+-            entity = type.create(minecraft.level);
++            entity = type.create(minecraft.level, EntitySpawnReason.COMMAND);
+         } catch (Exception ignored) {
+             return null;
+         }
+--- a/common/src/main/java/com/flubburr/aioa/compat/AioaEntityHelper.java
++++ b/common/src/main/java/com/flubburr/aioa/compat/AioaEntityHelper.java
+@@ -6,6 +6,7 @@
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntitySpawnReason;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.Mob;
+ import net.minecraft.world.entity.MobCategory;
+@@ -35,9 +36,13 @@
+         return resolveEntityType(id.get());
+     }
+ 
++    public static ResourceLocation parseResourceLocation(String raw) {
++        return raw == null ? null : ResourceLocation.tryParse(raw.trim());
++    }
++
+     public static Optional<EntityType<?>> resolveEntityType(ResourceLocation entityId) {
+         return BuiltInRegistries.ENTITY_TYPE.containsKey(entityId)
+-                ? Optional.of(BuiltInRegistries.ENTITY_TYPE.get(entityId))
++                ? Optional.ofNullable(BuiltInRegistries.ENTITY_TYPE.getValue(entityId))
+                 : Optional.empty();
+     }
+ 
+@@ -47,7 +52,7 @@
+             return Optional.empty();
+         }
+ 
+-        ResourceLocation directId = parseResourceLocation(trimmed);
++        ResourceLocation directId = ResourceLocation.tryParse(trimmed);
+         if (directId != null && BuiltInRegistries.ENTITY_TYPE.containsKey(directId)) {
+             return Optional.of(directId);
+         }
+@@ -70,19 +75,6 @@
+             warningConsumer.accept("AIOA found multiple mob matches for '" + rawSelector + "'. Use a full id or 'Name (modid:id)' to disambiguate.");
+         }
+         return Optional.empty();
+-    }
+-
+-    public static ResourceLocation parseResourceLocation(String rawId) {
+-        String trimmed = rawId == null ? "" : rawId.trim();
+-        if (trimmed.isEmpty()) {
+-            return null;
+-        }
+-
+-        try {
+-            return ResourceLocation.tryParse(trimmed);
+-        } catch (Exception ignored) {
+-            return null;
+-        }
+     }
+ 
+     public static String describeEntity(ResourceLocation entityId) {
+@@ -116,7 +108,7 @@
+ 
+     private static MobClassification inspectEntityType(EntityType<?> entityType, ServerLevel level, ResourceLocation id) {
+         try {
+-            Entity entity = entityType.create(level);
++            Entity entity = entityType.create(level, EntitySpawnReason.COMMAND);
+             if (!(entity instanceof Mob mob)) {
+                 return MobClassification.NONE;
+             }
+@@ -147,7 +139,7 @@
+             return null;
+         }
+ 
+-        return parseResourceLocation(rawSelector.substring(open + 1, close).trim());
++        return ResourceLocation.tryParse(rawSelector.substring(open + 1, close).trim());
+     }
+ 
+     private static String normalizeSelector(String value) {
+--- a/common/src/main/java/com/flubburr/aioa/compat/AioaRegistryCompat.java
++++ b/common/src/main/java/com/flubburr/aioa/compat/AioaRegistryCompat.java
+@@ -1,6 +1,7 @@
+ package com.flubburr.aioa.compat;
+ 
+ import net.minecraft.core.Registry;
++import net.minecraft.core.Holder;
+ import net.minecraft.core.registries.BuiltInRegistries;
+ import net.minecraft.core.registries.Registries;
+ import net.minecraft.resources.ResourceLocation;
+@@ -24,6 +25,6 @@
+ 
+     public static SoundEvent getSoundEvent(ResourceLocation id) {
+         Registry<SoundEvent> registry = soundEvents();
+-        return registry == null ? null : registry.get(id);
++        return registry == null ? null : registry.get(id).map(Holder::value).orElse(null);
+     }
+ }
+--- a/common/src/main/java/com/flubburr/aioa/config/AioaConfigManager.java
++++ b/common/src/main/java/com/flubburr/aioa/config/AioaConfigManager.java
+@@ -123,7 +123,7 @@
+             lines.add("");
+ 
+             AioaEntityHelper.enumerateConfigurableMobIds(level).forEach(entityId -> {
+-                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(entityId);
++                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(entityId);
+                 boolean hostile = AioaEntityHelper.isHostileMob(type, level);
+                 String template = entityId + ";enabled=true;rarity=common;chance=1.0;min=1;max=3";
+                 lines.add(AioaEntityHelper.describeEntity(entityId)
+--- a/common/src/main/java/com/flubburr/aioa/mixin/SpawnPlacementsMixin.java
++++ b/common/src/main/java/com/flubburr/aioa/mixin/SpawnPlacementsMixin.java
+@@ -4,8 +4,8 @@
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.util.RandomSource;
+ import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntitySpawnReason;
+ import net.minecraft.world.entity.EntityType;
+-import net.minecraft.world.entity.MobSpawnType;
+ import net.minecraft.world.entity.SpawnPlacements;
+ import net.minecraft.world.level.ServerLevelAccessor;
+ import org.spongepowered.asm.mixin.Mixin;
+@@ -20,7 +20,7 @@
+     private static <T extends Entity> void aioa$cancelConfiguredHostileSpawns(
+             EntityType<T> entityType,
+             ServerLevelAccessor level,
+-            MobSpawnType spawnType,
++            EntitySpawnReason spawnType,
+             BlockPos pos,
+             RandomSource random,
+             CallbackInfoReturnable<Boolean> cir
+--- a/common/src/main/java/com/flubburr/aioa/spawn/AioaSpawnStudioHandler.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/AioaSpawnStudioHandler.java
+@@ -10,7 +10,7 @@
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.Mob;
+-import net.minecraft.world.entity.MobSpawnType;
++import net.minecraft.world.entity.EntitySpawnReason;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.phys.Vec3;
+ 
+@@ -35,7 +35,7 @@
+         }
+ 
+         ServerLevel level = player.serverLevel();
+-        if (position.y < level.getMinBuildHeight() || position.y >= level.getMaxBuildHeight()) {
++        if (position.y < level.getMinY() || position.y >= level.getMaxY()) {
+             return;
+         }
+ 
+@@ -45,7 +45,7 @@
+             return;
+         }
+ 
+-        Entity entity = resolved.get().create(level);
++        Entity entity = resolved.get().create(level, EntitySpawnReason.COMMAND);
+         if (!(entity instanceof Mob mob)) {
+             player.displayClientMessage(Component.literal("That entity is not a spawnable mob."), true);
+             return;
+@@ -60,7 +60,7 @@
+             mob.setPersistenceRequired();
+         }
+         mob.addTag(AioaConstants.STUDIO_SPAWN_TAG);
+-        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(mob.blockPosition()), MobSpawnType.COMMAND, null);
++        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(mob.blockPosition()), EntitySpawnReason.COMMAND, null);
+ 
+         if (!level.noCollision(mob)) {
+             mob.discard();
+--- a/common/src/main/java/com/flubburr/aioa/spawn/AioaZombieBehaviour.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/AioaZombieBehaviour.java
+@@ -105,11 +105,11 @@
+             }
+             case OTHER_MOBS_ONLY -> targetSelector.addGoal(
+                     2,
+-                    new NearestAttackableTargetGoal<>(mob, PathfinderMob.class, 10, true, false, target -> canTarget(mob, target, mode))
++                    new NearestAttackableTargetGoal<PathfinderMob>(mob, PathfinderMob.class, 10, true, false, (target, level) -> canTarget(mob, target, mode))
+             );
+             case EVERYTHING -> targetSelector.addGoal(
+                     2,
+-                    new NearestAttackableTargetGoal<>(mob, LivingEntity.class, 10, true, false, target -> canTarget(mob, target, mode))
++                    new NearestAttackableTargetGoal<LivingEntity>(mob, LivingEntity.class, 10, true, false, (target, level) -> canTarget(mob, target, mode))
+             );
+         }
+     }
+--- a/common/src/main/java/com/flubburr/aioa/spawn/ApocalypseSpawnManager.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/ApocalypseSpawnManager.java
+@@ -14,9 +14,9 @@
+ import net.minecraft.util.Mth;
+ import net.minecraft.util.RandomSource;
+ import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntitySpawnReason;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.Mob;
+-import net.minecraft.world.entity.MobSpawnType;
+ import net.minecraft.world.entity.SpawnPlacements;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.NaturalSpawner;
+@@ -217,7 +217,7 @@
+             return false;
+         }
+ 
+-        Entity entity = entityType.create(level);
++        Entity entity = entityType.create(level, EntitySpawnReason.EVENT);
+         if (!(entity instanceof Mob mob)) {
+             return false;
+         }
+@@ -234,7 +234,7 @@
+             return false;
+         }
+ 
+-        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), MobSpawnType.EVENT, null);
++        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), EntitySpawnReason.EVENT, null);
+         if (!AioaZombieBehaviour.applyVariantMode(mob, settings)) {
+             return false;
+         }
+@@ -247,7 +247,7 @@
+ 
+     private static boolean isPotentialSpawnPosition(ServerLevel level, BlockPos spawnPosition, EntityType<?> entityType) {
+         BlockState state = level.getBlockState(spawnPosition);
+-        if (SpawnPlacements.checkSpawnRules(entityType, level, MobSpawnType.EVENT, spawnPosition, level.getRandom())
++        if (SpawnPlacements.isSpawnPositionOk(entityType, level, spawnPosition)
+                 && NaturalSpawner.isValidEmptySpawnBlock(level, spawnPosition, state, state.getFluidState(), entityType)) {
+             return true;
+         }
+@@ -275,7 +275,7 @@
+         }
+ 
+         ResourceLocation biomeId = level.registryAccess()
+-                .registryOrThrow(Registries.BIOME)
++                .lookupOrThrow(Registries.BIOME)
+                 .getKey(level.getBiome(pos).value());
+ 
+         if (biomeId == null) {
+@@ -283,7 +283,7 @@
+         }
+ 
+         for (String rawBiomeId : settings.allowedBiomeIds) {
+-            ResourceLocation configuredBiomeId = AioaEntityHelper.parseResourceLocation(rawBiomeId == null ? "" : rawBiomeId.trim());
++            ResourceLocation configuredBiomeId = ResourceLocation.tryParse(rawBiomeId == null ? "" : rawBiomeId.trim());
+             if (configuredBiomeId == null) {
+                 AioaConfigManager.warnOnce(
+                         "invalid-biome:" + rawBiomeId,
+--- a/common/src/main/java/com/flubburr/aioa/spawn/HostileSpawnFilter.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/HostileSpawnFilter.java
+@@ -7,8 +7,8 @@
+ import net.minecraft.core.registries.BuiltInRegistries;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.entity.EntitySpawnReason;
+ import net.minecraft.world.entity.EntityType;
+-import net.minecraft.world.entity.MobSpawnType;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.ServerLevelAccessor;
+ 
+@@ -17,25 +17,25 @@
+ 
+ public final class HostileSpawnFilter {
+ 
+-    private static final EnumSet<MobSpawnType> SPECIAL_SPAWN_TYPES = EnumSet.of(
+-            MobSpawnType.BREEDING,
+-            MobSpawnType.BUCKET,
+-            MobSpawnType.COMMAND,
+-            MobSpawnType.CONVERSION,
+-            MobSpawnType.DISPENSER,
+-            MobSpawnType.EVENT,
+-            MobSpawnType.JOCKEY,
+-            MobSpawnType.MOB_SUMMONED,
+-            MobSpawnType.PATROL,
+-            MobSpawnType.REINFORCEMENT,
+-            MobSpawnType.SPAWN_EGG,
+-            MobSpawnType.TRIGGERED
++    private static final EnumSet<EntitySpawnReason> SPECIAL_SPAWN_TYPES = EnumSet.of(
++            EntitySpawnReason.BREEDING,
++            EntitySpawnReason.BUCKET,
++            EntitySpawnReason.COMMAND,
++            EntitySpawnReason.CONVERSION,
++            EntitySpawnReason.DISPENSER,
++            EntitySpawnReason.EVENT,
++            EntitySpawnReason.JOCKEY,
++            EntitySpawnReason.MOB_SUMMONED,
++            EntitySpawnReason.PATROL,
++            EntitySpawnReason.REINFORCEMENT,
++            EntitySpawnReason.SPAWN_ITEM_USE,
++            EntitySpawnReason.TRIGGERED
+     );
+ 
+     private HostileSpawnFilter() {
+     }
+ 
+-    public static boolean shouldCancelSpawn(EntityType<?> entityType, ServerLevelAccessor levelAccessor, MobSpawnType spawnType, BlockPos pos) {
++    public static boolean shouldCancelSpawn(EntityType<?> entityType, ServerLevelAccessor levelAccessor, EntitySpawnReason spawnType, BlockPos pos) {
+         AioaConfig.HostileSpawnControl settings = AioaConfigManager.getConfig().hostileSpawnControl;
+         if (!settings.enabled) {
+             return false;
+@@ -45,10 +45,10 @@
+         if (settings.overworldOnly && !level.dimension().equals(Level.OVERWORLD)) {
+             return false;
+         }
+-        if (spawnType == MobSpawnType.STRUCTURE && settings.ignoreStructureSpawns) {
++        if (spawnType == EntitySpawnReason.STRUCTURE && settings.ignoreStructureSpawns) {
+             return false;
+         }
+-        if (spawnType == MobSpawnType.SPAWNER && settings.ignoreSpawnerSpawns) {
++        if (spawnType == EntitySpawnReason.SPAWNER && settings.ignoreSpawnerSpawns) {
+             return false;
+         }
+         if (settings.ignoreSpecialSpawns && SPECIAL_SPAWN_TYPES.contains(spawnType)) {
+--- a/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabric.java
++++ b/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabric.java
+@@ -5,7 +5,6 @@
+ import com.flubburr.aioa.network.AioaGraphPayload;
+ 
+ import com.flubburr.aioa.AioaCommon;
+-import com.flubburr.aioa.fabric.config.AioaMidnightConfig;
+ import net.fabricmc.api.ModInitializer;
+ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+@@ -31,7 +30,6 @@
+             Registry.register(soundEvents, MENU_MUSIC, SoundEvent.createVariableRangeEvent(MENU_MUSIC));
+         }
+         AioaCommon.init();
+-        if (net.fabricmc.loader.api.FabricLoader.getInstance().getEnvironmentType() == net.fabricmc.api.EnvType.CLIENT) AioaMidnightConfig.initialize();
+         ServerTickEvents.END_WORLD_TICK.register(AioaCommon::onServerLevelTick);
+         PayloadTypeRegistry.playC2S().register(AioaSpawnPayload.TYPE, AioaSpawnPayload.CODEC);
+         PayloadTypeRegistry.playC2S().register(AioaGraphPayload.TYPE, AioaGraphPayload.CODEC);
+--- a/common/src/main/java/com/flubburr/aioa/client/config/BehaviorBoard.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/BehaviorBoard.java
+@@ -18,7 +18,7 @@
+         private static final ResourceLocation ATLAS = AioaEntityHelper.parseResourceLocation("aioa:textures/gui/behavior_parts.png");
+ 
+         void draw(GuiGraphics g, int x, int y) {
+-            g.blit(ATLAS, x, y, ordinal() * 16, 0, 16, 16, 176, 16);
++            g.blit(net.minecraft.client.renderer.RenderType::guiTextured, ATLAS, x, y, ordinal() * 16, 0, 16, 16, 176, 16);
+         }
+ 
+         static Part of(Node node) {

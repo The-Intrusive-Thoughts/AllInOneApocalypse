@@ -65,6 +65,12 @@ final class AioaZombieAiScreen extends AioaAnimatedScreen {
             b.setMessage(Component.literal(AioaScreenUtil.boolLabel("Refined chase AI", this.refinedZombieAi)));
         }), y);
         y += step + 8;
+        this.addScrollable(AioaScreenUtil.button(leftX, 0, width, AioaScreenUtil.boolLabel("Open doors on a chase", config.refinedPathfindingOpensDoors), b -> {
+            config.refinedPathfindingOpensDoors = !config.refinedPathfindingOpensDoors;
+            b.setMessage(Component.literal(AioaScreenUtil.boolLabel("Open doors on a chase", config.refinedPathfindingOpensDoors)));
+        }), y);
+        y += step;
+
         this.addScrollable(AioaScreenUtil.button(leftX, 0, width, AioaScreenUtil.boolLabel("Share targets with nearby mobs", this.coordinatedHordeAi), b -> {
             this.coordinatedHordeAi = !this.coordinatedHordeAi;
             b.setMessage(Component.literal(AioaScreenUtil.boolLabel("Share targets with nearby mobs", this.coordinatedHordeAi)));

@@ -53,19 +53,20 @@ public final class AioaScreenUtil {
     private static final ResourceLocation UI_SLIDER_SOUND = new ResourceLocation("aioa", "ui.slider");
     private static final ResourceLocation MENU_MUSIC_SOUND = new ResourceLocation("aioa", "music.menu");
     private static MenuLoopSound menuMusic;
+    private static net.minecraft.client.multiplayer.ClientLevel previewLevel;
 
     static final int BUTTON_HEIGHT = 24;
-    static final int PANEL_BACKGROUND = 0xE0101010;
-    static final int PANEL_BORDER = 0xFF000000;
-    static final int PANEL_ACCENT = 0xFF01BF63;
-    static final int PANEL_SOFT = 0xC0121A16;
-    static final int PANEL_SOFT_BORDER = 0xFF000000;
-    static final int PANEL_SELECTED = 0xD001BF63;
-    static final int PANEL_CARD = 0xDD0F1713;
-    static final int TEXT_MAIN = 0x6BF250;
-    static final int TEXT_SUB = 0xFF9AD6AE;
-    static final int TEXT_MUTED = 0xFF9AD6AE;
-    static final int BUTTON_TEXT = 0xFF6EFFBA;
+    static final int PANEL_BACKGROUND = 0xFF192C23;
+    static final int PANEL_BORDER = 0xFF3F5A48;
+    static final int PANEL_ACCENT = 0xFF8AD5A4;
+    static final int PANEL_SOFT = 0xFF213A2D;
+    static final int PANEL_SOFT_BORDER = 0xFF53735C;
+    static final int PANEL_SELECTED = 0xFF345A43;
+    static final int PANEL_CARD = 0xFF233D30;
+    static final int TEXT_MAIN = 0xFFE8F2DE;
+    static final int TEXT_SUB = 0xFFB8CEBB;
+    static final int TEXT_MUTED = 0xFF99AC9F;
+    static final int BUTTON_TEXT = 0xFFE4EFDF;
     static final int ROWS_PER_PAGE = 7;
 
     private AioaScreenUtil() {
@@ -84,6 +85,20 @@ public final class AioaScreenUtil {
         return new AioaButton(x, y, width, BUTTON_HEIGHT, Component.literal(label), onPress);
     }
 
+    static Button menuButton(int x, int y, int width, String label, Button.OnPress onPress) {
+        AioaButton button = new AioaButton(x, y, width, BUTTON_HEIGHT, Component.literal(label), onPress);
+        button.menu = true;
+        return button;
+    }
+
+    static Button toolButton(int x, int y, int width, String label, BehaviorBoard.Part icon,
+                             String shortcut, Button.OnPress onPress) {
+        AioaButton button = new AioaButton(x, y, width, BUTTON_HEIGHT, Component.literal(label), onPress);
+        button.icon = icon;
+        button.shortcut = shortcut;
+        return button;
+    }
+
     static EditBox searchBox(int x, int y, int width, String hint) {
         return new AioaSearchBox(x, y, width, BUTTON_HEIGHT, Component.literal(hint));
     }
@@ -98,7 +113,7 @@ public final class AioaScreenUtil {
     }
 
     static void drawScreenBackground(GuiGraphics guiGraphics, int width, int height) {
-        guiGraphics.fillGradient(0, 0, width, height, 0xF0101010, 0xFF080808);
+        guiGraphics.fillGradient(0, 0, width, height, 0xFF111A18, 0xFF0B100F);
     }
 
     static void drawInsetPanel(GuiGraphics guiGraphics, int left, int top, int right, int bottom, boolean selected) {
@@ -180,6 +195,11 @@ public final class AioaScreenUtil {
             return;
         }
 
+        AioaInterfaceScale.update(minecraft);
+        if (previewLevel != null && previewLevel != minecraft.level) {
+            PREVIEW_ENTITY_CACHE.clear();
+            previewLevel = null;
+        }
         if (menuMusic != null && menuMusic.isStopped()) {
             menuMusic = null;
         }
@@ -581,7 +601,7 @@ public final class AioaScreenUtil {
 
     static LivingEntity previewEntity(ResourceLocation id) {
         LivingEntity cached = PREVIEW_ENTITY_CACHE.get(id);
-        if (cached != null && cached.isAlive()) {
+        if (cached != null && cached.isAlive() && cached.level() == Minecraft.getInstance().level) {
             return cached;
         }
 
@@ -606,6 +626,12 @@ public final class AioaScreenUtil {
             return null;
         }
 
+        // Inventory rendering reads the entity ID. Preview models never join the world's entity list.
+        if (previewLevel != minecraft.level) {
+            PREVIEW_ENTITY_CACHE.clear();
+            previewLevel = minecraft.level;
+        }
+        livingEntity.setId(-1 - BuiltInRegistries.ENTITY_TYPE.getId(type));
         livingEntity.setYRot(25.0F);
         livingEntity.setXRot(0.0F);
         PREVIEW_ENTITY_CACHE.put(id, livingEntity);
@@ -789,7 +815,7 @@ public final class AioaScreenUtil {
             this.wasHovered = hovered;
 
             drawInsetPanel(guiGraphics, left, top, right, bottom, this.hoverProgress > 0.45F);
-            guiGraphics.fill(left + 2, top + 2, right - 2, top + 4, hovered ? 0x88000000 : 0x55000000);
+
 
             int trackLeft = left + 12;
             int trackRight = right - 12;
@@ -861,9 +887,14 @@ public final class AioaScreenUtil {
 
     static final class AioaButton extends Button {
 
+        private boolean menu;
+        private BehaviorBoard.Part icon;
+        private String shortcut;
+
         private boolean wasHovered;
         private float hoverProgress;
         private float pressPulse;
+        private long lastFrame = System.nanoTime();
 
         AioaButton(int x, int y, int width, int height, Component message, OnPress onPress) {
             super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
@@ -882,8 +913,11 @@ public final class AioaScreenUtil {
             int right = left + this.width;
             int bottom = top + this.height;
             boolean hovered = this.isHoveredOrFocused();
-            this.hoverProgress += ((hovered ? 1.0F : 0.0F) - this.hoverProgress) * 0.28F;
-            this.pressPulse *= 0.72F;
+            long now = System.nanoTime();
+            float blend = (float) (1.0 - Math.exp(-Math.min(0.1, (now - lastFrame) * 1.0E-9) * 16));
+            lastFrame = now;
+            this.hoverProgress += ((hovered ? 1.0F : 0.0F) - this.hoverProgress) * blend;
+            this.pressPulse *= 1.0F - blend;
             if (hovered && !this.wasHovered && this.active) {
                 playUiSound(UI_HOVER_SOUND, 0.45F, randomPitch(1.05F, 1.22F));
             }
@@ -893,7 +927,26 @@ public final class AioaScreenUtil {
             top += pressInset;
             right -= pressInset;
             bottom -= pressInset;
-            int fill = !this.active ? 0xAA0B0B0B : lerpColor(0xE001BF63, 0xFF03D772, this.hoverProgress);
+            if (this.icon != null) {
+                var font = Minecraft.getInstance().font;
+                int mid = (top + bottom) / 2;
+                guiGraphics.fill(left, top, right, bottom, lerpColor(0xFF202D25, 0xFF344D3A, this.hoverProgress));
+                this.icon.draw(guiGraphics, left + 5, mid - 8);
+                int shortcutWidth = this.shortcut.isEmpty() ? 0 : font.width(this.shortcut) + 12;
+                guiGraphics.drawString(font, font.plainSubstrByWidth(getMessage().getString(), Math.max(1, right - left - 32 - shortcutWidth)),
+                        left + 27, mid - 4, BehaviorBoard.BONE, false);
+                if (shortcutWidth > 0) guiGraphics.drawString(font, this.shortcut, right - shortcutWidth + 4, mid - 4, BehaviorBoard.ACCENT, false);
+                return;
+            }
+            if (this.menu) {
+                var font = Minecraft.getInstance().font;
+                if (hovered) guiGraphics.fill(left, top + 2, right, bottom - 2, 0xFF2B4834);
+                int underline = Math.round((right - left - 8) * this.hoverProgress);
+                if (underline > 0) guiGraphics.fill(left + 4, bottom - 3, left + 4 + underline, bottom - 2, BehaviorBoard.ACCENT);
+                guiGraphics.drawCenteredString(font, this.getMessage(), (left + right) / 2, (top + bottom - 8) / 2, BehaviorBoard.BONE);
+                return;
+            }
+            int fill = !this.active ? 0xAA0B0B0B : lerpColor(0xFF293E32, 0xFF3C5842, this.hoverProgress);
             int text = !this.active ? TEXT_MUTED : BUTTON_TEXT;
 
             guiGraphics.fill(left, top, right, bottom, fill);
@@ -901,10 +954,10 @@ public final class AioaScreenUtil {
             guiGraphics.fill(left, bottom - 1, right, bottom, PANEL_BORDER);
             guiGraphics.fill(left, top, left + 1, bottom, PANEL_BORDER);
             guiGraphics.fill(right - 1, top, right, bottom, PANEL_BORDER);
-            guiGraphics.fill(left + 2, top + 2, right - 2, top + 4, hovered ? 0x88000000 : 0x55000000);
+
             int sweepWidth = Math.round((right - left - 4) * this.hoverProgress);
             if (sweepWidth > 0) {
-                guiGraphics.fill(left + 2, bottom - 3, left + 2 + sweepWidth, bottom - 1, 0xCCB4FFD4);
+                guiGraphics.fill(left + 2, bottom - 3, left + 2 + sweepWidth, bottom - 1, 0xFF9CD5AB);
             }
 
             var font = Minecraft.getInstance().font;

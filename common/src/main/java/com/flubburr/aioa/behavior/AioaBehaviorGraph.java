@@ -22,13 +22,26 @@ public final class AioaBehaviorGraph {
         graph.nodes.add(new Node("base", NodeType.MOB_BASE, -140, 70)
                 .parameter("entity", "auto").parameter("health", "20").parameter("damage", "3").parameter("speed", "0.23"));
         graph.nodes.add(new Node("tick", NodeType.ON_TICK, 40, 70));
-        graph.nodes.add(new Node("sense", NodeType.FIND_NEAREST_PLAYER, 220, 70).parameter("range", "32"));
+        graph.nodes.add(new Node("sense", NodeType.FIND_NEAREST_PLAYER, 220, 70).parameter("range", "32")
+                .parameter("survivalOnly", "true").parameter("lineOfSight", "true"));
         graph.nodes.add(new Node("target", NodeType.SET_TARGET, 400, 70));
         graph.nodes.add(new Node("move", NodeType.MOVE_TO_TARGET, 580, 70).parameter("speed", "1.1"));
+        graph.nodes.add(new Node("alert", NodeType.SHARE_TARGET, 580, 2));
         graph.edges.add(new Edge("base", "tick", "next"));
         graph.edges.add(new Edge("tick", "sense", "next"));
         graph.edges.add(new Edge("sense", "target", "found"));
         graph.edges.add(new Edge("target", "move", "next"));
+        graph.edges.add(new Edge("target", "alert", "next"));
+        graph.nodes.add(new Node("sight", NodeType.CAN_SEE_TARGET, -140, 196));
+        graph.nodes.add(new Node("reach", NodeType.TARGET_IN_RANGE, 40, 196).parameter("range", "2"));
+        graph.nodes.add(new Node("pace", NodeType.EVERY_TICKS, 220, 196).parameter("ticks", "20"));
+        graph.nodes.add(new Node("attack", NodeType.ATTACK_TARGET, 400, 196).parameter("range", "2"));
+        graph.nodes.add(new Node("roam", NodeType.WANDER, 400, 2).parameter("radius", "8").parameter("speed", "0.9"));
+        graph.edges.add(new Edge("sense", "roam", "missing"));
+        graph.edges.add(new Edge("move", "sight", "next"));
+        graph.edges.add(new Edge("sight", "reach", "true"));
+        graph.edges.add(new Edge("reach", "pace", "true"));
+        graph.edges.add(new Edge("pace", "attack", "ready"));
         return graph;
     }
 
@@ -268,11 +281,13 @@ public final class AioaBehaviorGraph {
         public int parametersX, parametersY, parametersWidth, parametersHeight;
         public int helpX, helpY, helpWidth, helpHeight;
         public boolean paletteCollapsed, inspectorCollapsed, parametersCollapsed, showHelp = true;
+        public boolean previewVisible = true;
         public int canvasPanX, canvasPanY;
         public double canvasZoom = 1.0D;
 
         public EditorLayout copy() {
             EditorLayout copy = new EditorLayout();
+            copy.previewVisible = this.previewVisible;
             copy.initialized = this.initialized;
             copy.screenWidth = this.screenWidth; copy.screenHeight = this.screenHeight;
             copy.workspaceX = this.workspaceX; copy.workspaceY = this.workspaceY;

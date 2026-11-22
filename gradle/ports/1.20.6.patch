@@ -1,0 +1,834 @@
+--- a/common/src/main/java/com/flubburr/aioa/behavior/AioaBehaviorRuntime.java
++++ b/common/src/main/java/com/flubburr/aioa/behavior/AioaBehaviorRuntime.java
+@@ -8,6 +8,7 @@
+ import com.flubburr.aioa.mixin.accessor.MobAccessor;
+ import com.flubburr.aioa.spawn.AioaZombieBehaviour;
+ import net.minecraft.core.registries.BuiltInRegistries;
++import net.minecraft.core.Holder;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.sounds.SoundEvent;
+ import net.minecraft.sounds.SoundSource;
+@@ -373,7 +374,7 @@
+             case AREA_DAMAGE -> areaDamage(node, mob);
+             case SET_FIRE_TARGET -> {
+                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
+-                if (target != null) target.setSecondsOnFire((int) number(node, "seconds", 4, 0, 60));
++                if (target != null) target.igniteForSeconds((int) number(node, "seconds", 4, 0, 60));
+             }
+             case LAUNCH_TARGET -> launchTarget(node, mob, context);
+             case SET_AGGRESSIVE -> mob.setAggressive(flag(node, "value", true));
+@@ -535,7 +536,7 @@
+     private static void applyEffect(AioaBehaviorGraph.Node node, Mob source, LivingEntity target) {
+         ResourceLocation id = AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("effect", "minecraft:speed"));
+         if (id == null || !BuiltInRegistries.MOB_EFFECT.containsKey(id)) return;
+-        MobEffect effect = BuiltInRegistries.MOB_EFFECT.get(id);
++        Holder<MobEffect> effect = BuiltInRegistries.MOB_EFFECT.getHolder(id).orElse(null);
+         if (effect == null) return;
+         target.addEffect(new MobEffectInstance(effect,
+                 (int) number(node, "duration", 200, 1, 72000),
+@@ -798,7 +799,7 @@
+         spawned.moveTo(source.getX() + number(node, "offsetX", 1, -8, 8), source.getY() + number(node, "offsetY", 0, -8, 8),
+                 source.getZ() + number(node, "offsetZ", 1, -8, 8), source.getYRot(), 0);
+         if (!level.noCollision(spawned)) return;
+-        spawned.finalizeSpawn(level, level.getCurrentDifficultyAt(spawned.blockPosition()), MobSpawnType.EVENT, null, null);
++        spawned.finalizeSpawn(level, level.getCurrentDifficultyAt(spawned.blockPosition()), MobSpawnType.EVENT, null);
+         spawned.addTag(AioaConstants.STUDIO_SPAWN_TAG);
+         level.addFreshEntityWithPassengers(spawned);
+     }
+@@ -818,7 +819,7 @@
+         }
+     }
+ 
+-    private static void setAttribute(Mob mob, net.minecraft.world.entity.ai.attributes.Attribute attribute, double value) {
++    private static void setAttribute(Mob mob, Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute, double value) {
+         AttributeInstance instance = mob.getAttribute(attribute);
+         if (instance != null && instance.getBaseValue() != value) instance.setBaseValue(value);
+     }
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaScrollableScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaScrollableScreen.java
+@@ -1,7 +1,6 @@
+ package com.flubburr.aioa.client.config;
+ 
+ import net.minecraft.client.gui.components.AbstractWidget;
+-import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.network.chat.Component;
+ 
+@@ -84,12 +83,7 @@
+     }
+ 
+     @Override
+-    public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-        AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
+-    }
+-
+-    @Override
+-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+-        return this.handleScroll(verticalAmount, 28) || super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
++    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
++        return this.handleScroll(scrollY, 28) || super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+     }
+ }
+--- /dev/null
++++ b/common/src/main/java/com/flubburr/aioa/network/AioaGraphPayload.java
+@@ -0,0 +1,28 @@
++package com.flubburr.aioa.network;
++
++import com.flubburr.aioa.AioaConstants;
++import com.flubburr.aioa.network.AioaGraphUpdateRequest;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.network.codec.StreamCodec;
++import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
++import net.minecraft.resources.ResourceLocation;
++
++public record AioaGraphPayload(AioaGraphUpdateRequest request) implements CustomPacketPayload {
++    public static final Type<AioaGraphPayload> TYPE = new Type<>(new ResourceLocation(AioaConstants.MOD_ID, "graph_update"));
++    public static final StreamCodec<FriendlyByteBuf, AioaGraphPayload> CODEC = new StreamCodec<>() {
++        @Override
++        public AioaGraphPayload decode(FriendlyByteBuf buffer) {
++            return new AioaGraphPayload(new AioaGraphUpdateRequest(buffer.readUtf(65_536)));
++        }
++
++        @Override
++        public void encode(FriendlyByteBuf buffer, AioaGraphPayload payload) {
++            buffer.writeUtf(payload.request().graphJson(), 65_536);
++        }
++    };
++
++    @Override
++    public Type<? extends CustomPacketPayload> type() {
++        return TYPE;
++    }
++}
+--- /dev/null
++++ b/common/src/main/java/com/flubburr/aioa/network/AioaSpawnPayload.java
+@@ -0,0 +1,38 @@
++package com.flubburr.aioa.network;
++
++import com.flubburr.aioa.AioaConstants;
++import com.flubburr.aioa.network.AioaSpawnRequest;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.network.codec.StreamCodec;
++import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
++import net.minecraft.resources.ResourceLocation;
++
++public record AioaSpawnPayload(AioaSpawnRequest request) implements CustomPacketPayload {
++    public static final Type<AioaSpawnPayload> TYPE = new Type<>(new ResourceLocation(AioaConstants.MOD_ID, "spawn_request"));
++    public static final StreamCodec<FriendlyByteBuf, AioaSpawnPayload> CODEC = new StreamCodec<>() {
++        @Override
++        public AioaSpawnPayload decode(FriendlyByteBuf buffer) {
++            return new AioaSpawnPayload(new AioaSpawnRequest(
++                    buffer.readUtf(128), buffer.readDouble(), buffer.readDouble(), buffer.readDouble(),
++                    buffer.readBoolean(), buffer.readBoolean(), buffer.readBoolean()
++            ));
++        }
++
++        @Override
++        public void encode(FriendlyByteBuf buffer, AioaSpawnPayload payload) {
++            AioaSpawnRequest request = payload.request();
++            buffer.writeUtf(request.entityId(), 128);
++            buffer.writeDouble(request.x());
++            buffer.writeDouble(request.y());
++            buffer.writeDouble(request.z());
++            buffer.writeBoolean(request.noAi());
++            buffer.writeBoolean(request.facePlayer());
++            buffer.writeBoolean(request.persistent());
++        }
++    };
++
++    @Override
++    public Type<? extends CustomPacketPayload> type() {
++        return TYPE;
++    }
++}
+--- a/common/src/main/java/com/flubburr/aioa/spawn/AioaSpawnStudioHandler.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/AioaSpawnStudioHandler.java
+@@ -60,7 +60,7 @@
+             mob.setPersistenceRequired();
+         }
+         mob.addTag(AioaConstants.STUDIO_SPAWN_TAG);
+-        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(mob.blockPosition()), MobSpawnType.COMMAND, null, null);
++        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(mob.blockPosition()), MobSpawnType.COMMAND, null);
+ 
+         if (!level.noCollision(mob)) {
+             mob.discard();
+--- a/common/src/main/java/com/flubburr/aioa/spawn/AioaZombieBehaviour.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/AioaZombieBehaviour.java
+@@ -37,13 +37,13 @@
+             FOLLOW_RANGE_MODIFIER_ID,
+             "aioa_refined_zombie_follow_range",
+             10.0D,
+-            AttributeModifier.Operation.ADDITION
++            AttributeModifier.Operation.ADD_VALUE
+     );
+     private static final AttributeModifier CHASE_SPEED_MODIFIER = new AttributeModifier(
+             CHASE_SPEED_MODIFIER_ID,
+             "aioa_refined_zombie_chase_speed",
+             0.08D,
+-            AttributeModifier.Operation.MULTIPLY_TOTAL
++            AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
+     );
+ 
+     private AioaZombieBehaviour() {
+@@ -194,16 +194,16 @@
+                     movementSpeed.addTransientModifier(CHASE_SPEED_MODIFIER);
+                 }
+             } else if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER)) {
+-                movementSpeed.removeModifier(CHASE_SPEED_MODIFIER_ID);
++                movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
+             }
+             return;
+         }
+ 
+         if (followRange.hasModifier(FOLLOW_RANGE_MODIFIER)) {
+-            followRange.removeModifier(FOLLOW_RANGE_MODIFIER_ID);
++            followRange.removeModifier(FOLLOW_RANGE_MODIFIER);
+         }
+         if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER)) {
+-            movementSpeed.removeModifier(CHASE_SPEED_MODIFIER_ID);
++            movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
+         }
+ 
+     }
+--- a/common/src/main/java/com/flubburr/aioa/spawn/ApocalypseSpawnManager.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/ApocalypseSpawnManager.java
+@@ -234,7 +234,7 @@
+             return false;
+         }
+ 
+-        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), MobSpawnType.EVENT, null, null);
++        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPosition), MobSpawnType.EVENT, null);
+         if (!AioaZombieBehaviour.applyVariantMode(mob, settings)) {
+             return false;
+         }
+@@ -246,9 +246,8 @@
+     }
+ 
+     private static boolean isPotentialSpawnPosition(ServerLevel level, BlockPos spawnPosition, EntityType<?> entityType) {
+-        SpawnPlacements.Type placementType = SpawnPlacements.getPlacementType(entityType);
+         BlockState state = level.getBlockState(spawnPosition);
+-        if (NaturalSpawner.isSpawnPositionOk(placementType, level, spawnPosition, entityType)
++        if (SpawnPlacements.isSpawnPositionOk(entityType, level, spawnPosition)
+                 && NaturalSpawner.isValidEmptySpawnBlock(level, spawnPosition, state, state.getFluidState(), entityType)) {
+             return true;
+         }
+@@ -257,7 +256,7 @@
+         // darkness rules. Keep a conservative ground-placement fallback so a
+         // mapping/loader-specific NaturalSpawner check cannot silently disable
+         // every configured zombie spawn.
+-        if (placementType != SpawnPlacements.Type.ON_GROUND || !state.getFluidState().isEmpty()
++        if (!state.getFluidState().isEmpty()
+                 || !state.getCollisionShape(level, spawnPosition).isEmpty()) {
+             return false;
+         }
+--- a/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabric.java
++++ b/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabric.java
+@@ -1,15 +1,16 @@
+ package com.flubburr.aioa.fabric;
+ 
++import com.flubburr.aioa.network.AioaSpawnPayload;
++
++import com.flubburr.aioa.network.AioaGraphPayload;
++
+ import com.flubburr.aioa.AioaCommon;
+-import com.flubburr.aioa.fabric.config.AioaMidnightConfig;
+ import net.fabricmc.api.ModInitializer;
+-import net.fabricmc.api.EnvType;
+ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+-import net.fabricmc.loader.api.FabricLoader;
+-import net.minecraft.network.FriendlyByteBuf;
++import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
++import com.flubburr.aioa.compat.AioaRegistryCompat;
+ import net.minecraft.core.Registry;
+-import net.minecraft.core.registries.BuiltInRegistries;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.sounds.SoundEvent;
+ 
+@@ -21,34 +22,22 @@
+ 
+ public final class AioaFabric implements ModInitializer {
+ 
+-    public static final ResourceLocation SPAWN_REQUEST = new ResourceLocation(AioaConstants.MOD_ID, "spawn_request");
+-    public static final ResourceLocation GRAPH_UPDATE = new ResourceLocation(AioaConstants.MOD_ID, "graph_update");
+     public static final ResourceLocation MENU_MUSIC = new ResourceLocation(AioaConstants.MOD_ID, "music.menu");
+-
+     @Override
+     public void onInitialize() {
+-        if (!BuiltInRegistries.SOUND_EVENT.containsKey(MENU_MUSIC)) {
+-            Registry.register(BuiltInRegistries.SOUND_EVENT, MENU_MUSIC, SoundEvent.createVariableRangeEvent(MENU_MUSIC));
++        var soundEvents = AioaRegistryCompat.soundEvents();
++        if (soundEvents != null && !soundEvents.containsKey(MENU_MUSIC)) {
++            Registry.register(soundEvents, MENU_MUSIC, SoundEvent.createVariableRangeEvent(MENU_MUSIC));
+         }
+         AioaCommon.init();
+-        if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
+-            AioaMidnightConfig.initialize();
+-        }
+         ServerTickEvents.END_WORLD_TICK.register(AioaCommon::onServerLevelTick);
+-        ServerPlayNetworking.registerGlobalReceiver(SPAWN_REQUEST, (server, player, handler, buffer, responseSender) -> {
+-            AioaSpawnRequest request = readSpawnRequest(buffer);
+-            server.execute(() -> AioaSpawnStudioHandler.handle(player, request));
++        PayloadTypeRegistry.playC2S().register(AioaSpawnPayload.TYPE, AioaSpawnPayload.CODEC);
++        PayloadTypeRegistry.playC2S().register(AioaGraphPayload.TYPE, AioaGraphPayload.CODEC);
++        ServerPlayNetworking.registerGlobalReceiver(AioaSpawnPayload.TYPE, (payload, context) -> {
++            context.server().execute(() -> AioaSpawnStudioHandler.handle(context.player(), payload.request()));
+         });
+-        ServerPlayNetworking.registerGlobalReceiver(GRAPH_UPDATE, (server, player, handler, buffer, responseSender) -> {
+-            AioaGraphUpdateRequest request = new AioaGraphUpdateRequest(buffer.readUtf(65_536));
+-            server.execute(() -> AioaGraphUpdateHandler.handle(player, request));
++        ServerPlayNetworking.registerGlobalReceiver(AioaGraphPayload.TYPE, (payload, context) -> {
++            context.server().execute(() -> AioaGraphUpdateHandler.handle(context.player(), payload.request()));
+         });
+     }
+-
+-    private static AioaSpawnRequest readSpawnRequest(FriendlyByteBuf buffer) {
+-        return new AioaSpawnRequest(
+-                buffer.readUtf(128), buffer.readDouble(), buffer.readDouble(), buffer.readDouble(),
+-                buffer.readBoolean(), buffer.readBoolean(), buffer.readBoolean()
+-        );
+-    }
+ }
+--- a/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabricClient.java
++++ b/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabricClient.java
+@@ -1,4 +1,8 @@
+ package com.flubburr.aioa.fabric;
++
++import com.flubburr.aioa.network.AioaSpawnPayload;
++
++import com.flubburr.aioa.network.AioaGraphPayload;
+ 
+ import com.flubburr.aioa.AioaConstants;
+ import com.flubburr.aioa.client.config.AioaConfigScreen;
+@@ -12,7 +16,6 @@
+ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
+ import net.minecraft.client.KeyMapping;
+ import net.minecraft.network.chat.Component;
+ import org.lwjgl.glfw.GLFW;
+@@ -36,22 +39,8 @@
+                 GLFW.GLFW_KEY_F7,
+                 "key.categories." + AioaConstants.MOD_ID
+         ));
+-        AioaClientNetworking.registerSender(request -> {
+-            var buffer = PacketByteBufs.create();
+-            buffer.writeUtf(request.entityId(), 128);
+-            buffer.writeDouble(request.x());
+-            buffer.writeDouble(request.y());
+-            buffer.writeDouble(request.z());
+-            buffer.writeBoolean(request.noAi());
+-            buffer.writeBoolean(request.facePlayer());
+-            buffer.writeBoolean(request.persistent());
+-            ClientPlayNetworking.send(AioaFabric.SPAWN_REQUEST, buffer);
+-        });
+-        AioaClientNetworking.registerGraphSender(request -> {
+-            var buffer = PacketByteBufs.create();
+-            buffer.writeUtf(request.graphJson(), 65_536);
+-            ClientPlayNetworking.send(AioaFabric.GRAPH_UPDATE, buffer);
+-        });
++        AioaClientNetworking.registerSender(request -> ClientPlayNetworking.send(new AioaSpawnPayload(request)));
++        AioaClientNetworking.registerGraphSender(request -> ClientPlayNetworking.send(new AioaGraphPayload(request)));
+ 
+         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+             AioaScreenUtil.tickMenuAudio(client);
+--- a/fabric/src/main/java/com/flubburr/aioa/fabric/config/AioaMidnightConfig.java
++++ /dev/null
+@@ -1,301 +0,0 @@
+-package com.flubburr.aioa.fabric.config;
+-
+-import com.flubburr.aioa.AioaConstants;
+-import com.flubburr.aioa.config.AioaConfig;
+-import com.flubburr.aioa.config.AioaConfigManager;
+-import eu.midnightdust.lib.config.MidnightConfig;
+-
+-import java.lang.reflect.Field;
+-import java.lang.reflect.Method;
+-import java.util.ArrayList;
+-import java.util.List;
+-import java.util.Map;
+-
+-public final class AioaMidnightConfig extends MidnightConfig {
+-
+-    private static final String HOSTILE_CATEGORY = "hostile_spawn_control";
+-    private static final String DAY_CATEGORY = "day_surface_spawns";
+-    private static final String AI_CATEGORY = "mob_behavior";
+-    private static final String ENTRY_KEY_PREFIX = AioaConstants.MOD_ID + ":";
+-
+-    private static boolean initialized;
+-    private static final Field ENTRY_VALUE_FIELD;
+-    private static final Field ENTRY_TEMP_VALUE_FIELD;
+-    private static final Field ENTRY_DEFAULT_VALUE_FIELD;
+-
+-    static {
+-        ENTRY_VALUE_FIELD = resolveEntryInfoField("value");
+-        ENTRY_TEMP_VALUE_FIELD = resolveEntryInfoField("tempValue");
+-        ENTRY_DEFAULT_VALUE_FIELD = resolveEntryInfoField("defaultValue");
+-    }
+-
+-    @Comment(category = HOSTILE_CATEGORY)
+-    public static String hostile_spawn_settings_comment = "";
+-
+-    @Entry(category = HOSTILE_CATEGORY)
+-    public static boolean enable_hostile_spawn_nullification = true;
+-
+-    @Entry(category = HOSTILE_CATEGORY)
+-    public static boolean hostile_nullification_overworld_only = true;
+-
+-    @Entry(category = HOSTILE_CATEGORY)
+-    public static boolean ignore_structure_spawns = true;
+-
+-    @Entry(category = HOSTILE_CATEGORY)
+-    public static boolean ignore_spawner_spawns = true;
+-
+-    @Entry(category = HOSTILE_CATEGORY)
+-    public static boolean ignore_special_spawns = true;
+-
+-    @Entry(category = HOSTILE_CATEGORY)
+-    public static List<String> whitelist_entity_ids = new ArrayList<>();
+-
+-    @Comment(category = DAY_CATEGORY)
+-    public static String day_spawn_settings_comment = "";
+-
+-    @Entry(category = DAY_CATEGORY)
+-    public static boolean enable_day_surface_spawns = true;
+-
+-    @Entry(category = DAY_CATEGORY)
+-    public static boolean day_spawns_overworld_only = true;
+-
+-    @Entry(category = DAY_CATEGORY)
+-    public static boolean require_daytime = true;
+-
+-    @Entry(category = DAY_CATEGORY)
+-    public static boolean require_clear_sky = true;
+-
+-    @Entry(category = DAY_CATEGORY)
+-    public static boolean prevent_sunlight_burn = true;
+-
+-    @Entry(category = DAY_CATEGORY)
+-    public static boolean export_mob_catalog = true;
+-
+-    @Entry(category = DAY_CATEGORY, min = 20, max = 24000)
+-    public static int spawn_interval_ticks = 200;
+-
+-    @Entry(category = DAY_CATEGORY, min = 1, max = 16)
+-    public static int spawn_attempts_per_player = 2;
+-
+-    @Entry(category = DAY_CATEGORY, min = 8, max = 128)
+-    public static int min_spawn_distance = 24;
+-
+-    @Entry(category = DAY_CATEGORY, min = 16, max = 256)
+-    public static int max_spawn_distance = 56;
+-
+-    @Entry(category = DAY_CATEGORY, min = 1, max = 256)
+-    public static int max_nearby_managed_mobs = 20;
+-
+-    @Entry(category = DAY_CATEGORY)
+-    public static List<String> allowed_biome_ids = new ArrayList<>();
+-
+-    @Entry(category = DAY_CATEGORY)
+-    public static List<String> spawn_pool_entries = new ArrayList<>();
+-
+-    @Comment(category = AI_CATEGORY)
+-    public static String mob_behavior_settings_comment = "";
+-
+-    @Entry(category = AI_CATEGORY)
+-    public static AioaConfig.ZombieVariantMode zombie_variant_mode = AioaConfig.ZombieVariantMode.REGULAR_AND_BABY;
+-
+-    @Entry(category = AI_CATEGORY)
+-    public static AioaConfig.ZombieTargetMode zombie_target_mode = AioaConfig.ZombieTargetMode.VANILLA;
+-
+-    @Entry(category = AI_CATEGORY)
+-    public static boolean zombies_can_climb_walls = true;
+-
+-    @Entry(category = AI_CATEGORY)
+-    public static boolean refined_zombie_ai = true;
+-
+-    @Entry(category = AI_CATEGORY)
+-    public static boolean refined_pathfinding_opens_doors = true;
+-
+-    @Entry(category = AI_CATEGORY)
+-    public static boolean coordinated_horde_ai = true;
+-
+-    @Entry(category = AI_CATEGORY)
+-    public static List<String> refined_ai_entity_ids = new ArrayList<>();
+-
+-    @Entry(category = AI_CATEGORY)
+-    public static List<String> wall_climbing_entity_ids = new ArrayList<>();
+-
+-    @Entry(category = AI_CATEGORY)
+-    public static List<String> player_only_target_entity_ids = new ArrayList<>();
+-
+-    @Entry(category = AI_CATEGORY)
+-    public static List<String> animal_target_entity_ids = new ArrayList<>();
+-
+-    @Entry(category = AI_CATEGORY)
+-    public static List<String> other_mob_target_entity_ids = new ArrayList<>();
+-
+-    @Entry(category = AI_CATEGORY)
+-    public static List<String> everything_target_entity_ids = new ArrayList<>();
+-
+-    public static void initialize() {
+-        if (initialized) {
+-            return;
+-        }
+-
+-        initialized = true;
+-        MidnightConfig.init(AioaConstants.MOD_ID, AioaMidnightConfig.class);
+-        pullFromCommon();
+-    }
+-
+-    public static void pullFromCommon() {
+-        AioaConfig config = AioaConfigManager.getConfigCopy();
+-        enable_hostile_spawn_nullification = config.hostileSpawnControl.enabled;
+-        hostile_nullification_overworld_only = config.hostileSpawnControl.overworldOnly;
+-        ignore_structure_spawns = config.hostileSpawnControl.ignoreStructureSpawns;
+-        ignore_spawner_spawns = config.hostileSpawnControl.ignoreSpawnerSpawns;
+-        ignore_special_spawns = config.hostileSpawnControl.ignoreSpecialSpawns;
+-        whitelist_entity_ids = safeList(config.hostileSpawnControl.whitelistEntityIds);
+-
+-        enable_day_surface_spawns = config.daySurfaceSpawns.enabled;
+-        day_spawns_overworld_only = config.daySurfaceSpawns.overworldOnly;
+-        require_daytime = config.daySurfaceSpawns.requireDaytime;
+-        require_clear_sky = config.daySurfaceSpawns.requireClearSky;
+-        prevent_sunlight_burn = config.daySurfaceSpawns.preventSunlightBurn;
+-        export_mob_catalog = config.daySurfaceSpawns.exportMobCatalog;
+-        spawn_interval_ticks = config.daySurfaceSpawns.spawnIntervalTicks;
+-        spawn_attempts_per_player = config.daySurfaceSpawns.spawnAttemptsPerPlayer;
+-        min_spawn_distance = config.daySurfaceSpawns.minSpawnDistance;
+-        max_spawn_distance = config.daySurfaceSpawns.maxSpawnDistance;
+-        max_nearby_managed_mobs = config.daySurfaceSpawns.maxNearbyManagedMobs;
+-        allowed_biome_ids = safeList(config.daySurfaceSpawns.allowedBiomeIds);
+-        spawn_pool_entries = safeList(config.daySurfaceSpawns.spawnPoolEntries);
+-
+-        zombie_variant_mode = config.daySurfaceSpawns.zombieVariantMode;
+-        zombie_target_mode = config.daySurfaceSpawns.zombieTargetMode;
+-        zombies_can_climb_walls = config.daySurfaceSpawns.zombiesCanClimbWalls;
+-        refined_zombie_ai = config.daySurfaceSpawns.refinedZombieAi;
+-        refined_pathfinding_opens_doors = config.daySurfaceSpawns.refinedPathfindingOpensDoors;
+-        coordinated_horde_ai = config.daySurfaceSpawns.coordinatedHordeAi;
+-        refined_ai_entity_ids = safeList(config.daySurfaceSpawns.refinedAiEntityIds);
+-        wall_climbing_entity_ids = safeList(config.daySurfaceSpawns.wallClimbingEntityIds);
+-        player_only_target_entity_ids = safeList(config.daySurfaceSpawns.playerOnlyTargetEntityIds);
+-        animal_target_entity_ids = safeList(config.daySurfaceSpawns.animalTargetEntityIds);
+-        other_mob_target_entity_ids = safeList(config.daySurfaceSpawns.otherMobTargetEntityIds);
+-        everything_target_entity_ids = safeList(config.daySurfaceSpawns.everythingTargetEntityIds);
+-
+-        syncMidnightEntryState();
+-    }
+-
+-    public void loadValuesFromJson() {
+-        pullFromCommon();
+-    }
+-
+-    public void writeChanges() {
+-        AioaConfig config = AioaConfigManager.getConfigCopy();
+-        config.hostileSpawnControl.enabled = enable_hostile_spawn_nullification;
+-        config.hostileSpawnControl.overworldOnly = hostile_nullification_overworld_only;
+-        config.hostileSpawnControl.ignoreStructureSpawns = ignore_structure_spawns;
+-        config.hostileSpawnControl.ignoreSpawnerSpawns = ignore_spawner_spawns;
+-        config.hostileSpawnControl.ignoreSpecialSpawns = ignore_special_spawns;
+-        config.hostileSpawnControl.whitelistEntityIds = safeList(whitelist_entity_ids);
+-
+-        config.daySurfaceSpawns.enabled = enable_day_surface_spawns;
+-        config.daySurfaceSpawns.overworldOnly = day_spawns_overworld_only;
+-        config.daySurfaceSpawns.requireDaytime = require_daytime;
+-        config.daySurfaceSpawns.requireClearSky = require_clear_sky;
+-        config.daySurfaceSpawns.preventSunlightBurn = prevent_sunlight_burn;
+-        config.daySurfaceSpawns.exportMobCatalog = export_mob_catalog;
+-        config.daySurfaceSpawns.spawnIntervalTicks = spawn_interval_ticks;
+-        config.daySurfaceSpawns.spawnAttemptsPerPlayer = spawn_attempts_per_player;
+-        config.daySurfaceSpawns.minSpawnDistance = min_spawn_distance;
+-        config.daySurfaceSpawns.maxSpawnDistance = max_spawn_distance;
+-        config.daySurfaceSpawns.maxNearbyManagedMobs = max_nearby_managed_mobs;
+-        config.daySurfaceSpawns.allowedBiomeIds = safeList(allowed_biome_ids);
+-        config.daySurfaceSpawns.spawnPoolEntries = safeList(spawn_pool_entries);
+-
+-        config.daySurfaceSpawns.zombieVariantMode = zombie_variant_mode;
+-        config.daySurfaceSpawns.zombieTargetMode = zombie_target_mode;
+-        config.daySurfaceSpawns.zombiesCanClimbWalls = zombies_can_climb_walls;
+-        config.daySurfaceSpawns.refinedZombieAi = refined_zombie_ai;
+-        config.daySurfaceSpawns.refinedPathfindingOpensDoors = refined_pathfinding_opens_doors;
+-        config.daySurfaceSpawns.coordinatedHordeAi = coordinated_horde_ai;
+-        config.daySurfaceSpawns.refinedAiEntityIds = safeList(refined_ai_entity_ids);
+-        config.daySurfaceSpawns.wallClimbingEntityIds = safeList(wall_climbing_entity_ids);
+-        config.daySurfaceSpawns.playerOnlyTargetEntityIds = safeList(player_only_target_entity_ids);
+-        config.daySurfaceSpawns.animalTargetEntityIds = safeList(animal_target_entity_ids);
+-        config.daySurfaceSpawns.otherMobTargetEntityIds = safeList(other_mob_target_entity_ids);
+-        config.daySurfaceSpawns.everythingTargetEntityIds = safeList(everything_target_entity_ids);
+-
+-        AioaConfigManager.save(config);
+-        pullFromCommon();
+-    }
+-
+-    private static List<String> safeList(List<String> source) {
+-        return source == null ? new ArrayList<>() : new ArrayList<>(source);
+-    }
+-
+-    private static Field resolveEntryInfoField(String fieldName) {
+-        try {
+-            Class<?> entryInfoClass = Class.forName("eu.midnightdust.lib.config.EntryInfo");
+-            Field field = entryInfoClass.getDeclaredField(fieldName);
+-            field.setAccessible(true);
+-            return field;
+-        } catch (Exception exception) {
+-            AioaConstants.LOG.warn("AIOA could not access MidnightLib internals for '{}' state sync.", fieldName, exception);
+-            return null;
+-        }
+-    }
+-
+-    private static void syncMidnightEntryState() {
+-        if (ENTRY_VALUE_FIELD == null || ENTRY_TEMP_VALUE_FIELD == null || ENTRY_DEFAULT_VALUE_FIELD == null) {
+-            return;
+-        }
+-
+-        Map<?, ?> entries = resolveMidnightEntries();
+-        if (entries == null) {
+-            return;
+-        }
+-
+-        entries.forEach((rawKey, entryInfo) -> {
+-            String key = String.valueOf(rawKey);
+-            if (!key.startsWith(ENTRY_KEY_PREFIX) || entryInfo == null) {
+-                return;
+-            }
+-
+-            try {
+-                Field fieldField = entryInfo.getClass().getField("field");
+-                Field entryField = entryInfo.getClass().getField("entry");
+-                Field configField = (Field) fieldField.get(entryInfo);
+-                Object entryAnnotation = entryField.get(entryInfo);
+-                if (configField == null || entryAnnotation == null) {
+-                    return;
+-                }
+-
+-                Object fieldValue = configField.get(null);
+-                if (fieldValue == null) {
+-                    fieldValue = ENTRY_DEFAULT_VALUE_FIELD.get(entryInfo);
+-                }
+-                if (fieldValue == null) {
+-                    return;
+-                }
+-
+-                ENTRY_VALUE_FIELD.set(entryInfo, fieldValue);
+-                Method toTemporaryValue = entryInfo.getClass().getMethod("toTemporaryValue");
+-                ENTRY_TEMP_VALUE_FIELD.set(entryInfo, toTemporaryValue.invoke(entryInfo));
+-                Method updateConditions = entryInfo.getClass().getMethod("updateConditions");
+-                updateConditions.invoke(entryInfo);
+-            } catch (Exception exception) {
+-                AioaConfigManager.warnOnce(
+-                        "midnight-sync-" + key,
+-                        "AIOA could not sync MidnightLib state for '" + key + "'. Config UI may be partially degraded."
+-                );
+-            }
+-        });
+-    }
+-
+-    @SuppressWarnings("unchecked")
+-    private static Map<?, ?> resolveMidnightEntries() {
+-        try {
+-            Field entriesField = MidnightConfig.class.getDeclaredField("entries");
+-            entriesField.setAccessible(true);
+-            return (Map<?, ?>) entriesField.get(null);
+-        } catch (Exception exception) {
+-            AioaConstants.LOG.warn("AIOA could not access MidnightLib entry registry for state sync.", exception);
+-            return null;
+-        }
+-    }
+-}
+--- a/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeClient.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeClient.java
+@@ -6,7 +6,6 @@
+ import com.flubburr.aioa.network.AioaClientNetworking;
+ import com.flubburr.aioa.forge.AioaForge;
+ import com.mojang.blaze3d.platform.InputConstants;
+-import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.client.KeyMapping;
+ import net.minecraftforge.client.ConfigScreenHandler;
+@@ -35,7 +34,7 @@
+         FMLJavaModLoadingContext.get().getModEventBus().addListener(AioaForgeClient::onRegisterKeyMappings);
+         ModLoadingContext.get().registerExtensionPoint(
+                 ConfigScreenHandler.ConfigScreenFactory.class,
+-                () -> new ConfigScreenHandler.ConfigScreenFactory((client, parent) -> AioaForgeClient.createScreen(parent))
++                () -> new ConfigScreenHandler.ConfigScreenFactory(parent -> AioaForgeClient.createScreen(parent))
+         );
+         AioaClientNetworking.registerSender(request -> AioaForge.NETWORK.send(request, net.minecraftforge.network.PacketDistributor.SERVER.noArg()));
+         AioaClientNetworking.registerGraphSender(request -> AioaForge.NETWORK.send(request, net.minecraftforge.network.PacketDistributor.SERVER.noArg()));
+@@ -44,10 +43,6 @@
+     private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+         event.register(OPEN_CONFIG_KEY);
+         event.register(OPEN_SPAWN_STUDIO_KEY);
+-    }
+-
+-    public static Screen createScreen(Minecraft minecraft, Screen parent) {
+-        return createScreen(parent);
+     }
+ 
+     public static Screen createScreen(Screen parent) {
+--- a/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeFallbackConfigScreen.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeFallbackConfigScreen.java
+@@ -1,6 +1,5 @@
+ package com.flubburr.aioa.forge.config;
+ 
+-import com.flubburr.aioa.client.config.AioaScreenUtil;
+ import com.flubburr.aioa.config.AioaConfig;
+ import com.flubburr.aioa.config.AioaConfigManager;
+ import net.minecraft.client.gui.GuiGraphics;
+@@ -111,7 +110,7 @@
+ 
+     @Override
+     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-        AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
++        guiGraphics.fill(0, 0, this.width, this.height, 0xFF101010);
+         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+         guiGraphics.drawCenteredString(
+                 this.font,
+@@ -228,7 +227,7 @@
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
++            guiGraphics.fill(0, 0, this.width, this.height, 0xFF101010);
+             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+             super.render(guiGraphics, mouseX, mouseY, partialTick);
+         }
+@@ -384,18 +383,13 @@
+         }
+ 
+         @Override
+-        public void tick() {
+-            super.tick();
+-        }
+-
+-        @Override
+         public void onClose() {
+             this.minecraft.setScreen(this.parent);
+         }
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
++            guiGraphics.fill(0, 0, this.width, this.height, 0xFF101010);
+             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+ 
+             int labelX = this.width / 2 - 150;
+@@ -499,18 +493,13 @@
+         }
+ 
+         @Override
+-        public void tick() {
+-            super.tick();
+-        }
+-
+-        @Override
+         public void onClose() {
+             this.minecraft.setScreen(this.parent);
+         }
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
++            guiGraphics.fill(0, 0, this.width, this.height, 0xFF101010);
+             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+             guiGraphics.drawCenteredString(this.font, this.description, this.width / 2, 30, 0xA0A0A0);
+             super.render(guiGraphics, mouseX, mouseY, partialTick);
+--- a/neoforge/src/main/java/com/flubburr/aioa/neoforge/AioaNeoForge.java
++++ b/neoforge/src/main/java/com/flubburr/aioa/neoforge/AioaNeoForge.java
+@@ -4,6 +4,8 @@
+ import com.flubburr.aioa.AioaConstants;
+ import com.flubburr.aioa.behavior.AioaGraphUpdateHandler;
+ import com.flubburr.aioa.compat.AioaEntityHelper;
++import com.flubburr.aioa.network.AioaGraphPayload;
++import com.flubburr.aioa.network.AioaSpawnPayload;
+ import com.flubburr.aioa.spawn.AioaSpawnStudioHandler;
+ import net.minecraft.core.registries.Registries;
+ import net.minecraft.server.level.ServerLevel;
+@@ -14,22 +16,33 @@
+ import net.neoforged.fml.ModContainer;
+ import net.neoforged.fml.common.Mod;
+ import net.neoforged.neoforge.common.NeoForge;
+-import net.neoforged.neoforge.event.TickEvent;
++import net.neoforged.neoforge.event.tick.LevelTickEvent;
++import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+ import net.neoforged.neoforge.registries.DeferredRegister;
+ 
+ @Mod(AioaConstants.MOD_ID)
+ public final class AioaNeoForge {
+-    public AioaNeoForge(IEventBus modBus) {
++    public AioaNeoForge(IEventBus modBus, ModContainer container, Dist dist) {
+         var sounds = DeferredRegister.create(Registries.SOUND_EVENT, AioaConstants.MOD_ID);
+         sounds.register("music.menu", () -> SoundEvent.createVariableRangeEvent(AioaEntityHelper.parseResourceLocation("aioa:music.menu")));
+         sounds.register(modBus);
+-        AioaLegacyNetwork.register(modBus);
++        modBus.addListener(AioaNeoForge::registerPayloads);
+         NeoForge.EVENT_BUS.addListener(AioaNeoForge::endLevelTick);
+         AioaCommon.init();
+-        if (net.neoforged.fml.loading.FMLEnvironment.dist == Dist.CLIENT) AioaNeoForgeClient.register(modBus);
++        if (dist == Dist.CLIENT) AioaNeoForgeClient.register(modBus, container);
+     }
+ 
+-    private static void endLevelTick(TickEvent.LevelTickEvent event) {
+-        if (event.phase == TickEvent.Phase.END && event.level instanceof ServerLevel level) AioaCommon.onServerLevelTick(level);
++    private static void registerPayloads(RegisterPayloadHandlersEvent event) {
++        var registrar = event.registrar("1");
++        registrar.playToServer(AioaSpawnPayload.TYPE, AioaSpawnPayload.CODEC, (payload, context) -> {
++            if (context.player() instanceof ServerPlayer player) AioaSpawnStudioHandler.handle(player, payload.request());
++        });
++        registrar.playToServer(AioaGraphPayload.TYPE, AioaGraphPayload.CODEC, (payload, context) -> {
++            if (context.player() instanceof ServerPlayer player) AioaGraphUpdateHandler.handle(player, payload.request());
++        });
++    }
++
++    private static void endLevelTick(LevelTickEvent.Post event) {
++        if (event.getLevel() instanceof ServerLevel level) AioaCommon.onServerLevelTick(level);
+     }
+ }
+--- a/neoforge/src/main/java/com/flubburr/aioa/neoforge/AioaNeoForgeClient.java
++++ b/neoforge/src/main/java/com/flubburr/aioa/neoforge/AioaNeoForgeClient.java
+@@ -5,14 +5,16 @@
+ import com.flubburr.aioa.client.config.AioaMobSelectionController;
+ import com.flubburr.aioa.client.config.AioaScreenUtil;
+ import com.flubburr.aioa.network.AioaClientNetworking;
++import com.flubburr.aioa.network.AioaGraphPayload;
++import com.flubburr.aioa.network.AioaSpawnPayload;
+ import com.mojang.blaze3d.platform.InputConstants;
+ import net.minecraft.client.KeyMapping;
+ import net.minecraft.client.Minecraft;
+ import net.neoforged.bus.api.IEventBus;
+ import net.neoforged.fml.ModContainer;
+-import net.neoforged.neoforge.event.TickEvent;
++import net.neoforged.neoforge.client.event.ClientTickEvent;
+ import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+-import net.neoforged.neoforge.client.ConfigScreenHandler;
++import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
+ import net.neoforged.neoforge.common.NeoForge;
+ import net.neoforged.neoforge.network.PacketDistributor;
+ import org.lwjgl.glfw.GLFW;
+@@ -21,11 +23,11 @@
+     private static final KeyMapping CONFIG = new KeyMapping("key.aioa.open_config", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F6, "key.categories.aioa");
+     private static final KeyMapping EDITOR = new KeyMapping("key.aioa.open_behavior_graph", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F7, "key.categories.aioa");
+ 
+-    static void register(IEventBus modBus) {
++    static void register(IEventBus modBus, ModContainer container) {
+         modBus.addListener(AioaNeoForgeClient::registerKeys);
+-        net.neoforged.fml.ModLoadingContext.get().registerExtensionPoint(ConfigScreenHandler.ConfigScreenFactory.class, () -> new ConfigScreenHandler.ConfigScreenFactory((client, parent) -> AioaConfigScreen.create(parent)));
+-        AioaClientNetworking.registerSender(AioaLegacyNetwork::send);
+-        AioaClientNetworking.registerGraphSender(AioaLegacyNetwork::send);
++        container.registerExtensionPoint(IConfigScreenFactory.class, (mod, parent) -> AioaConfigScreen.create(parent));
++        AioaClientNetworking.registerSender(request -> PacketDistributor.sendToServer(new AioaSpawnPayload(request)));
++        AioaClientNetworking.registerGraphSender(request -> PacketDistributor.sendToServer(new AioaGraphPayload(request)));
+         NeoForge.EVENT_BUS.addListener(AioaNeoForgeClient::clientTick);
+     }
+ 
+@@ -34,8 +36,7 @@
+         event.register(EDITOR);
+     }
+ 
+-    private static void clientTick(TickEvent.ClientTickEvent event) {
+-        if (event.phase != TickEvent.Phase.END) return;
++    private static void clientTick(ClientTickEvent.Post event) {
+         Minecraft client = Minecraft.getInstance();
+         AioaScreenUtil.tickMenuAudio(client);
+         AioaMobSelectionController.tick(client);

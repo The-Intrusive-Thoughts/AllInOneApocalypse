@@ -1,0 +1,447 @@
+--- a/common/src/main/java/com/flubburr/aioa/behavior/AioaBehaviorRuntime.java
++++ b/common/src/main/java/com/flubburr/aioa/behavior/AioaBehaviorRuntime.java
+@@ -272,7 +272,7 @@
+             case FIND_PLAYER_NAME -> {
+                 String playerName = node.parameters.getOrDefault("name", "");
+                 context.target = nearest(mob, Player.class, range, candidate -> !candidate.isSpectator()
+-                        && candidate.getGameProfile().getName().equalsIgnoreCase(playerName));
++                        && candidate.getGameProfile().name().equalsIgnoreCase(playerName));
+                 return context.target == null ? "missing" : "found";
+             }
+             case FIND_NEAREST_ANIMAL -> {
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaAnimatedScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaAnimatedScreen.java
+@@ -2,6 +2,7 @@
+ 
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.screens.Screen;
++import net.minecraft.client.input.KeyEvent;
+ import net.minecraft.network.chat.Component;
+ 
+ abstract class AioaAnimatedScreen extends Screen {
+@@ -101,11 +102,11 @@
+     }
+ 
+     @Override
+-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
++    public boolean keyPressed(KeyEvent event) {
+         if (this.closingTicks >= 0) {
+             return true;
+         }
+-        return super.keyPressed(keyCode, scanCode, modifiers);
++        return super.keyPressed(event);
+     }
+ 
+     private float closeProgress() {
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaBehaviorEditorScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaBehaviorEditorScreen.java
+@@ -16,8 +16,11 @@
+ import net.minecraft.client.gui.components.EditBox;
+ import net.minecraft.client.gui.components.AbstractWidget;
+ import net.minecraft.client.gui.screens.Screen;
++import net.minecraft.client.input.MouseButtonEvent;
++import net.minecraft.client.input.KeyEvent;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.world.entity.Mob;
++import org.lwjgl.glfw.GLFW;
+ import net.minecraft.world.item.ItemStack;
+ import com.mojang.logging.LogUtils;
+ import org.slf4j.Logger;
+@@ -1422,7 +1425,10 @@
+     }
+ 
+     @Override
+-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
++    public boolean mouseClicked(MouseButtonEvent event, boolean eventDoubleClick) {
++        double mouseX = event.x();
++        double mouseY = event.y();
++        int button = event.button();
+         if (this.activeTopMenu != null && topMenuClicked(mouseX, mouseY, button)) return true;
+         if (this.activeTopMenu != null && !(mouseY >= 28 && mouseY <= 52)) {
+             this.activeTopMenu = null;
+@@ -1440,7 +1446,7 @@
+                 closeParameterPopover();
+                 return true;
+             }
+-            if (insideParameters) return super.mouseClicked(mouseX, mouseY, button);
++            if (insideParameters) return super.mouseClicked(event, eventDoubleClick);
+             if (button == 0) closeParameterPopover();
+         }
+         FloatingWindow focusedWindow = floatingAt(mouseX, mouseY);
+@@ -1592,7 +1598,7 @@
+                     rebuildEditorWidgets();
+                     return true;
+                 }
+-                if (Screen.hasShiftDown()) {
++                if (shiftDown()) {
+                     if (!this.selectedNodeIds.add(hit.id)) {
+                         this.selectedNodeIds.remove(hit.id);
+                         if (this.selected == hit) this.selected = null;
+@@ -1657,7 +1663,7 @@
+                 this.contextGraphY = (int) Math.round((mouseY - canvasTop() - this.canvasPanY) / this.canvasZoom);
+                 return true;
+             }
+-            if (button == 0 && Screen.hasShiftDown()) {
++            if (button == 0 && shiftDown()) {
+                 this.marqueeSelecting = true;
+                 this.marqueeStartX = this.marqueeEndX = (int) mouseX;
+                 this.marqueeStartY = this.marqueeEndY = (int) mouseY;
+@@ -1677,11 +1683,14 @@
+                 return true;
+             }
+         }
+-        return super.mouseClicked(mouseX, mouseY, button);
++        return super.mouseClicked(event, eventDoubleClick);
+     }
+ 
+     @Override
+-    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
++    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
++        double mouseX = event.x();
++        double mouseY = event.y();
++        int button = event.button();
+         if (this.marqueeSelecting) {
+             this.marqueeEndX = (int) mouseX;
+             this.marqueeEndY = (int) mouseY;
+@@ -1745,11 +1754,13 @@
+             this.canvasPanY = (int) mouseY - this.dragOffsetY;
+             return true;
+         }
+-        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
++        return super.mouseDragged(event, dragX, dragY);
+     }
+ 
+     @Override
+-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
++    public boolean mouseReleased(MouseButtonEvent event) {
++        double mouseX = event.x();
++        double mouseY = event.y();
+         if (this.draggingLink) {
+             AioaBehaviorGraph.Node target = nodeAt(mouseX, mouseY);
+             String targetInput = target == null ? null : inputAt(target, mouseX, mouseY);
+@@ -1796,7 +1807,7 @@
+         this.draggingFloatingWindow = null;
+         saveGraphLayout();
+         markDirty(false);
+-        return super.mouseReleased(mouseX, mouseY, button);
++        return super.mouseReleased(event);
+     }
+ 
+     private boolean floatingHeaderClicked(double mouseX, double mouseY, FloatingWindow window) {
+@@ -1889,7 +1900,7 @@
+             return true;
+         }
+         if (insideCanvas(mouseX, mouseY)) {
+-            if (!Screen.hasShiftDown()) {
++            if (!shiftDown()) {
+                 double oldZoom = this.canvasZoom;
+                 double graphX = (mouseX - canvasLeft() - this.canvasPanX) / oldZoom;
+                 double graphY = (mouseY - canvasTop() - this.canvasPanY) / oldZoom;
+@@ -1977,20 +1988,21 @@
+     private static double clampZoom(double value) { return Math.max(0.05D, Math.min(16.0D, value)); }
+ 
+     @Override
+-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
++    public boolean keyPressed(KeyEvent event) {
++        int keyCode = event.key();
+         if (keyCode == 257 && this.selected != null && (this.parameterKey.isFocused() || this.parameterValue.isFocused())) {
+             setParameter();
+             return true;
+         }
+-        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_K && Screen.hasControlDown()) {
++        if (keyCode == GLFW.GLFW_KEY_K && (event.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0) {
+             this.paletteCollapsed = false;
+             bringToFront(FloatingWindow.PALETTE);
+             rebuildEditorWidgets();
+             this.setFocused(this.paletteSearch);
+             return true;
+         }
+-        if (this.getFocused() instanceof EditBox box && box.isFocused()) return super.keyPressed(keyCode, scanCode, modifiers);
+-        if (Screen.hasControlDown()) {
++        if (this.getFocused() instanceof EditBox box && box.isFocused()) return super.keyPressed(event);
++        if (controlDown()) {
+             if (keyCode == 65) {
+                 this.selectedNodeIds.clear();
+                 this.graph.nodes.stream().filter(this::isNodeVisible).forEach(node -> this.selectedNodeIds.add(node.id));
+@@ -2008,7 +2020,21 @@
+         if (keyCode == 261) { deleteSelected(); return true; }
+         if (keyCode == 72) { this.showHelp = !this.showHelp; return true; }
+         if (keyCode == 70) { fitGraph(); return true; }
+-        return super.keyPressed(keyCode, scanCode, modifiers);
++        return super.keyPressed(event);
++    }
++
++    private boolean controlDown() {
++        if (this.minecraft == null) return false;
++        long window = this.minecraft.getWindow().handle();
++        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
++                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
++    }
++
++    private boolean shiftDown() {
++        if (this.minecraft == null) return false;
++        long window = this.minecraft.getWindow().handle();
++        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
++                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+     }
+ 
+     @Override
+@@ -2041,7 +2067,10 @@
+             int top = Math.min(this.marqueeStartY, this.marqueeEndY);
+             int bottomBox = Math.max(this.marqueeStartY, this.marqueeEndY);
+             guiGraphics.fill(left, top, rightBox, bottomBox, 0x332FEA83);
+-            guiGraphics.renderOutline(left, top, Math.max(1, rightBox - left), Math.max(1, bottomBox - top), 0xFF96CCA0);
++            guiGraphics.fill(left, top, rightBox, top + 1, 0xFF96CCA0);
++            guiGraphics.fill(left, bottomBox - 1, rightBox, bottomBox, 0xFF96CCA0);
++            guiGraphics.fill(left, top, left + 1, bottomBox, 0xFF96CCA0);
++            guiGraphics.fill(rightBox - 1, top, rightBox, bottomBox, 0xFF96CCA0);
+         }
+         if (this.draggingLink && this.linkStart != null) {
+             new BehaviorBoard.Wire(screenNodeX(this.linkStart) + nodeWidth(), outputPortY(this.linkStart, this.linkOutput),
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaBiomeToggleScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaBiomeToggleScreen.java
+@@ -10,6 +10,7 @@
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.resources.ResourceLocation;
+ import org.lwjgl.glfw.GLFW;
++import net.minecraft.client.input.KeyEvent;
+ 
+ import java.util.ArrayList;
+ import java.util.HashMap;
+@@ -263,12 +264,13 @@
+     }
+ 
+     @Override
+-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
++    public boolean keyPressed(KeyEvent event) {
++        int keyCode = event.key();
+         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+             this.closeToParent();
+             return true;
+         }
+-        return super.keyPressed(keyCode, scanCode, modifiers);
++        return super.keyPressed(event);
+     }
+ 
+     private int previewHeight() {
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityPickerScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityPickerScreen.java
+@@ -5,6 +5,7 @@
+ import net.minecraft.client.gui.components.EditBox;
+ import net.minecraft.client.gui.components.Tooltip;
+ import net.minecraft.client.gui.screens.Screen;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.resources.ResourceLocation;
+ 
+@@ -130,7 +131,10 @@
+     }
+ 
+     @Override
+-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
++    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++        double mouseX = event.x();
++        double mouseY = event.y();
++        int button = event.button();
+         if (button == 0) {
+             if (this.closeButton != null && this.closeButton.isMouseOver(mouseX, mouseY)) {
+                 this.transitionTo(this.parent);
+@@ -145,7 +149,7 @@
+                 return true;
+             }
+         }
+-        return super.mouseClicked(mouseX, mouseY, button);
++        return super.mouseClicked(event, doubleClick);
+     }
+ 
+     @Override
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityToggleScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityToggleScreen.java
+@@ -9,6 +9,7 @@
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.resources.ResourceLocation;
+ import org.lwjgl.glfw.GLFW;
++import net.minecraft.client.input.KeyEvent;
+ 
+ import java.util.ArrayList;
+ import java.util.HashMap;
+@@ -314,12 +315,13 @@
+     }
+ 
+     @Override
+-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
++    public boolean keyPressed(KeyEvent event) {
++        int keyCode = event.key();
+         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+             this.closeToParent();
+             return true;
+         }
+-        return super.keyPressed(keyCode, scanCode, modifiers);
++        return super.keyPressed(event);
+     }
+ 
+     private int previewHeight() {
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaItemPickerScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaItemPickerScreen.java
+@@ -4,6 +4,7 @@
+ import net.minecraft.client.gui.components.Button;
+ import net.minecraft.client.gui.components.EditBox;
+ import net.minecraft.client.gui.screens.Screen;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.core.registries.BuiltInRegistries;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.resources.ResourceLocation;
+@@ -81,7 +82,10 @@
+     }
+ 
+     @Override
+-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
++    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++        double mouseX = event.x();
++        double mouseY = event.y();
++        int button = event.button();
+         if (button == 0 && mouseX >= this.gridLeft && mouseX < this.gridLeft + COLUMNS * CELL
+                 && mouseY >= this.gridTop && mouseY < this.gridTop + ROWS * CELL) {
+             int column = ((int) mouseX - this.gridLeft) / CELL;
+@@ -98,7 +102,7 @@
+                 return true;
+             }
+         }
+-        return super.mouseClicked(mouseX, mouseY, button);
++        return super.mouseClicked(event, doubleClick);
+     }
+ 
+     private void confirm() {
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaMobSelectionController.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaMobSelectionController.java
+@@ -32,7 +32,7 @@
+             return;
+         }
+         if (minecraft.screen != null) return;
+-        boolean rightDown = GLFW.glfwGetMouseButton(minecraft.getWindow().getWindow(), GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS;
++        boolean rightDown = GLFW.glfwGetMouseButton(minecraft.getWindow().handle(), GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS;
+         if (rightDown && !wasRightDown && minecraft.hitResult instanceof EntityHitResult hit && hit.getEntity() instanceof Mob mob) {
+             AioaBehaviorEditorScreen editor = pendingEditor;
+             pendingEditor = null;
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaPlayerPickerScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaPlayerPickerScreen.java
+@@ -25,7 +25,7 @@
+         this.clearWidgets();
+         this.players.clear();
+         if (this.minecraft != null && this.minecraft.level != null) {
+-            this.minecraft.level.players().stream().map(player -> player.getGameProfile().getName())
++            this.minecraft.level.players().stream().map(player -> player.getGameProfile().name())
+                     .sorted(String.CASE_INSENSITIVE_ORDER).forEach(this.players::add);
+         }
+         int width = Math.min(440, this.width - 32);
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaScreenUtil.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaScreenUtil.java
+@@ -11,6 +11,7 @@
+ import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+ import net.minecraft.client.gui.components.Button;
+ import net.minecraft.client.gui.components.EditBox;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
+ import net.minecraft.client.resources.sounds.SoundInstance;
+ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+@@ -769,14 +770,14 @@
+         }
+ 
+         @Override
+-        protected void onDrag(double mouseX, double mouseY, double dragX, double dragY) {
+-            super.onDrag(mouseX, mouseY, dragX, dragY);
++        protected void onDrag(MouseButtonEvent event, double dragX, double dragY) {
++            super.onDrag(event, dragX, dragY);
+             this.playSliderStepIfChanged();
+         }
+ 
+         @Override
+-        public void onRelease(double mouseX, double mouseY) {
+-            super.onRelease(mouseX, mouseY);
++        public void onRelease(MouseButtonEvent event) {
++            super.onRelease(event);
+             this.lastSoundValue = Double.NaN;
+         }
+ 
+--- a/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabricClient.java
++++ b/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabricClient.java
+@@ -31,13 +31,13 @@
+                 "key.aioa.open_config",
+                 InputConstants.Type.KEYSYM,
+                 GLFW.GLFW_KEY_F6,
+-                "key.categories." + AioaConstants.MOD_ID
++                KeyMapping.Category.MISC
+         ));
+         openSpawnStudioKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+                 "key.aioa.open_behavior_graph",
+                 InputConstants.Type.KEYSYM,
+                 GLFW.GLFW_KEY_F7,
+-                "key.categories." + AioaConstants.MOD_ID
++                KeyMapping.Category.MISC
+         ));
+         AioaClientNetworking.registerSender(request -> ClientPlayNetworking.send(new AioaSpawnPayload(request)));
+         AioaClientNetworking.registerGraphSender(request -> ClientPlayNetworking.send(new AioaGraphPayload(request)));
+--- a/forge/src/main/java/com/flubburr/aioa/forge/AioaForge.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/AioaForge.java
+@@ -90,11 +90,11 @@
+     }
+ 
+     private void onLevelTick(TickEvent.LevelTickEvent.Post event) {
+-        if (event.level.isClientSide()) {
++        if (event.level().isClientSide()) {
+             return;
+         }
+ 
+-        if (event.level instanceof ServerLevel serverLevel) {
++        if (event.level() instanceof ServerLevel serverLevel) {
+             AioaCommon.onServerLevelTick(serverLevel);
+         }
+     }
+--- a/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeClient.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeClient.java
+@@ -8,6 +8,7 @@
+ import com.mojang.blaze3d.platform.InputConstants;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.client.KeyMapping;
++import net.minecraftforge.client.ConfigScreenHandler;
+ import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
+ import net.minecraftforge.common.MinecraftForge;
+ import net.minecraftforge.fml.ModLoadingContext;
+@@ -20,11 +21,11 @@
+             "key.aioa.open_config",
+             InputConstants.Type.KEYSYM,
+             GLFW.GLFW_KEY_F6,
+-            "key.categories." + AioaConstants.MOD_ID
++            KeyMapping.Category.MISC
+     );
+     private static final KeyMapping OPEN_SPAWN_STUDIO_KEY = new KeyMapping(
+             "key.aioa.open_behavior_graph", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F7,
+-            "key.categories." + AioaConstants.MOD_ID
++            KeyMapping.Category.MISC
+     );
+ 
+     private AioaForgeClient() {
+--- a/neoforge/src/main/java/com/flubburr/aioa/neoforge/AioaNeoForgeClient.java
++++ b/neoforge/src/main/java/com/flubburr/aioa/neoforge/AioaNeoForgeClient.java
+@@ -20,8 +20,8 @@
+ import org.lwjgl.glfw.GLFW;
+ 
+ final class AioaNeoForgeClient {
+-    private static final KeyMapping CONFIG = new KeyMapping("key.aioa.open_config", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F6, "key.categories.aioa");
+-    private static final KeyMapping EDITOR = new KeyMapping("key.aioa.open_behavior_graph", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F7, "key.categories.aioa");
++    private static final KeyMapping CONFIG = new KeyMapping("key.aioa.open_config", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F6, KeyMapping.Category.MISC);
++    private static final KeyMapping EDITOR = new KeyMapping("key.aioa.open_behavior_graph", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F7, KeyMapping.Category.MISC);
+ 
+     static void register(IEventBus modBus, ModContainer container) {
+         modBus.addListener(AioaNeoForgeClient::registerKeys);
+--- a/neoforge/src/main/java/com/flubburr/aioa/neoforge/AioaNeoForgePlatformHelper.java
++++ b/neoforge/src/main/java/com/flubburr/aioa/neoforge/AioaNeoForgePlatformHelper.java
+@@ -21,7 +21,7 @@
+ 
+     @Override
+     public boolean isDevelopmentEnvironment() {
+-        return !FMLLoader.isProduction();
++        return !FMLLoader.getCurrent().isProduction();
+     }
+ 
+     @Override

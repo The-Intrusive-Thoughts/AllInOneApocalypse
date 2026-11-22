@@ -1,0 +1,60 @@
+--- a/common/src/main/java/com/flubburr/aioa/behavior/AioaBehaviorRuntime.java
++++ b/common/src/main/java/com/flubburr/aioa/behavior/AioaBehaviorRuntime.java
+@@ -246,7 +246,7 @@
+                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
+                 return target != null && mob.getSensing().hasLineOfSight(target) ? "true" : "false";
+             }
+-            case IS_DAYTIME -> { return mob.level().isDay() ? "true" : "false"; }
++            case IS_DAYTIME -> { return (mob.level().getDayTime() % 24000L) < 12000L ? "true" : "false"; }
+             case IS_ON_GROUND -> { return mob.onGround() ? "true" : "false"; }
+             case WAS_HURT -> { return mob.hurtTime > 0 ? "true" : "false"; }
+             case TARGET_IS_PLAYER -> {
+@@ -551,7 +551,7 @@
+         Vec3 position = flag(node, "atTarget", true) && target != null ? target.position() : mob.position();
+         LightningBolt lightning = EntityType.LIGHTNING_BOLT.create(level, EntitySpawnReason.EVENT);
+         if (lightning == null) return;
+-        lightning.moveTo(position.x, position.y, position.z);
++        lightning.snapTo(position.x, position.y, position.z, 0.0F, 0.0F);
+         lightning.setVisualOnly(flag(node, "visualOnly", true));
+         level.addFreshEntity(lightning);
+     }
+@@ -797,7 +797,7 @@
+         if (type.isEmpty()) return;
+         Entity created = type.get().create(level, EntitySpawnReason.EVENT);
+         if (!(created instanceof Mob spawned)) return;
+-        spawned.moveTo(source.getX() + number(node, "offsetX", 1, -8, 8), source.getY() + number(node, "offsetY", 0, -8, 8),
++        spawned.snapTo(source.getX() + number(node, "offsetX", 1, -8, 8), source.getY() + number(node, "offsetY", 0, -8, 8),
+                 source.getZ() + number(node, "offsetZ", 1, -8, 8), source.getYRot(), 0);
+         if (!level.noCollision(spawned)) return;
+         spawned.finalizeSpawn(level, level.getCurrentDifficultyAt(spawned.blockPosition()), EntitySpawnReason.EVENT, null);
+--- a/common/src/main/java/com/flubburr/aioa/spawn/AioaSpawnStudioHandler.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/AioaSpawnStudioHandler.java
+@@ -54,7 +54,7 @@
+         float yaw = request.facePlayer()
+                 ? (float) (Mth.atan2(player.getZ() - position.z, player.getX() - position.x) * (180.0D / Math.PI)) - 90.0F
+                 : player.getYRot();
+-        mob.moveTo(position.x, position.y, position.z, yaw, 0.0F);
++        mob.snapTo(position.x, position.y, position.z, yaw, 0.0F);
+         mob.setNoAi(request.noAi());
+         if (request.persistent()) {
+             mob.setPersistenceRequired();
+--- a/common/src/main/java/com/flubburr/aioa/spawn/ApocalypseSpawnManager.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/ApocalypseSpawnManager.java
+@@ -42,7 +42,7 @@
+         if (settings.overworldOnly && !level.dimension().equals(Level.OVERWORLD)) {
+             return;
+         }
+-        if (settings.requireDaytime && !level.isDay()) {
++        if (settings.requireDaytime && (level.getDayTime() % 24000L) >= 12000L) {
+             return;
+         }
+         if (level.getGameTime() % settings.spawnIntervalTicks != 0L) {
+@@ -222,7 +222,7 @@
+             return false;
+         }
+ 
+-        mob.moveTo(
++        mob.snapTo(
+                 spawnPosition.getX() + 0.5D,
+                 spawnPosition.getY(),
+                 spawnPosition.getZ() + 0.5D,

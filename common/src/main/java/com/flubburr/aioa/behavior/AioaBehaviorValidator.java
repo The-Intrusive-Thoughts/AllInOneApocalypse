@@ -224,7 +224,8 @@ public final class AioaBehaviorValidator {
             case EVERY_SECONDS, DELAY_SECONDS -> Set.of("seconds");
             case REPEAT_COUNT -> Set.of("count");
             case RANDOM_CHANCE -> Set.of("chance");
-            case FIND_NEAREST_PLAYER, FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB -> Set.of("range");
+            case FIND_NEAREST_PLAYER -> Set.of("range", "survivalOnly", "lineOfSight");
+            case FIND_NEAREST_ANIMAL, FIND_NEAREST_MOB -> Set.of("range");
             case FIND_PLAYER_NAME -> Set.of("name", "range");
             case FIND_ENTITY_TYPE -> Set.of("entity", "range");
             case TARGET_IN_RANGE, ATTACK_TARGET -> Set.of("range");

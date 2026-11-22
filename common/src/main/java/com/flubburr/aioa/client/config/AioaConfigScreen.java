@@ -20,12 +20,8 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
     private final Screen parent;
     private AioaConfig editableConfig;
     private boolean canSave;
-    private Button docsButton;
-    private Button tutorialSkipButton;
-    private Button tutorialBackButton;
-    private Button tutorialNextButton;
-    private Button tutorialCloseButton;
     private Button audioToggleButton;
+    private Button replayTutorialButton;
     private int tutorialStep;
 
     private AioaConfigScreen(Screen parent, AioaConfig editableConfig) {
@@ -41,7 +37,13 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
     @Override
     protected void init() {
         this.canSave = this.canEditServerAffectingConfig();
-        int contentTop = AioaScreenUtil.adaptiveContentTop(this.height, 238, 68, 120);
+        if (!this.editableConfig.clientUi.tutorialCompleted) {
+            this.resetScrollLayout(480, 0, this.height);
+            this.finishScrollLayout(0);
+            buildTutorial();
+            return;
+        }
+        int contentTop = AioaScreenUtil.adaptiveContentTop(this.height, 152, 56, 112);
         int contentBottom = AioaScreenUtil.adaptiveContentBottom(this.height, this.height - 68, 40, contentTop, 120);
         this.resetScrollLayout(760, contentTop, contentBottom);
         int centerX = this.width / 2;
@@ -53,24 +55,29 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         int y = 0;
         int step = AioaScreenUtil.BUTTON_HEIGHT + 10;
 
-        this.addScrollable(AioaScreenUtil.button(leftX, 0, singleColumn ? columnWidth : this.panelWidth - 44, "Quick Presets", b ->
+        int rowWidth = singleColumn ? columnWidth : this.panelWidth - 44;
+        this.addScrollable(AioaScreenUtil.toolButton(leftX, 0, rowWidth, "Behavior editor", BehaviorBoard.Part.SIGNAL, "F7", b ->
+                this.transitionTo(AioaBehaviorEditorScreen.create(this, this.editableConfig))), y);
+        y += step;
+
+        this.addScrollable(AioaScreenUtil.toolButton(leftX, 0, rowWidth, "Spawn studio", BehaviorBoard.Part.EGG, "", b ->
+                this.transitionTo(AioaSpawnStudioScreen.create(this))), y);
+        y += step;
+
+        this.addScrollable(AioaScreenUtil.toolButton(leftX, 0, rowWidth, "Apocalypse presets", BehaviorBoard.Part.BOOK, "", b ->
                 this.transitionTo(new AioaPresetScreen(this, this.editableConfig))), y);
         y += step + 6;
 
-        this.addScrollable(AioaScreenUtil.button(leftX, 0, singleColumn ? columnWidth : this.panelWidth - 44, "Behavior Graph Studio   [F7]", b ->
-                this.transitionTo(AioaBehaviorEditorScreen.create(this, this.editableConfig))), y);
-        y += step + 6;
-
-        this.addScrollable(AioaScreenUtil.button(leftX, 0, singleColumn ? columnWidth : this.panelWidth - 44, "Open Creative Spawn Studio", b ->
-                this.transitionTo(AioaSpawnStudioScreen.create(this))), y);
-        y += step + 6;
-
-        this.docsButton = AioaScreenUtil.button(leftX, 0, columnWidth, Component.translatable("aioa.docs.button").getString(), b ->
+        var docsButton = AioaScreenUtil.button(leftX, 0, columnWidth, Component.translatable("aioa.docs.button").getString(), b ->
                 this.transitionTo(new AioaDocsScreen(this)));
-        this.addScrollable(this.docsButton, y);
+        this.addScrollable(docsButton, y);
         this.addScrollable(AioaScreenUtil.button(rightX, 0, columnWidth, "Interface & Menu Audio", b ->
                 this.transitionTo(new AioaUiSettingsScreen(this, this.editableConfig))), singleColumn ? y + step : y);
         y += singleColumn ? step * 2 : step + 12;
+
+        this.addScrollable(AioaScreenUtil.button(leftX, 0, singleColumn ? columnWidth : this.panelWidth - 44,
+                "Mob AI and targeting", b -> this.transitionTo(new AioaZombieAiScreen(this, this.editableConfig))), y);
+        y += step;
 
         this.addScrollable(AioaScreenUtil.button(leftX, 0, columnWidth, "Hostile Spawn Rules", b ->
                 this.transitionTo(new AioaHostileSettingsScreen(this, this.editableConfig))), y);
@@ -116,22 +123,12 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
 
         this.audioToggleButton = this.addRenderableWidget(AioaScreenUtil.button(this.width - 158, this.height - 32, 148,
                 this.editableConfig.clientUi.audioMuted ? "Audio: OFF" : "Audio: ON", b -> toggleAudio()));
+        this.replayTutorialButton = this.addRenderableWidget(AioaScreenUtil.menuButton(10, this.height - 32, 94, "Replay tutorial", b -> {
+            this.tutorialStep = 0;
+            this.editableConfig.clientUi.tutorialCompleted = false;
+            this.rebuildWidgets();
+        }));
 
-        if (!this.editableConfig.clientUi.tutorialCompleted) {
-            this.tutorialSkipButton = this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 - 174, this.height - 66, 108, "Skip tutorial", b -> finishTutorial(false)));
-            this.tutorialBackButton = this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 - 54, this.height - 66, 108, "Back", b -> {
-                this.tutorialStep = Math.max(0, this.tutorialStep - 1); this.rebuildWidgets();
-            }));
-            this.tutorialBackButton.active = this.tutorialStep > 0;
-            this.tutorialNextButton = this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 + 66, this.height - 66, 108,
-                    this.tutorialStep == 3 ? "Open docs" : "Next", b -> {
-                if (this.tutorialStep >= 3) finishTutorial(true);
-                else { this.tutorialStep++; this.rebuildWidgets(); }
-            }));
-            int boxWidth = Math.min(520, this.width - 32);
-            this.tutorialCloseButton = this.addRenderableWidget(AioaScreenUtil.button(this.width / 2 + boxWidth / 2 - 30,
-                    this.height - 127, 24, "x", b -> finishTutorial(false)));
-        }
     }
 
     @Override
@@ -145,6 +142,12 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.beginUiRender(guiGraphics);
         AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
+        if (!this.editableConfig.clientUi.tutorialCompleted) {
+            drawTutorial(guiGraphics);
+            super.render(guiGraphics, mouseX, mouseY, partialTick);
+            this.finishUiRender(guiGraphics);
+            return;
+        }
         AioaScreenUtil.drawPanel(guiGraphics, this.panelLeft, 24, this.panelLeft + this.panelWidth, this.height - 40);
         int headerBottom = this.contentTop - 12;
         boolean compactHeader = this.height < 300;
@@ -159,7 +162,7 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         }
         int logoX = this.width / 2 - (logoWidth / 2);
         int logoY = 38;
-        AioaScreenUtil.drawInsetPanel(guiGraphics, logoX - 10, logoY - 8, logoX + logoWidth + 10, logoY + logoHeight + 8, false);
+
         float logoScale = logoWidth / (float) LOGO_TEXTURE_WIDTH;
         guiGraphics.pose().pushPose();
         guiGraphics.pose().translate(logoX, logoY, 0.0F);
@@ -194,72 +197,73 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
                 () -> AioaConfigScreen.super.render(guiGraphics, mouseX, mouseY, partialTick));
         AioaScreenUtil.drawScrollBar(guiGraphics, this.panelLeft + this.panelWidth - 14, this.contentTop, this.contentBottom - this.contentTop, this.scrollOffset, this.maxScroll);
         this.audioToggleButton.render(guiGraphics, mouseX, mouseY, partialTick);
-        if (this.editableConfig.clientUi.showDocsHint) {
-            int hintWidth = Math.min(390, this.width - 30);
-            int hintX = this.width - hintWidth - 14;
-            int hintY = 12;
-            guiGraphics.fill(hintX, hintY, hintX + hintWidth, hintY + 52, 0xF21A2B21);
-            guiGraphics.drawString(this.font, "NEW: INTEGRATED HELP & SHOWCASES", hintX + 10, hintY + 9, 0xFF78E5A5);
-            guiGraphics.drawString(this.font, "x", hintX + hintWidth - 14, hintY + 8, 0xFFFF9A9A);
-            AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font,
-                    Component.literal("Open Documentation & Creator Guide for controls, every node, live mob examples, spawning, and multiplayer safety."),
-                    hintX + hintWidth / 2, hintY + 23, hintWidth - 18, AioaScreenUtil.TEXT_SUB);
-            if (this.docsButton != null) drawDocsArrow(guiGraphics, hintX + 18, hintY + 52,
-                    this.docsButton.getX() + this.docsButton.getWidth() / 2, this.docsButton.getY());
-        }
-        if (!this.editableConfig.clientUi.tutorialCompleted) {
-            drawTutorial(guiGraphics);
-            this.tutorialSkipButton.render(guiGraphics, mouseX, mouseY, partialTick);
-            this.tutorialBackButton.render(guiGraphics, mouseX, mouseY, partialTick);
-            this.tutorialNextButton.render(guiGraphics, mouseX, mouseY, partialTick);
-            this.tutorialCloseButton.render(guiGraphics, mouseX, mouseY, partialTick);
-        }
+        this.replayTutorialButton.render(guiGraphics, mouseX, mouseY, partialTick);
         this.finishUiRender(guiGraphics);
     }
 
-    private void drawTutorial(GuiGraphics graphics) {
-        int boxWidth = Math.min(520, this.width - 32);
-        int left = this.width / 2 - boxWidth / 2;
-        int top = this.height - 158;
-        graphics.fill(0, 0, this.width, this.height, 0xC8000000);
-        graphics.fill(left - 2, top - 2, left + boxWidth + 2, this.height - 26, 0xFF62E99C);
-        graphics.fill(left, top, left + boxWidth, this.height - 28, 0xFF101713);
-        String title = switch (this.tutorialStep) {
-            case 1 -> "2 / 4  BUILD BEHAVIOR WITH NODES";
-            case 2 -> "3 / 4  PREVIEW, SPAWN, AND SELECT";
-            case 3 -> "4 / 4  DOCUMENTATION & SETTINGS";
-            default -> "1 / 4  START WITH A QUICK PRESET";
-        };
-        String body = switch (this.tutorialStep) {
-            case 1 -> "Open Graph Studio or press F7 in game. Its palette, inspector, parameters, viewport, and guide are draggable windows.";
-            case 2 -> "Use the real 3D viewport, Spawn Studio, or leave the UI and right-click a mob to bind a graph safely.";
-            case 3 -> "Docs explains every node without code. Use the small Audio button at bottom-right for instant mute, or Interface settings for exact volumes.";
-            default -> "Balanced, Cinematic, and Horde presets give a safe base before you customize individual systems.";
-        };
-        graphics.drawString(this.font, title, left + 12, top + 9, 0xFF78E5A5);
-        AioaScreenUtil.drawWrappedCenteredText(graphics, this.font, Component.literal(body), left + boxWidth / 2, top + 30,
-                boxWidth - 36, 0xFFFFFFFF);
+    private int tutorialWidth() { return Math.min(460, this.width - 32); }
+    private int tutorialTop() { return (this.height - 174) / 2; }
+
+    private void buildTutorial() {
+        int left = (this.width - tutorialWidth()) / 2;
+        int right = left + tutorialWidth();
+        int y = tutorialTop() + 134;
+        this.addRenderableWidget(AioaScreenUtil.menuButton(left + 12, y, 50, "Skip", b -> finishTutorial(false)));
+        var back = this.addRenderableWidget(AioaScreenUtil.menuButton(right - 164, y, 56, "Back", b -> {
+            this.tutorialStep--;
+            this.rebuildWidgets();
+        }));
+        back.active = this.tutorialStep > 0;
+        this.addRenderableWidget(AioaScreenUtil.button(right - 100, y, 84, this.tutorialStep == 3 ? "Open guide" : "Next", b -> {
+            if (this.tutorialStep == 3) finishTutorial(true);
+            else { this.tutorialStep++; this.rebuildWidgets(); }
+        }));
     }
 
-    private static void drawDocsArrow(GuiGraphics graphics, int x1, int y1, int x2, int y2) {
-        int midY = Math.max(y1 + 8, y2 - 12);
-        graphics.fill(x1, y1, x1 + 2, midY, 0xFF78E5A5);
-        graphics.fill(Math.min(x1, x2), midY, Math.max(x1, x2) + 2, midY + 2, 0xFF78E5A5);
-        graphics.fill(x2 - 4, y2 - 6, x2 + 5, y2 - 4, 0xFF78E5A5);
-        graphics.fill(x2 - 2, y2 - 4, x2 + 3, y2, 0xFF78E5A5);
+    private void drawTutorial(GuiGraphics g) {
+        int width = tutorialWidth(), left = (this.width - width) / 2, top = tutorialTop();
+        int right = left + width;
+        String title = switch (this.tutorialStep) {
+            case 1 -> "Wire a behavior";
+            case 2 -> "Watch a zombie hunt";
+            case 3 -> "Explore the field guide";
+            default -> "Choose a starting preset";
+        };
+        String body = switch (this.tutorialStep) {
+            case 1 -> "Press F7 in Creative. Follow a wire from an output pin to its input. Double-click a node to change its settings, or press Ctrl+K to search the library.";
+            case 2 -> "Head outside in daylight on Normal or Hard. Switch to Survival and sprint past cover. Nearby idle zombies can investigate the last place they heard you.";
+            case 3 -> "The guide covers graph controls, the node reference, spawn tools and multiplayer editing. You can reopen it from the configuration screen.";
+            default -> "Open Apocalypse presets from the configuration screen. Horde checks for daytime surface spawns every four seconds and enables coordinated pursuit.";
+        };
+        BehaviorBoard.Part icon = switch (this.tutorialStep) {
+            case 1 -> BehaviorBoard.Part.SIGNAL; case 2 -> BehaviorBoard.Part.TARGET;
+            case 3 -> BehaviorBoard.Part.BOOK; default -> BehaviorBoard.Part.EGG;
+        };
+        g.fill(left, top, right, top + 174, 0xFF1A261F);
+        g.fill(left, top, right, top + 30, 0xFF22382A);
+        icon.draw(g, left + 14, top + 7);
+        g.drawString(this.font, "Field guide", left + 37, top + 11, BehaviorBoard.BONE, false);
+        String page = (tutorialStep + 1) + " / 4";
+        g.drawString(this.font, page, right - this.font.width(page) - 16, top + 11, BehaviorBoard.PATINA, false);
+        g.drawString(this.font, title, left + 16, top + 47, BehaviorBoard.BONE, false);
+        int y = top + 65;
+        for (var line : this.font.split(Component.literal(body), width - 32)) {
+            g.drawString(this.font, line, left + 16, y, AioaScreenUtil.TEXT_SUB, false);
+            y += 12;
+        }
+        g.fill(left, top + 126, right, top + 127, 0xFF35483A);
     }
 
     private void finishTutorial(boolean openDocs) {
         this.editableConfig.clientUi.tutorialCompleted = true;
         persistGuideState();
+        this.rebuildWidgets();
         if (openDocs) this.transitionTo(new AioaDocsScreen(this));
-        else this.rebuildWidgets();
     }
 
     private void persistGuideState() {
         AioaConfig persisted = AioaConfigManager.getConfigCopy();
         persisted.clientUi.tutorialCompleted = this.editableConfig.clientUi.tutorialCompleted;
-        persisted.clientUi.showDocsHint = this.editableConfig.clientUi.showDocsHint;
         AioaConfigManager.save(persisted);
     }
 
@@ -275,43 +279,4 @@ public final class AioaConfigScreen extends AioaScrollableScreen {
         Util.getPlatform().openUri(URI.create(url));
     }
 
-    @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && this.audioToggleButton != null && this.audioToggleButton.isMouseOver(mouseX, mouseY)) {
-            toggleAudio();
-            return true;
-        }
-        if (!this.editableConfig.clientUi.tutorialCompleted) {
-            int boxWidth = Math.min(520, this.width - 32);
-            boolean footerControls = mouseY >= this.height - 72 && mouseY <= this.height - 34
-                    && mouseX >= this.width / 2 - 184 && mouseX <= this.width / 2 + 184;
-            boolean closeControl = mouseX >= this.width / 2 + boxWidth / 2 - 34
-                    && mouseX <= this.width / 2 + boxWidth / 2
-                    && mouseY >= this.height - 132 && mouseY <= this.height - 96;
-            if (button == 0 && closeControl) { finishTutorial(false); return true; }
-            if (button == 0 && footerControls) {
-                if (this.tutorialSkipButton.isMouseOver(mouseX, mouseY)) { finishTutorial(false); return true; }
-                if (this.tutorialBackButton.isMouseOver(mouseX, mouseY) && this.tutorialBackButton.active) {
-                    this.tutorialStep = Math.max(0, this.tutorialStep - 1); this.rebuildWidgets(); return true;
-                }
-                if (this.tutorialNextButton.isMouseOver(mouseX, mouseY)) {
-                    if (this.tutorialStep >= 3) finishTutorial(true);
-                    else { this.tutorialStep++; this.rebuildWidgets(); }
-                    return true;
-                }
-            }
-            if (!footerControls && !closeControl) return true;
-        }
-        if (button == 0 && this.editableConfig.clientUi.showDocsHint) {
-            int hintWidth = Math.min(390, this.width - 30);
-            int hintX = this.width - hintWidth - 14;
-            if (mouseX >= hintX + hintWidth - 24 && mouseX <= hintX + hintWidth
-                    && mouseY >= 12 && mouseY <= 36) {
-                this.editableConfig.clientUi.showDocsHint = false;
-                persistGuideState();
-                return true;
-            }
-        }
-        return super.mouseClicked(mouseX, mouseY, button);
-    }
 }

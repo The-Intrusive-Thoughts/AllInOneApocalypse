@@ -143,7 +143,7 @@ modrinth {
             : "Release ${fabricVersionNumber}"
     uploadFile = tasks.named('remapJar')
     gameVersions = modrinthGameVersions
-    loaders = ['fabric']
+    loaders = ['fabric', 'quilt']
     syncBodyFrom = modrinthBodyFile.exists()
             ? modrinthBodyFile.getText('UTF-8')
             : ''

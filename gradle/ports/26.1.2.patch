@@ -1,0 +1,404 @@
+--- a/common/src/main/java/com/flubburr/aioa/behavior/AioaBehaviorRuntime.java
++++ b/common/src/main/java/com/flubburr/aioa/behavior/AioaBehaviorRuntime.java
+@@ -165,9 +165,9 @@
+     private static boolean matches(AioaBehaviorGraph graph, Mob mob) {
+         return switch (graph.scope) {
+             case ALL_MOBS -> true;
+-            case MANAGED_MOBS -> mob.getTags().contains(AioaConstants.DAY_SPAWN_TAG)
+-                    || mob.getTags().contains(AioaConstants.STUDIO_SPAWN_TAG);
+-            case ENTITY_TAG -> !graph.selector.isBlank() && mob.getTags().contains(graph.selector);
++            case MANAGED_MOBS -> mob.entityTags().contains(AioaConstants.DAY_SPAWN_TAG)
++                    || mob.entityTags().contains(AioaConstants.STUDIO_SPAWN_TAG);
++            case ENTITY_TAG -> !graph.selector.isBlank() && mob.entityTags().contains(graph.selector);
+             case SINGLE_ENTITY -> mob.getUUID().toString().equalsIgnoreCase(graph.selector);
+             case ENTITY_TYPE -> AioaEntityHelper.resolveEntityId(graph.selector, ignored -> { })
+                     .map(id -> id.equals(BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType())))
+@@ -246,7 +246,7 @@
+                 LivingEntity target = context.target != null ? context.target : mob.getTarget();
+                 return target != null && mob.getSensing().hasLineOfSight(target) ? "true" : "false";
+             }
+-            case IS_DAYTIME -> { return (mob.level().getDayTime() % 24000L) < 12000L ? "true" : "false"; }
++            case IS_DAYTIME -> { return (mob.level().getOverworldClockTime() % 24000L) < 12000L ? "true" : "false"; }
+             case IS_ON_GROUND -> { return mob.onGround() ? "true" : "false"; }
+             case WAS_HURT -> { return mob.hurtTime > 0 ? "true" : "false"; }
+             case TARGET_IS_PLAYER -> {
+@@ -432,7 +432,7 @@
+                     number(node, "y", 0, -8, 8), number(node, "z", 0, -8, 8));
+             case ADD_TAG -> mob.addTag(node.parameters.getOrDefault("tag", "aioa_custom"));
+             case REMOVE_TAG -> mob.removeTag(node.parameters.getOrDefault("tag", "aioa_custom"));
+-            case HAS_TAG -> { return mob.getTags().contains(node.parameters.getOrDefault("tag", "aioa_custom")) ? "true" : "false"; }
++            case HAS_TAG -> { return mob.entityTags().contains(node.parameters.getOrDefault("tag", "aioa_custom")) ? "true" : "false"; }
+             case SET_VARIABLE -> context.variables.put(variableName(node), number(node, "value", 0, -1_000_000, 1_000_000));
+             case MATH_VARIABLE -> applyVariableMath(node, context);
+             case COMPARE_VARIABLE -> { return compareVariable(node, context) ? "true" : "false"; }
+@@ -571,7 +571,7 @@
+                 .replace("{mob}", mob.getName().getString());
+         double range = number(node, "range", 32, 1, 256);
+         level.players().stream().filter(player -> player.distanceToSqr(mob) <= range * range)
+-                .forEach(player -> player.displayClientMessage(Component.literal(message), true));
++                .forEach(player -> player.sendOverlayMessage(Component.literal(message)));
+     }
+ 
+     private static void sayInChat(AioaBehaviorGraph.Node node, Mob mob) {
+--- a/common/src/main/java/com/flubburr/aioa/behavior/AioaGraphUpdateHandler.java
++++ b/common/src/main/java/com/flubburr/aioa/behavior/AioaGraphUpdateHandler.java
+@@ -41,12 +41,12 @@
+             AioaBehaviorGraph graph = GSON.fromJson(object, AioaBehaviorGraph.class).sanitize();
+             List<String> issues = AioaBehaviorValidator.validate(graph);
+             if (!issues.isEmpty()) {
+-                player.displayClientMessage(Component.literal("AIOA graph rejected: " + issues.get(0)), true);
++                player.sendOverlayMessage(Component.literal("AIOA graph rejected: " + issues.get(0)));
+                 return;
+             }
+             if (graph.scope != AioaBehaviorGraph.Scope.SINGLE_ENTITY
+                     && !player.level().getServer().getPlayerList().isOp(player.nameAndId())) {
+-                player.displayClientMessage(Component.literal("Operator permission is required for non-instance behavior graphs."), true);
++                player.sendOverlayMessage(Component.literal("Operator permission is required for non-instance behavior graphs."));
+                 return;
+             }
+ 
+@@ -54,22 +54,22 @@
+             config.behaviorGraphs.removeIf(existing -> existing.id.equals(graph.id));
+             config.behaviorGraphs.add(graph);
+             AioaConfigManager.save(config);
+-            player.displayClientMessage(Component.literal("Applied behavior graph: " + graph.name), true);
++            player.sendOverlayMessage(Component.literal("Applied behavior graph: " + graph.name));
+         } catch (RuntimeException exception) {
+-            player.displayClientMessage(Component.literal("AIOA graph data was invalid."), true);
++            player.sendOverlayMessage(Component.literal("AIOA graph data was invalid."));
+         }
+     }
+ 
+     private static void handleWorkspace(ServerPlayer player, WorkspaceUpdate update) {
+         if (update == null || update.version < 1 || update.version > 2 || update.graphs == null || update.graphs.size() > 128) {
+-            player.displayClientMessage(Component.literal("AIOA workspace data was invalid."), true);
++            player.sendOverlayMessage(Component.literal("AIOA workspace data was invalid."));
+             return;
+         }
+         List<AioaBehaviorGraph> graphs = update.graphs.stream().map(AioaBehaviorGraph::sanitize).toList();
+         for (AioaBehaviorGraph graph : graphs) {
+             List<String> issues = AioaBehaviorValidator.validate(graph);
+             if (!issues.isEmpty()) {
+-                if (!update.silent) player.displayClientMessage(Component.literal("AIOA graph rejected: " + issues.get(0)), true);
++                if (!update.silent) player.sendOverlayMessage(Component.literal("AIOA graph rejected: " + issues.get(0)));
+                 return;
+             }
+         }
+@@ -86,7 +86,7 @@
+             }
+         }
+         AioaConfigManager.save(config);
+-        if (!update.silent) player.displayClientMessage(Component.literal("Applied " + graphs.size() + " behavior graph(s)."), true);
++        if (!update.silent) player.sendOverlayMessage(Component.literal("Applied " + graphs.size() + " behavior graph(s)."));
+     }
+ 
+     private static String string(JsonObject object, String key) {
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaNativeFileDialog.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaNativeFileDialog.java
+@@ -1,6 +1,5 @@
+ package com.flubburr.aioa.client.config;
+ 
+-import org.lwjgl.PointerBuffer;
+ import org.lwjgl.util.tinyfd.TinyFileDialogs;
+ 
+ import java.nio.file.Path;
+@@ -14,7 +13,7 @@
+         String selected = TinyFileDialogs.tinyfd_openFileDialog(
+                 "Import AIOA behavior graph",
+                 initialDirectory.toAbsolutePath().normalize().toString(),
+-                (PointerBuffer) null,
++                null,
+                 "AIOA behavior graphs (*.aioagraph)",
+                 false);
+         return selected == null || selected.isBlank() ? Optional.empty() : Optional.of(Path.of(selected));
+@@ -24,7 +23,7 @@
+         String selected = TinyFileDialogs.tinyfd_saveFileDialog(
+                 "Save AIOA behavior graph",
+                 suggestedFile.toAbsolutePath().normalize().toString(),
+-                (PointerBuffer) null,
++                null,
+                 "AIOA behavior graphs (*.aioagraph)");
+         return selected == null || selected.isBlank() ? Optional.empty() : Optional.of(Path.of(selected));
+     }
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaScreenUtil.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaScreenUtil.java
+@@ -546,17 +546,33 @@
+     }
+ 
+     static EditBox numberBox(int x, int y, int width, int value) {
+-        EditBox box = new EditBox(Minecraft.getInstance().font, x, y, width, 20, Component.literal("number"));
++        EditBox box = new EditBox(Minecraft.getInstance().font, x, y, width, 20, Component.literal("number")) {
++            @Override public void insertText(String input) {
++                int cursor = getCursorPosition();
++                int selection = getHighlighted().length();
++                String current = getValue();
++                int start = selection == 0 || current.startsWith(getHighlighted(), cursor) ? cursor : cursor - selection;
++                String text = current.substring(0, start) + input + current.substring(start + selection);
++                if (text.isEmpty() || text.matches("\\d{1,6}")) super.insertText(input);
++            }
++        };
+         box.setValue(Integer.toString(value));
+-        box.setFilter(text -> text.isEmpty() || text.matches("\\d{1,6}"));
+         box.setMaxLength(6);
+         return box;
+     }
+ 
+     static EditBox decimalBox(int x, int y, int width, double value) {
+-        EditBox box = new EditBox(Minecraft.getInstance().font, x, y, width, 20, Component.literal("decimal"));
++        EditBox box = new EditBox(Minecraft.getInstance().font, x, y, width, 20, Component.literal("decimal")) {
++            @Override public void insertText(String input) {
++                int cursor = getCursorPosition();
++                int selection = getHighlighted().length();
++                String current = getValue();
++                int start = selection == 0 || current.startsWith(getHighlighted(), cursor) ? cursor : cursor - selection;
++                String text = current.substring(0, start) + input + current.substring(start + selection);
++                if (text.isEmpty() || text.matches("\\d{0,1}(\\.\\d{0,3})?")) super.insertText(input);
++            }
++        };
+         box.setValue(Double.toString(value));
+-        box.setFilter(text -> text.isEmpty() || text.matches("\\d{0,1}(\\.\\d{0,3})?"));
+         box.setMaxLength(5);
+         return box;
+     }
+--- a/common/src/main/java/com/flubburr/aioa/mixin/MobMixin.java
++++ b/common/src/main/java/com/flubburr/aioa/mixin/MobMixin.java
+@@ -35,7 +35,7 @@
+     private void aioa$preventSunBurnForManagedDaySpawns(CallbackInfoReturnable<Boolean> cir) {
+         Mob self = (Mob) (Object) this;
+         if (AioaConfigManager.getConfig().daySurfaceSpawns.preventSunlightBurn
+-                && (self.getTags().contains(AioaConstants.DAY_SPAWN_TAG)
++                && (self.entityTags().contains(AioaConstants.DAY_SPAWN_TAG)
+                 || AioaConfigManager.isBurnSafeDaySpawnEntity(self.getType()))) {
+             cir.setReturnValue(false);
+         }
+--- a/common/src/main/java/com/flubburr/aioa/spawn/AioaSpawnStudioHandler.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/AioaSpawnStudioHandler.java
+@@ -24,7 +24,7 @@
+ 
+     public static void handle(ServerPlayer player, AioaSpawnRequest request) {
+         if (!player.isCreative()) {
+-            player.displayClientMessage(Component.literal("AIOA Spawn Studio requires creative mode."), true);
++            player.sendOverlayMessage(Component.literal("AIOA Spawn Studio requires creative mode."));
+             return;
+         }
+ 
+@@ -41,13 +41,13 @@
+ 
+         Optional<EntityType<?>> resolved = AioaEntityHelper.resolveEntityType(request.entityId());
+         if (resolved.isEmpty()) {
+-            player.displayClientMessage(Component.literal("Unknown mob: " + request.entityId()), true);
++            player.sendOverlayMessage(Component.literal("Unknown mob: " + request.entityId()));
+             return;
+         }
+ 
+         Entity entity = resolved.get().create(level, EntitySpawnReason.COMMAND);
+         if (!(entity instanceof Mob mob)) {
+-            player.displayClientMessage(Component.literal("That entity is not a spawnable mob."), true);
++            player.sendOverlayMessage(Component.literal("That entity is not a spawnable mob."));
+             return;
+         }
+ 
+@@ -64,10 +64,10 @@
+ 
+         if (!level.noCollision(mob)) {
+             mob.discard();
+-            player.displayClientMessage(Component.literal("No safe room to spawn that mob."), true);
++            player.sendOverlayMessage(Component.literal("No safe room to spawn that mob."));
+             return;
+         }
+         level.addFreshEntityWithPassengers(mob);
+-        player.displayClientMessage(Component.literal("Spawned " + request.entityId()), true);
++        player.sendOverlayMessage(Component.literal("Spawned " + request.entityId()));
+     }
+ }
+--- a/common/src/main/java/com/flubburr/aioa/spawn/AioaZombieBehaviour.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/AioaZombieBehaviour.java
+@@ -69,7 +69,7 @@
+         if (mob instanceof Zombie) {
+             return settings.zombieTargetMode;
+         }
+-        if (isConfiguredMob(mob, settings.refinedAiEntityIds) || mob.getTags().contains(AioaConstants.DAY_SPAWN_TAG)) {
++        if (isConfiguredMob(mob, settings.refinedAiEntityIds) || mob.entityTags().contains(AioaConstants.DAY_SPAWN_TAG)) {
+             return settings.zombieTargetMode;
+         }
+         return null;
+--- a/common/src/main/java/com/flubburr/aioa/spawn/ApocalypseSpawnManager.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/ApocalypseSpawnManager.java
+@@ -302,7 +302,7 @@
+ 
+     private static int countNearbyManagedMobs(ServerLevel level, BlockPos center, int range, String instanceTag) {
+         AABB searchBox = new AABB(center).inflate(range);
+-        return level.getEntitiesOfClass(Mob.class, searchBox, mob -> mob.getTags().contains(instanceTag)).size();
++        return level.getEntitiesOfClass(Mob.class, searchBox, mob -> mob.entityTags().contains(instanceTag)).size();
+     }
+ 
+     private static int randomOffset(RandomSource random, int minDistance, int maxDistance) {
+--- a/common/src/main/resources/aioa.mixins.json
++++ b/common/src/main/resources/aioa.mixins.json
+@@ -3,7 +3,7 @@
+   "minVersion": "0.8",
+   "package": "com.flubburr.aioa.mixin",
+   "refmap": "${mod_id}.refmap.json",
+-  "compatibilityLevel": "JAVA_17",
++  "compatibilityLevel": "JAVA_25",
+   "mixins": [
+     "accessor.MobAccessor",
+     "LivingEntityMixin",
+--- a/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabric.java
++++ b/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabric.java
+@@ -5,7 +5,6 @@
+ import com.flubburr.aioa.network.AioaGraphPayload;
+ 
+ import com.flubburr.aioa.AioaCommon;
+-import com.flubburr.aioa.fabric.config.AioaMidnightConfig;
+ import net.fabricmc.api.ModInitializer;
+ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+@@ -31,10 +30,9 @@
+             Registry.register(soundEvents, MENU_MUSIC, SoundEvent.createVariableRangeEvent(MENU_MUSIC));
+         }
+         AioaCommon.init();
+-        if (net.fabricmc.loader.api.FabricLoader.getInstance().getEnvironmentType() == net.fabricmc.api.EnvType.CLIENT) AioaMidnightConfig.initialize();
+-        ServerTickEvents.END_WORLD_TICK.register(AioaCommon::onServerLevelTick);
+-        PayloadTypeRegistry.playC2S().register(AioaSpawnPayload.TYPE, AioaSpawnPayload.CODEC);
+-        PayloadTypeRegistry.playC2S().register(AioaGraphPayload.TYPE, AioaGraphPayload.CODEC);
++        ServerTickEvents.END_LEVEL_TICK.register(AioaCommon::onServerLevelTick);
++        PayloadTypeRegistry.serverboundPlay().register(AioaSpawnPayload.TYPE, AioaSpawnPayload.CODEC);
++        PayloadTypeRegistry.serverboundPlay().register(AioaGraphPayload.TYPE, AioaGraphPayload.CODEC);
+         ServerPlayNetworking.registerGlobalReceiver(AioaSpawnPayload.TYPE, (payload, context) -> {
+             context.server().execute(() -> AioaSpawnStudioHandler.handle(context.player(), payload.request()));
+         });
+--- a/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabricClient.java
++++ b/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabricClient.java
+@@ -14,7 +14,7 @@
+ import com.mojang.blaze3d.platform.InputConstants;
+ import net.fabricmc.api.ClientModInitializer;
+ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
++import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+ import net.minecraft.client.KeyMapping;
+ import net.minecraft.network.chat.Component;
+@@ -27,13 +27,13 @@
+ 
+     @Override
+     public void onInitializeClient() {
+-        openConfigKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
++        openConfigKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                 "key.aioa.open_config",
+                 InputConstants.Type.KEYSYM,
+                 GLFW.GLFW_KEY_F6,
+                 KeyMapping.Category.MISC
+         ));
+-        openSpawnStudioKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
++        openSpawnStudioKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                 "key.aioa.open_behavior_graph",
+                 InputConstants.Type.KEYSYM,
+                 GLFW.GLFW_KEY_F7,
+--- a/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeFallbackConfigScreen.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeFallbackConfigScreen.java
+@@ -110,7 +110,7 @@
+ 
+     @Override
+     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
++        this.renderBackground(guiGraphics);
+         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+         guiGraphics.drawCenteredString(
+                 this.font,
+@@ -227,7 +227,7 @@
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
++            this.renderBackground(guiGraphics);
+             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+             super.render(guiGraphics, mouseX, mouseY, partialTick);
+         }
+@@ -383,13 +383,22 @@
+         }
+ 
+         @Override
++        public void tick() {
++            this.spawnIntervalTicks.tick();
++            this.spawnAttemptsPerPlayer.tick();
++            this.minSpawnDistance.tick();
++            this.maxSpawnDistance.tick();
++            this.maxNearbyManagedMobs.tick();
++        }
++
++        @Override
+         public void onClose() {
+             this.minecraft.setScreen(this.parent);
+         }
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
++            this.renderBackground(guiGraphics);
+             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+ 
+             int labelX = this.width / 2 - 150;
+@@ -459,11 +468,15 @@
+             int editorWidth = 340;
+             int editorHeight = Math.max(90, this.height - 110);
+ 
+-            this.editor = MultiLineEditBox.builder()
+-                    .setX(editorX)
+-                    .setY(editorY)
+-                    .setPlaceholder(tr("aioa.forge.fallback.list.entries_hint"))
+-                    .build(this.font, editorWidth, editorHeight, tr("aioa.forge.fallback.list.entries"));
++            this.editor = new MultiLineEditBox(
++                    this.font,
++                    editorX,
++                    editorY,
++                    editorWidth,
++                    editorHeight,
++                    tr("aioa.forge.fallback.list.entries"),
++                    tr("aioa.forge.fallback.list.entries_hint")
++            );
+             this.editor.setCharacterLimit(32767);
+             this.editor.setValue(String.join("\n", this.initialValues));
+             this.addRenderableWidget(this.editor);
+@@ -489,13 +502,18 @@
+         }
+ 
+         @Override
++        public void tick() {
++            this.editor.tick();
++        }
++
++        @Override
+         public void onClose() {
+             this.minecraft.setScreen(this.parent);
+         }
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
++            this.renderBackground(guiGraphics);
+             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+             guiGraphics.drawCenteredString(this.font, this.description, this.width / 2, 30, 0xA0A0A0);
+             super.render(guiGraphics, mouseX, mouseY, partialTick);
+--- a/forge/src/main/java/com/flubburr/aioa/forge/AioaForgePlatformHelper.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/AioaForgePlatformHelper.java
+@@ -16,7 +16,7 @@
+ 
+     @Override
+     public boolean isModLoaded(String modId) {
+-        return ModList.get().isLoaded(modId);
++        return ModList.isLoaded(modId);
+     }
+ 
+     @Override
+--- a/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeClient.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeClient.java
+@@ -32,7 +32,7 @@
+     }
+ 
+     public static void registerConfigScreen() {
+-        RegisterKeyMappingsEvent.getBus(FMLJavaModLoadingContext.get().getModBusGroup()).addListener(AioaForgeClient::onRegisterKeyMappings);
++        RegisterKeyMappingsEvent.BUS.addListener(AioaForgeClient::onRegisterKeyMappings);
+         MinecraftForge.registerConfigScreen(AioaForgeClient::createScreen);
+         AioaClientNetworking.registerSender(request -> AioaForge.NETWORK.send(request, net.minecraftforge.network.PacketDistributor.SERVER.noArg()));
+         AioaClientNetworking.registerGraphSender(request -> AioaForge.NETWORK.send(request, net.minecraftforge.network.PacketDistributor.SERVER.noArg()));

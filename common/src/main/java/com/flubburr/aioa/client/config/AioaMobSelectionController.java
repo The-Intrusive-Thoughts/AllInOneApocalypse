@@ -20,13 +20,22 @@ public final class AioaMobSelectionController {
         wasRightDown = true;
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player != null) {
-            minecraft.player.displayClientMessage(Component.literal("AIOA picker: right-click a mob within 30 seconds. Press F7 to cancel."), true);
+            minecraft.player.displayClientMessage(Component.literal("Right-click a mob to import it. Press Esc or F7 to return."), true);
         }
         minecraft.setScreen(null);
     }
 
     public static void tick(Minecraft minecraft) {
-        if (pendingEditor == null || minecraft.player == null) return;
+        if (pendingEditor == null) return;
+        if (minecraft.player == null || !minecraft.player.isCreative()) {
+            pendingEditor = null;
+            wasRightDown = false;
+            return;
+        }
+        if (minecraft.screen instanceof net.minecraft.client.gui.screens.PauseScreen) {
+            cancel(minecraft, "Mob selection cancelled.");
+            return;
+        }
         if (System.currentTimeMillis() > expiresAt) {
             cancel(minecraft, "AIOA mob selection timed out.");
             return;
@@ -47,7 +56,8 @@ public final class AioaMobSelectionController {
         pendingEditor = null;
         wasRightDown = false;
         if (minecraft.player != null) minecraft.player.displayClientMessage(Component.literal(message), true);
-        if (editor != null && minecraft.screen == null) minecraft.setScreen(editor);
+        if (editor != null && (minecraft.screen == null
+                || minecraft.screen instanceof net.minecraft.client.gui.screens.PauseScreen)) minecraft.setScreen(editor);
     }
 
     public static boolean isArmed() {

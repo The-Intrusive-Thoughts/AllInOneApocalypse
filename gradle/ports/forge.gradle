@@ -1,0 +1,25 @@
+plugins {
+    id 'net.minecraftforge.gradle'
+    id 'org.spongepowered.mixin' version '0.7.38' apply false
+}
+
+def needsSrgMappings = minecraft_version in ['1.20.3', '1.20.4']
+
+minecraft {
+    reobf = needsSrgMappings
+    mappings channel: 'official', version: minecraft_version
+    runs {
+        client { workingDirectory project.file('run/client') }
+        server { workingDirectory project.file('run/server') }
+    }
+}
+dependencies { minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}" }
+if (needsSrgMappings) {
+    apply plugin: 'org.spongepowered.mixin'
+    mixin { add sourceSets.main, 'aioa.refmap.json' }
+    dependencies { annotationProcessor 'org.spongepowered:mixin:0.8.5:processor' }
+    jar.finalizedBy 'reobfJar'
+}
+sourceSets.main.java.exclude '**/AioaYaclConfigScreen.java'
+jar { manifest.attributes('MixinConfigs': 'aioa.mixins.json') }
+

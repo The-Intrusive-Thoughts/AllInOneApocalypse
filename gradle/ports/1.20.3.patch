@@ -1,0 +1,753 @@
+--- a/common/src/main/java/com/flubburr/aioa/AioaCommon.java
++++ b/common/src/main/java/com/flubburr/aioa/AioaCommon.java
+@@ -31,5 +31,4 @@
+         AioaConfigManager.ensureMobCatalogWritten(level);
+         ApocalypseSpawnManager.tick(level);
+     }
+-
+ }
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaAnimatedScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaAnimatedScreen.java
+@@ -62,7 +62,7 @@
+     }
+ 
+     @Override
+-    public void renderBackground(GuiGraphics guiGraphics) {
++    public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+         // AIOA owns its opaque backdrop. Suppressing vanilla's post-process path avoids
+         // blur stacking, framebuffer conflicts, and background resizing with UI mods.
+     }
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaBehaviorEditorScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaBehaviorEditorScreen.java
+@@ -1873,7 +1873,7 @@
+     }
+ 
+     @Override
+-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
++    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double delta) {
+         if (mouseY >= 2 && mouseY <= 24
+                 && mouseX >= tabStart() && mouseX <= this.width) {
+             int maxOffset = Math.max(0, this.graphs.size() - visibleTabSlots());
+@@ -1902,7 +1902,7 @@
+             }
+             return true;
+         }
+-        return super.mouseScrolled(mouseX, mouseY, delta);
++        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, delta);
+     }
+ 
+     private boolean insideCanvas(double x, double y) {
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaBiomeToggleScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaBiomeToggleScreen.java
+@@ -132,9 +132,6 @@
+ 
+     @Override
+     public void tick() {
+-        if (this.searchBox != null) {
+-            this.searchBox.tick();
+-        }
+     }
+ 
+     private void refreshList() {
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityPickerScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityPickerScreen.java
+@@ -78,9 +78,6 @@
+ 
+     @Override
+     public void tick() {
+-        if (this.searchBox != null) {
+-            this.searchBox.tick();
+-        }
+     }
+ 
+     private void refreshList() {
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityToggleScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityToggleScreen.java
+@@ -171,9 +171,6 @@
+ 
+     @Override
+     public void tick() {
+-        if (this.searchBox != null) {
+-            this.searchBox.tick();
+-        }
+     }
+ 
+     private void refreshList() {
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaPresetScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaPresetScreen.java
+@@ -5,7 +5,7 @@
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.network.chat.Component;
+ 
+-final class AioaPresetScreen extends AioaAnimatedScreen {
++final class AioaPresetScreen extends Screen {
+     private final Screen parent;
+     private final AioaConfig editableConfig;
+     private String status = "Choose a starting point; every setting remains editable.";
+@@ -38,7 +38,6 @@
+ 
+     @Override
+     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-        this.beginUiRender(guiGraphics);
+         AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
+         int panelWidth = AioaScreenUtil.panelWidth(this.width, 520);
+         int left = (this.width - panelWidth) / 2;
+@@ -47,11 +46,12 @@
+         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, top + 14, AioaScreenUtil.TEXT_MAIN);
+         AioaScreenUtil.drawWrappedCenteredText(guiGraphics, this.font, Component.literal(this.status), this.width / 2, top + 31, panelWidth - 52, AioaScreenUtil.TEXT_SUB);
+         super.render(guiGraphics, mouseX, mouseY, partialTick);
+-        this.finishUiRender(guiGraphics);
+     }
+ 
+     @Override
+     public void onClose() {
+-        this.transitionTo(this.parent);
++        if (this.minecraft != null) {
++            this.minecraft.setScreen(this.parent);
++        }
+     }
+ }
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaRawEntryEditorScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaRawEntryEditorScreen.java
+@@ -37,7 +37,6 @@
+ 
+     @Override
+     public void tick() {
+-        this.rawEntryBox.tick();
+     }
+ 
+     @Override
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaScreenUtil.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaScreenUtil.java
+@@ -97,7 +97,7 @@
+         guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, PANEL_ACCENT);
+     }
+ 
+-    static void drawScreenBackground(GuiGraphics guiGraphics, int width, int height) {
++    public static void drawScreenBackground(GuiGraphics guiGraphics, int width, int height) {
+         guiGraphics.fillGradient(0, 0, width, height, 0xFF111A18, 0xFF0B100F);
+     }
+ 
+@@ -424,7 +424,7 @@
+             int modelCenterX = modelLeft + ((left + width - padding - modelLeft) / 2);
+             int modelAnchorY = modelBottom - 10;
+             int scale = Math.max(24, Math.min(42, (modelBottom - modelTop) / 2));
+-            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, modelCenterX, modelAnchorY, scale, 0.0F, 0.0F, previewEntity);
++            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, modelCenterX - scale, modelTop, modelCenterX + scale, modelAnchorY, scale, 0.0F, 0.0F, 0.0F, previewEntity);
+         } else {
+             int itemX = modelLeft + (((left + width - padding) - modelLeft) / 2) - 8;
+             int itemY = modelTop + ((modelBottom - modelTop) / 2) - 8;
+@@ -471,12 +471,15 @@
+             if (entity instanceof Mob previewMob) previewMob.setAggressive(frame.attacking());
+             entity.setGlowingTag(frame.glowing());
+             entity.walkAnimation.update(frame.walkAmount(), frame.walkAmount());
+-            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX, mobY, scale, orbitX, orbitY, entity);
++            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, mobX - scale, top + 42, mobX + scale,
++                    mobY, scale, 0.0F, orbitX, orbitY, entity);
+             if (frame.showTarget() && width >= 230 && Minecraft.getInstance().player != null) {
+                 int targetScreenX = centerX + (int) Math.max(-usable / 2.0D, Math.min(usable / 2.0D, frame.targetX() * usable / 10.0D));
+                 int targetScreenY = floorBottom - 3 - Math.round(frame.targetZ() * 4.0F);
+-                InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, targetScreenX, targetScreenY,
+-                        Math.max(24, scale * 3 / 4), -orbitX, orbitY, Minecraft.getInstance().player);
++                int targetScale = Math.max(24, scale * 3 / 4);
++                InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, targetScreenX - targetScale, top + 42,
++                        targetScreenX + targetScale, targetScreenY, targetScale, 0.0F, -orbitX, orbitY,
++                        Minecraft.getInstance().player);
+             }
+             guiGraphics.disableScissor();
+         } else {
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaScrollableScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaScrollableScreen.java
+@@ -1,6 +1,8 @@
+ package com.flubburr.aioa.client.config;
+ 
+ import net.minecraft.client.gui.components.AbstractWidget;
++import net.minecraft.client.gui.GuiGraphics;
++import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.network.chat.Component;
+ 
+ import java.util.ArrayList;
+@@ -82,7 +84,12 @@
+     }
+ 
+     @Override
+-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+-        return this.handleScroll(delta, 28) || super.mouseScrolled(mouseX, mouseY, delta);
++    public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++        AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
++    }
++
++    @Override
++    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
++        return this.handleScroll(verticalAmount, 28) || super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+     }
+ }
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaSpawnStudioScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaSpawnStudioScreen.java
+@@ -93,7 +93,6 @@
+ 
+     @Override
+     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-        this.beginUiRender(guiGraphics);
+         AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
+         int panelWidth = AioaScreenUtil.panelWidth(this.width, 520);
+         int left = (this.width - panelWidth) / 2;
+@@ -104,11 +103,12 @@
+                 Component.literal("Creative tool: configure a mob, aim at a block, and spawn a repeatable shot-ready instance."),
+                 this.width / 2, top + 30, panelWidth - 52, AioaScreenUtil.TEXT_SUB);
+         super.render(guiGraphics, mouseX, mouseY, partialTick);
+-        this.finishUiRender(guiGraphics);
+     }
+ 
+     @Override
+     public void onClose() {
+-        this.transitionTo(this.parent);
++        if (this.minecraft != null) {
++            this.minecraft.setScreen(this.parent);
++        }
+     }
+ }
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaTextListScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaTextListScreen.java
+@@ -64,7 +64,6 @@
+ 
+     @Override
+     public void tick() {
+-        this.editor.tick();
+     }
+ 
+     @Override
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaZombieAiScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaZombieAiScreen.java
+@@ -161,9 +161,9 @@
+     }
+ 
+     @Override
+-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
++    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double delta) {
+         if (this.maxScroll <= 0) {
+-            return super.mouseScrolled(mouseX, mouseY, delta);
++            return super.mouseScrolled(mouseX, mouseY, horizontalAmount, delta);
+         }
+         this.scrollOffset = Math.max(0, Math.min(this.maxScroll, this.scrollOffset - ((int) delta * 24)));
+         this.updateScrollLayout();
+--- a/common/src/main/java/com/flubburr/aioa/spawn/AioaZombieBehaviour.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/AioaZombieBehaviour.java
+@@ -194,16 +194,16 @@
+                     movementSpeed.addTransientModifier(CHASE_SPEED_MODIFIER);
+                 }
+             } else if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER)) {
+-                movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
++                movementSpeed.removeModifier(CHASE_SPEED_MODIFIER_ID);
+             }
+             return;
+         }
+ 
+         if (followRange.hasModifier(FOLLOW_RANGE_MODIFIER)) {
+-            followRange.removeModifier(FOLLOW_RANGE_MODIFIER);
++            followRange.removeModifier(FOLLOW_RANGE_MODIFIER_ID);
+         }
+         if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER)) {
+-            movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
++            movementSpeed.removeModifier(CHASE_SPEED_MODIFIER_ID);
+         }
+ 
+     }
+--- a/common/src/main/resources/assets/aioa/lang/en_us.json
++++ b/common/src/main/resources/assets/aioa/lang/en_us.json
+@@ -1,7 +1,6 @@
+ {
+   "aioa.common.on": "ON",
+   "aioa.common.off": "OFF",
+-  "aioa.common.multiplayer_locked": "AIOA config saving is disabled while connected to multiplayer or dedicated servers.",
+   "key.categories.aioa": "All In One Apocalypse",
+   "key.aioa.open_config": "Open AIOA Config",
+   "key.aioa.open_spawn_studio": "Open AIOA Spawn Studio",
+--- a/common/src/main/resources/pack.mcmeta
++++ b/common/src/main/resources/pack.mcmeta
+@@ -1,6 +1,6 @@
+ {
+     "pack": {
+         "description": "${mod_name}",
+-        "pack_format": 15
++        "pack_format": 18
+     }
+ }
+--- a/fabric/src/main/java/com/flubburr/aioa/fabric/config/AioaMidnightConfig.java
++++ b/fabric/src/main/java/com/flubburr/aioa/fabric/config/AioaMidnightConfig.java
+@@ -3,12 +3,13 @@
+ import com.flubburr.aioa.AioaConstants;
+ import com.flubburr.aioa.config.AioaConfig;
+ import com.flubburr.aioa.config.AioaConfigManager;
+-import eu.midnightdust.lib.config.EntryInfo;
+ import eu.midnightdust.lib.config.MidnightConfig;
+ 
+ import java.lang.reflect.Field;
++import java.lang.reflect.Method;
+ import java.util.ArrayList;
+ import java.util.List;
++import java.util.Map;
+ 
+ public final class AioaMidnightConfig extends MidnightConfig {
+ 
+@@ -179,12 +180,10 @@
+         syncMidnightEntryState();
+     }
+ 
+-    @Override
+     public void loadValuesFromJson() {
+         pullFromCommon();
+     }
+ 
+-    @Override
+     public void writeChanges() {
+         AioaConfig config = AioaConfigManager.getConfigCopy();
+         config.hostileSpawnControl.enabled = enable_hostile_spawn_nullification;
+@@ -231,7 +230,8 @@
+ 
+     private static Field resolveEntryInfoField(String fieldName) {
+         try {
+-            Field field = EntryInfo.class.getDeclaredField(fieldName);
++            Class<?> entryInfoClass = Class.forName("eu.midnightdust.lib.config.EntryInfo");
++            Field field = entryInfoClass.getDeclaredField(fieldName);
+             field.setAccessible(true);
+             return field;
+         } catch (Exception exception) {
+@@ -245,13 +245,27 @@
+             return;
+         }
+ 
+-        entries.forEach((key, entryInfo) -> {
+-            if (!key.startsWith(ENTRY_KEY_PREFIX) || entryInfo.field == null || entryInfo.entry == null) {
++        Map<?, ?> entries = resolveMidnightEntries();
++        if (entries == null) {
++            return;
++        }
++
++        entries.forEach((rawKey, entryInfo) -> {
++            String key = String.valueOf(rawKey);
++            if (!key.startsWith(ENTRY_KEY_PREFIX) || entryInfo == null) {
+                 return;
+             }
+ 
+             try {
+-                Object fieldValue = entryInfo.field.get(null);
++                Field fieldField = entryInfo.getClass().getField("field");
++                Field entryField = entryInfo.getClass().getField("entry");
++                Field configField = (Field) fieldField.get(entryInfo);
++                Object entryAnnotation = entryField.get(entryInfo);
++                if (configField == null || entryAnnotation == null) {
++                    return;
++                }
++
++                Object fieldValue = configField.get(null);
+                 if (fieldValue == null) {
+                     fieldValue = ENTRY_DEFAULT_VALUE_FIELD.get(entryInfo);
+                 }
+@@ -260,8 +274,10 @@
+                 }
+ 
+                 ENTRY_VALUE_FIELD.set(entryInfo, fieldValue);
+-                ENTRY_TEMP_VALUE_FIELD.set(entryInfo, entryInfo.toTemporaryValue());
+-                entryInfo.updateConditions();
++                Method toTemporaryValue = entryInfo.getClass().getMethod("toTemporaryValue");
++                ENTRY_TEMP_VALUE_FIELD.set(entryInfo, toTemporaryValue.invoke(entryInfo));
++                Method updateConditions = entryInfo.getClass().getMethod("updateConditions");
++                updateConditions.invoke(entryInfo);
+             } catch (Exception exception) {
+                 AioaConfigManager.warnOnce(
+                         "midnight-sync-" + key,
+@@ -270,4 +286,16 @@
+             }
+         });
+     }
++
++    @SuppressWarnings("unchecked")
++    private static Map<?, ?> resolveMidnightEntries() {
++        try {
++            Field entriesField = MidnightConfig.class.getDeclaredField("entries");
++            entriesField.setAccessible(true);
++            return (Map<?, ?>) entriesField.get(null);
++        } catch (Exception exception) {
++            AioaConstants.LOG.warn("AIOA could not access MidnightLib entry registry for state sync.", exception);
++            return null;
++        }
++    }
+ }
+--- a/forge/src/main/java/com/flubburr/aioa/forge/AioaForge.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/AioaForge.java
+@@ -2,7 +2,6 @@
+ 
+ import com.flubburr.aioa.AioaCommon;
+ import com.flubburr.aioa.AioaConstants;
+-import com.flubburr.aioa.client.config.AioaScreenUtil;
+ import com.flubburr.aioa.forge.config.AioaForgeClient;
+ import com.flubburr.aioa.network.AioaSpawnRequest;
+ import com.flubburr.aioa.spawn.AioaSpawnStudioHandler;
+@@ -15,13 +14,12 @@
+ import net.minecraftforge.fml.common.Mod;
+ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+ import net.minecraftforge.fml.loading.FMLEnvironment;
++import net.minecraftforge.event.network.CustomPayloadEvent;
++import net.minecraftforge.network.Channel;
++import net.minecraftforge.network.ChannelBuilder;
++import net.minecraftforge.network.SimpleChannel;
+ import net.minecraftforge.registries.DeferredRegister;
+ import net.minecraftforge.registries.ForgeRegistries;
+-import net.minecraftforge.network.NetworkEvent;
+-import net.minecraftforge.network.NetworkRegistry;
+-import net.minecraftforge.network.simple.SimpleChannel;
+-
+-import java.util.function.Supplier;
+ 
+ @Mod(AioaConstants.MOD_ID)
+ public final class AioaForge {
+@@ -35,20 +33,26 @@
+         ));
+     }
+ 
+-    private static final String NETWORK_VERSION = "1";
+-    public static final SimpleChannel NETWORK = NetworkRegistry.newSimpleChannel(
+-            new net.minecraft.resources.ResourceLocation(AioaConstants.MOD_ID, "main"),
+-            () -> NETWORK_VERSION, NETWORK_VERSION::equals, NETWORK_VERSION::equals
+-    );
++    private static final int NETWORK_VERSION = 1;
++    public static final SimpleChannel NETWORK = ChannelBuilder
++            .named(new net.minecraft.resources.ResourceLocation(AioaConstants.MOD_ID, "main"))
++            .networkProtocolVersion(NETWORK_VERSION)
++            .acceptedVersions(Channel.VersionTest.exact(NETWORK_VERSION))
++            .simpleChannel();
+ 
+     public AioaForge() {
+         SOUND_EVENTS.register(FMLJavaModLoadingContext.get().getModEventBus());
+         AioaCommon.init();
+-        NETWORK.registerMessage(0, AioaSpawnRequest.class, AioaForge::encodeSpawnRequest, AioaForge::decodeSpawnRequest, AioaForge::handleSpawnRequest);
+-        NETWORK.registerMessage(1, AioaGraphUpdateRequest.class,
+-                (request, buffer) -> buffer.writeUtf(request.graphJson(), 65_536),
+-                buffer -> new AioaGraphUpdateRequest(buffer.readUtf(65_536)),
+-                AioaForge::handleGraphUpdate);
++        NETWORK.messageBuilder(AioaSpawnRequest.class, 0)
++                .encoder(AioaForge::encodeSpawnRequest)
++                .decoder(AioaForge::decodeSpawnRequest)
++                .consumerMainThread(AioaForge::handleSpawnRequest)
++                .add();
++        NETWORK.messageBuilder(AioaGraphUpdateRequest.class, 1)
++                .encoder((request, buffer) -> buffer.writeUtf(request.graphJson(), 65_536))
++                .decoder(buffer -> new AioaGraphUpdateRequest(buffer.readUtf(65_536)))
++                .consumerMainThread(AioaForge::handleGraphUpdate)
++                .add();
+         MinecraftForge.EVENT_BUS.addListener(this::onLevelTick);
+ 
+         if (FMLEnvironment.dist.isClient()) {
+@@ -72,23 +76,17 @@
+                 buffer.readBoolean(), buffer.readBoolean(), buffer.readBoolean());
+     }
+ 
+-    private static void handleSpawnRequest(AioaSpawnRequest request, Supplier<NetworkEvent.Context> contextSupplier) {
+-        NetworkEvent.Context context = contextSupplier.get();
+-        context.enqueueWork(() -> {
+-            if (context.getSender() != null) {
+-                AioaSpawnStudioHandler.handle(context.getSender(), request);
+-            }
+-        });
++    private static void handleSpawnRequest(AioaSpawnRequest request, CustomPayloadEvent.Context context) {
++        if (context.getSender() != null) {
++            AioaSpawnStudioHandler.handle(context.getSender(), request);
++        }
+         context.setPacketHandled(true);
+     }
+ 
+-    private static void handleGraphUpdate(AioaGraphUpdateRequest request, Supplier<NetworkEvent.Context> contextSupplier) {
+-        NetworkEvent.Context context = contextSupplier.get();
+-        context.enqueueWork(() -> {
+-            if (context.getSender() != null) {
+-                AioaGraphUpdateHandler.handle(context.getSender(), request);
+-            }
+-        });
++    private static void handleGraphUpdate(AioaGraphUpdateRequest request, CustomPayloadEvent.Context context) {
++        if (context.getSender() != null) {
++            AioaGraphUpdateHandler.handle(context.getSender(), request);
++        }
+         context.setPacketHandled(true);
+     }
+ 
+@@ -108,7 +106,6 @@
+         }
+ 
+         Minecraft minecraft = Minecraft.getInstance();
+-        AioaScreenUtil.tickMenuAudio(minecraft);
+         com.flubburr.aioa.client.config.AioaMobSelectionController.tick(minecraft);
+         while (AioaForgeClient.openConfigKey().consumeClick()) {
+             if (minecraft.player != null && minecraft.player.isCreative()) {
+--- a/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeClient.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeClient.java
+@@ -6,6 +6,7 @@
+ import com.flubburr.aioa.network.AioaClientNetworking;
+ import com.flubburr.aioa.forge.AioaForge;
+ import com.mojang.blaze3d.platform.InputConstants;
++import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.client.KeyMapping;
+ import net.minecraftforge.client.ConfigScreenHandler;
+@@ -34,15 +35,19 @@
+         FMLJavaModLoadingContext.get().getModEventBus().addListener(AioaForgeClient::onRegisterKeyMappings);
+         ModLoadingContext.get().registerExtensionPoint(
+                 ConfigScreenHandler.ConfigScreenFactory.class,
+-                () -> new ConfigScreenHandler.ConfigScreenFactory(parent -> AioaForgeClient.createScreen(parent))
++                () -> new ConfigScreenHandler.ConfigScreenFactory((client, parent) -> AioaForgeClient.createScreen(parent))
+         );
+-        AioaClientNetworking.registerSender(request -> AioaForge.NETWORK.sendToServer(request));
+-        AioaClientNetworking.registerGraphSender(request -> AioaForge.NETWORK.sendToServer(request));
++        AioaClientNetworking.registerSender(request -> AioaForge.NETWORK.send(request, net.minecraftforge.network.PacketDistributor.SERVER.noArg()));
++        AioaClientNetworking.registerGraphSender(request -> AioaForge.NETWORK.send(request, net.minecraftforge.network.PacketDistributor.SERVER.noArg()));
+     }
+ 
+     private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+         event.register(OPEN_CONFIG_KEY);
+         event.register(OPEN_SPAWN_STUDIO_KEY);
++    }
++
++    public static Screen createScreen(Minecraft minecraft, Screen parent) {
++        return createScreen(parent);
+     }
+ 
+     public static Screen createScreen(Screen parent) {
+--- a/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeFallbackConfigScreen.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeFallbackConfigScreen.java
+@@ -1,5 +1,6 @@
+ package com.flubburr.aioa.forge.config;
+ 
++import com.flubburr.aioa.client.config.AioaScreenUtil;
+ import com.flubburr.aioa.config.AioaConfig;
+ import com.flubburr.aioa.config.AioaConfigManager;
+ import net.minecraft.client.gui.GuiGraphics;
+@@ -15,9 +16,6 @@
+ import java.util.stream.Collectors;
+ 
+ public final class AioaForgeFallbackConfigScreen extends Screen {
+-
+-    private static final int UI_TEXT_COLOR = 0x9AD6AE;
+-    private static final int BUTTON_TEXT_COLOR = 0x6EFFBA;
+ 
+     private final Screen parent;
+     private AioaConfig editableConfig;
+@@ -104,7 +102,6 @@
+         this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.cancel"), button -> this.onClose())
+                 .bounds(centerX + 2, bottomY, 140, 20)
+                 .build());
+-        applyButtonTextColor(this);
+     }
+ 
+     @Override
+@@ -114,14 +111,14 @@
+ 
+     @Override
+     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-        this.renderBackground(guiGraphics);
+-        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, UI_TEXT_COLOR);
++        AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
++        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+         guiGraphics.drawCenteredString(
+                 this.font,
+                 tr("aioa.forge.fallback.subtitle"),
+                 this.width / 2,
+                 28,
+-                UI_TEXT_COLOR
++                0xA0A0A0
+         );
+         super.render(guiGraphics, mouseX, mouseY, partialTick);
+     }
+@@ -136,14 +133,6 @@
+ 
+     private static Component tr(String key) {
+         return Component.translatable(key);
+-    }
+-
+-    private static void applyButtonTextColor(Screen screen) {
+-        for (var child : screen.children()) {
+-            if (child instanceof Button button) {
+-                button.setFGColor(BUTTON_TEXT_COLOR);
+-            }
+-        }
+     }
+ 
+     private static final class HostileSettingsScreen extends Screen {
+@@ -230,7 +219,6 @@
+             this.addRenderableWidget(Button.builder(tr("aioa.forge.fallback.button.cancel"), button -> this.minecraft.setScreen(this.parent))
+                     .bounds(centerX + 2, bottomY, 140, 20)
+                     .build());
+-            applyButtonTextColor(this);
+         }
+ 
+         @Override
+@@ -240,8 +228,8 @@
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            this.renderBackground(guiGraphics);
+-            guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, UI_TEXT_COLOR);
++            AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
++            guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+             super.render(guiGraphics, mouseX, mouseY, partialTick);
+         }
+     }
+@@ -393,16 +381,11 @@
+                     .build());
+ 
+             this.setInitialFocus(this.spawnIntervalTicks);
+-            applyButtonTextColor(this);
+         }
+ 
+         @Override
+         public void tick() {
+-            this.spawnIntervalTicks.tick();
+-            this.spawnAttemptsPerPlayer.tick();
+-            this.minSpawnDistance.tick();
+-            this.maxSpawnDistance.tick();
+-            this.maxNearbyManagedMobs.tick();
++            super.tick();
+         }
+ 
+         @Override
+@@ -412,13 +395,13 @@
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            this.renderBackground(guiGraphics);
+-            guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, UI_TEXT_COLOR);
++            AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
++            guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+ 
+             int labelX = this.width / 2 - 150;
+             int y = 162;
+             int step = 20;
+-            int color = UI_TEXT_COLOR;
++            int color = 0xA0A0A0;
+             guiGraphics.drawString(this.font, tr("aioa.forge.fallback.day.label.spawn_interval_ticks"), labelX, y + 6, color);
+             guiGraphics.drawString(this.font, tr("aioa.forge.fallback.day.label.spawn_attempts_per_player"), labelX, y + step + 6, color);
+             guiGraphics.drawString(this.font, tr("aioa.forge.fallback.day.label.min_spawn_distance"), labelX, y + (step * 2) + 6, color);
+@@ -513,12 +496,11 @@
+                     .build());
+ 
+             this.setInitialFocus(this.editor);
+-            applyButtonTextColor(this);
+         }
+ 
+         @Override
+         public void tick() {
+-            this.editor.tick();
++            super.tick();
+         }
+ 
+         @Override
+@@ -528,9 +510,9 @@
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            this.renderBackground(guiGraphics);
+-            guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, UI_TEXT_COLOR);
+-            guiGraphics.drawCenteredString(this.font, this.description, this.width / 2, 30, UI_TEXT_COLOR);
++            AioaScreenUtil.drawScreenBackground(guiGraphics, this.width, this.height);
++            guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
++            guiGraphics.drawCenteredString(this.font, this.description, this.width / 2, 30, 0xA0A0A0);
+             super.render(guiGraphics, mouseX, mouseY, partialTick);
+         }
+     }
+--- a/neoforge/src/main/java/com/flubburr/aioa/neoforge/AioaNeoForge.java
++++ b/neoforge/src/main/java/com/flubburr/aioa/neoforge/AioaNeoForge.java
+@@ -4,8 +4,6 @@
+ import com.flubburr.aioa.AioaConstants;
+ import com.flubburr.aioa.behavior.AioaGraphUpdateHandler;
+ import com.flubburr.aioa.compat.AioaEntityHelper;
+-import com.flubburr.aioa.network.AioaGraphPayload;
+-import com.flubburr.aioa.network.AioaSpawnPayload;
+ import com.flubburr.aioa.spawn.AioaSpawnStudioHandler;
+ import net.minecraft.core.registries.Registries;
+ import net.minecraft.server.level.ServerLevel;
+@@ -16,33 +14,22 @@
+ import net.neoforged.fml.ModContainer;
+ import net.neoforged.fml.common.Mod;
+ import net.neoforged.neoforge.common.NeoForge;
+-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
++import net.neoforged.neoforge.event.TickEvent;
+ import net.neoforged.neoforge.registries.DeferredRegister;
+ 
+ @Mod(AioaConstants.MOD_ID)
+ public final class AioaNeoForge {
+-    public AioaNeoForge(IEventBus modBus, ModContainer container, Dist dist) {
++    public AioaNeoForge(IEventBus modBus) {
+         var sounds = DeferredRegister.create(Registries.SOUND_EVENT, AioaConstants.MOD_ID);
+         sounds.register("music.menu", () -> SoundEvent.createVariableRangeEvent(AioaEntityHelper.parseResourceLocation("aioa:music.menu")));
+         sounds.register(modBus);
+-        modBus.addListener(AioaNeoForge::registerPayloads);
++        AioaLegacyNetwork.register(modBus);
+         NeoForge.EVENT_BUS.addListener(AioaNeoForge::endLevelTick);
+         AioaCommon.init();
+-        if (dist == Dist.CLIENT) AioaNeoForgeClient.register(modBus, container);
++        if (net.neoforged.fml.loading.FMLEnvironment.dist == Dist.CLIENT) AioaNeoForgeClient.register(modBus);
+     }
+ 
+-    private static void registerPayloads(RegisterPayloadHandlersEvent event) {
+-        var registrar = event.registrar("1");
+-        registrar.playToServer(AioaSpawnPayload.TYPE, AioaSpawnPayload.CODEC, (payload, context) -> {
+-            if (context.player() instanceof ServerPlayer player) AioaSpawnStudioHandler.handle(player, payload.request());
+-        });
+-        registrar.playToServer(AioaGraphPayload.TYPE, AioaGraphPayload.CODEC, (payload, context) -> {
+-            if (context.player() instanceof ServerPlayer player) AioaGraphUpdateHandler.handle(player, payload.request());
+-        });
+-    }
+-
+-    private static void endLevelTick(LevelTickEvent.Post event) {
+-        if (event.getLevel() instanceof ServerLevel level) AioaCommon.onServerLevelTick(level);
++    private static void endLevelTick(TickEvent.LevelTickEvent event) {
++        if (event.phase == TickEvent.Phase.END && event.level instanceof ServerLevel level) AioaCommon.onServerLevelTick(level);
+     }
+ }
+--- a/neoforge/src/main/java/com/flubburr/aioa/neoforge/AioaNeoForgeClient.java
++++ b/neoforge/src/main/java/com/flubburr/aioa/neoforge/AioaNeoForgeClient.java
+@@ -5,16 +5,14 @@
+ import com.flubburr.aioa.client.config.AioaMobSelectionController;
+ import com.flubburr.aioa.client.config.AioaScreenUtil;
+ import com.flubburr.aioa.network.AioaClientNetworking;
+-import com.flubburr.aioa.network.AioaGraphPayload;
+-import com.flubburr.aioa.network.AioaSpawnPayload;
+ import com.mojang.blaze3d.platform.InputConstants;
+ import net.minecraft.client.KeyMapping;
+ import net.minecraft.client.Minecraft;
+ import net.neoforged.bus.api.IEventBus;
+ import net.neoforged.fml.ModContainer;
+-import net.neoforged.neoforge.client.event.ClientTickEvent;
++import net.neoforged.neoforge.event.TickEvent;
+ import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+-import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
++import net.neoforged.neoforge.client.ConfigScreenHandler;
+ import net.neoforged.neoforge.common.NeoForge;
+ import net.neoforged.neoforge.network.PacketDistributor;
+ import org.lwjgl.glfw.GLFW;
+@@ -23,11 +21,11 @@
+     private static final KeyMapping CONFIG = new KeyMapping("key.aioa.open_config", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F6, "key.categories.aioa");
+     private static final KeyMapping EDITOR = new KeyMapping("key.aioa.open_behavior_graph", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F7, "key.categories.aioa");
+ 
+-    static void register(IEventBus modBus, ModContainer container) {
++    static void register(IEventBus modBus) {
+         modBus.addListener(AioaNeoForgeClient::registerKeys);
+-        container.registerExtensionPoint(IConfigScreenFactory.class, (mod, parent) -> AioaConfigScreen.create(parent));
+-        AioaClientNetworking.registerSender(request -> PacketDistributor.sendToServer(new AioaSpawnPayload(request)));
+-        AioaClientNetworking.registerGraphSender(request -> PacketDistributor.sendToServer(new AioaGraphPayload(request)));
++        net.neoforged.fml.ModLoadingContext.get().registerExtensionPoint(ConfigScreenHandler.ConfigScreenFactory.class, () -> new ConfigScreenHandler.ConfigScreenFactory((client, parent) -> AioaConfigScreen.create(parent)));
++        AioaClientNetworking.registerSender(AioaLegacyNetwork::send);
++        AioaClientNetworking.registerGraphSender(AioaLegacyNetwork::send);
+         NeoForge.EVENT_BUS.addListener(AioaNeoForgeClient::clientTick);
+     }
+ 
+@@ -36,7 +34,8 @@
+         event.register(EDITOR);
+     }
+ 
+-    private static void clientTick(ClientTickEvent.Post event) {
++    private static void clientTick(TickEvent.ClientTickEvent event) {
++        if (event.phase != TickEvent.Phase.END) return;
+         Minecraft client = Minecraft.getInstance();
+         AioaScreenUtil.tickMenuAudio(client);
+         AioaMobSelectionController.tick(client);

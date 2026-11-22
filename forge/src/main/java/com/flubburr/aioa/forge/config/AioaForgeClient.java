@@ -34,7 +34,7 @@ public final class AioaForgeClient {
         FMLJavaModLoadingContext.get().getModEventBus().addListener(AioaForgeClient::onRegisterKeyMappings);
         ModLoadingContext.get().registerExtensionPoint(
                 ConfigScreenHandler.ConfigScreenFactory.class,
-                () -> new ConfigScreenHandler.ConfigScreenFactory(AioaForgeClient::createScreen)
+                () -> new ConfigScreenHandler.ConfigScreenFactory(parent -> AioaForgeClient.createScreen(parent))
         );
         AioaClientNetworking.registerSender(request -> AioaForge.NETWORK.sendToServer(request));
         AioaClientNetworking.registerGraphSender(request -> AioaForge.NETWORK.sendToServer(request));

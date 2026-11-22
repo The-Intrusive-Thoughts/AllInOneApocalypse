@@ -1,0 +1,17 @@
+plugins { id 'net.minecraftforge.gradle' version '7.0.17' }
+
+minecraft {
+    runs {
+        register('client')
+        register('server') { args '--nogui' }
+    }
+}
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    mavenCentral()
+}
+dependencies { implementation minecraft.dependency("net.minecraftforge:forge:${minecraft_version}-${forge_version}") }
+sourceSets.main.java.exclude '**/AioaYaclConfigScreen.java', '**/AioaForgeFallbackConfigScreen.java'
+jar { manifest.attributes('MixinConfigs': 'aioa.mixins.json') }

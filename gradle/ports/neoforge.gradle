@@ -1,0 +1,10 @@
+plugins { id 'net.neoforged.moddev' }
+
+neoForge {
+    version = neoforge_version
+    runs {
+        client { client() }
+        server { server() }
+    }
+    mods { aioa { sourceSet sourceSets.main } }
+}

@@ -1,0 +1,1410 @@
+--- a/common/src/main/java/com/flubburr/aioa/behavior/AioaBehaviorRuntime.java
++++ b/common/src/main/java/com/flubburr/aioa/behavior/AioaBehaviorRuntime.java
+@@ -9,7 +9,7 @@
+ import com.flubburr.aioa.spawn.AioaZombieBehaviour;
+ import net.minecraft.core.registries.BuiltInRegistries;
+ import net.minecraft.core.Holder;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import net.minecraft.sounds.SoundEvent;
+ import net.minecraft.sounds.SoundSource;
+ import net.minecraft.world.entity.LivingEntity;
+@@ -506,7 +506,7 @@
+         double strength = number(node, "strength", 1.25, 0.1, 4);
+         mob.setDeltaMovement(direction.x * strength, direction.y * strength + number(node, "lift", 0.15, -1, 2),
+                 direction.z * strength);
+-        mob.hasImpulse = true;
++        mob.hurtMarked = true;
+     }
+ 
+     private static void damageTarget(AioaBehaviorGraph.Node node, Mob mob, ExecutionContext context) {
+@@ -531,11 +531,11 @@
+         Vec3 outward = target.position().subtract(mob.position()).multiply(1, 0, 1).normalize();
+         double horizontal = number(node, "horizontal", 0.7, 0, 4);
+         target.setDeltaMovement(outward.x * horizontal, number(node, "vertical", 0.65, -1, 4), outward.z * horizontal);
+-        target.hasImpulse = true;
++        target.hurtMarked = true;
+     }
+ 
+     private static void applyEffect(AioaBehaviorGraph.Node node, Mob source, LivingEntity target) {
+-        ResourceLocation id = AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("effect", "minecraft:speed"));
++        Identifier id = AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("effect", "minecraft:speed"));
+         if (id == null || !BuiltInRegistries.MOB_EFFECT.containsKey(id)) return;
+         Holder<MobEffect> effect = BuiltInRegistries.MOB_EFFECT.get(id).orElse(null);
+         if (effect == null) return;
+@@ -812,7 +812,7 @@
+     }
+ 
+     private static void playSound(AioaBehaviorGraph.Node node, Mob mob) {
+-        Optional<ResourceLocation> id = Optional.ofNullable(AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("sound", "minecraft:entity.zombie.ambient")));
++        Optional<Identifier> id = Optional.ofNullable(AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("sound", "minecraft:entity.zombie.ambient")));
+         SoundEvent sound = id.map(AioaRegistryCompat::getSoundEvent).orElse(null);
+         if (sound != null) {
+             mob.level().playSound(null, mob.blockPosition(), sound, SoundSource.HOSTILE,
+@@ -826,7 +826,7 @@
+     }
+ 
+     private static void equipItem(AioaBehaviorGraph.Node node, Mob mob) {
+-        ResourceLocation id = AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("item", "minecraft:air"));
++        Identifier id = AioaEntityHelper.parseResourceLocation(node.parameters.getOrDefault("item", "minecraft:air"));
+         if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) return;
+         EquipmentSlot slot;
+         try {
+--- a/common/src/main/java/com/flubburr/aioa/behavior/AioaBehaviorValidator.java
++++ b/common/src/main/java/com/flubburr/aioa/behavior/AioaBehaviorValidator.java
+@@ -2,7 +2,7 @@
+ 
+ import com.flubburr.aioa.compat.AioaEntityHelper;
+ import net.minecraft.core.registries.BuiltInRegistries;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ 
+ import java.util.ArrayList;
+ import java.util.HashSet;
+@@ -126,7 +126,7 @@
+             case SET_ATTACK_DAMAGE -> number(node, "value", 0, 2048, issues);
+             case SET_MOVEMENT_SPEED -> number(node, "value", 0.01, 2, issues);
+             case EQUIP_ITEM, EQUIP_ARMOR -> {
+-                ResourceLocation id = AioaEntityHelper.parseResourceLocation(node.parameters.get("item"));
++                Identifier id = AioaEntityHelper.parseResourceLocation(node.parameters.get("item"));
+                 if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) issues.add("Equip Item needs a valid registered item id.");
+                 String slot = node.parameters.getOrDefault("slot", "MAINHAND").toUpperCase(java.util.Locale.ROOT);
+                 if (!Set.of("MAINHAND", "OFFHAND", "FEET", "LEGS", "CHEST", "HEAD").contains(slot)) issues.add("Equip Item has an invalid slot.");
+@@ -166,7 +166,7 @@
+             case SET_KNOCKBACK_RESISTANCE -> number(node, "value", 0, 1, issues);
+             case PLAY_SOUND -> { number(node, "volume", 0, 4, issues); number(node, "pitch", 0.25, 2, issues); }
+             case APPLY_EFFECT_SELF, APPLY_EFFECT_TARGET -> {
+-                ResourceLocation id = AioaEntityHelper.parseResourceLocation(node.parameters.get("effect"));
++                Identifier id = AioaEntityHelper.parseResourceLocation(node.parameters.get("effect"));
+                 if (id == null || !BuiltInRegistries.MOB_EFFECT.containsKey(id)) issues.add(node.type + " needs a valid effect id.");
+                 number(node, "duration", 1, 72000, issues); number(node, "amplifier", 0, 255, issues);
+             }
+--- a/common/src/main/java/com/flubburr/aioa/behavior/AioaGraphUpdateHandler.java
++++ b/common/src/main/java/com/flubburr/aioa/behavior/AioaGraphUpdateHandler.java
+@@ -44,7 +44,8 @@
+                 player.displayClientMessage(Component.literal("AIOA graph rejected: " + issues.get(0)), true);
+                 return;
+             }
+-            if (graph.scope != AioaBehaviorGraph.Scope.SINGLE_ENTITY && !player.hasPermissions(2)) {
++            if (graph.scope != AioaBehaviorGraph.Scope.SINGLE_ENTITY
++                    && !player.level().getServer().getPlayerList().isOp(player.nameAndId())) {
+                 player.displayClientMessage(Component.literal("Operator permission is required for non-instance behavior graphs."), true);
+                 return;
+             }
+@@ -74,7 +75,7 @@
+         }
+ 
+         AioaConfig config = AioaConfigManager.getConfigCopy();
+-        if (player.hasPermissions(2)) {
++        if (player.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER)) {
+             config.behaviorGraphs = graphs.stream().map(AioaBehaviorGraph::copy)
+                     .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
+         } else {
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaBehaviorEditorScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaBehaviorEditorScreen.java
+@@ -10,7 +10,7 @@
+ import com.flubburr.aioa.behavior.AioaGraphUpdateHandler;
+ import com.flubburr.aioa.network.AioaClientNetworking;
+ import com.flubburr.aioa.compat.AioaEntityHelper;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.Button;
+ import net.minecraft.client.gui.components.EditBox;
+@@ -997,7 +997,7 @@
+         if (this.selected == null || this.parameterKey == null) return;
+         String key = this.parameterKey.getValue();
+         if ("item".equals(key)) {
+-            ResourceLocation current = AioaEntityHelper.parseResourceLocation(this.parameterValue.getValue());
++            Identifier current = AioaEntityHelper.parseResourceLocation(this.parameterValue.getValue());
+             this.transitionTo(new AioaItemPickerScreen(this, current, id -> {
+                 if (!this.parameterSnapshotTaken) {
+                     snapshot();
+@@ -2249,7 +2249,7 @@
+ 
+     private void drawParameterVisualForeground(GuiGraphics graphics) {
+         if (this.selected == null || !"item".equals(currentParameterKey())) return;
+-        ResourceLocation id = AioaEntityHelper.parseResourceLocation(this.selected.parameters.getOrDefault("item", "minecraft:air"));
++        Identifier id = AioaEntityHelper.parseResourceLocation(this.selected.parameters.getOrDefault("item", "minecraft:air"));
+         if (id == null) return;
+         graphics.renderItem(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(id)),
+                 this.parametersX + 14, this.parametersY + 59);
+@@ -2511,7 +2511,7 @@
+     }
+ 
+     private void drawViewport(GuiGraphics graphics, int mouseX, int mouseY) {
+-        ResourceLocation entityId = previewEntityId();
++        Identifier entityId = previewEntityId();
+         int width = Math.min(this.viewportWidth, Math.max(120, this.width - this.viewportX));
+         int height = Math.min(this.viewportHeight, Math.max(90, this.height - this.viewportY));
+         this.previewSimulation.advance(this.graph, this.previewPlaying, this.previewSpeed);
+@@ -2574,9 +2574,9 @@
+         this.tabOffset = Math.max(0, Math.min(this.tabOffset, Math.max(0, this.graphs.size() - slots)));
+     }
+ 
+-    private ResourceLocation previewEntityId() {
++    private Identifier previewEntityId() {
+         if (this.graph.scope == AioaBehaviorGraph.Scope.ENTITY_TYPE) {
+-            ResourceLocation parsed = AioaEntityHelper.parseResourceLocation(this.graph.selector);
++            Identifier parsed = AioaEntityHelper.parseResourceLocation(this.graph.selector);
+             if (parsed != null) return parsed;
+         }
+         if (this.graph.scope == AioaBehaviorGraph.Scope.SINGLE_ENTITY && this.minecraft != null && this.minecraft.level != null) {
+@@ -2591,10 +2591,10 @@
+             }
+         }
+         if (this.selected != null) {
+-            ResourceLocation parsed = AioaEntityHelper.parseResourceLocation(this.selected.parameters.get("entity"));
++            Identifier parsed = AioaEntityHelper.parseResourceLocation(this.selected.parameters.get("entity"));
+             if (parsed != null) return parsed;
+         }
+-        return ResourceLocation.fromNamespaceAndPath("minecraft", "zombie");
++        return Identifier.fromNamespaceAndPath("minecraft", "zombie");
+     }
+ 
+     private AioaBehaviorGraph.Node findNode(String id) {
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaBiomeToggleScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaBiomeToggleScreen.java
+@@ -8,7 +8,7 @@
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+ import net.minecraft.network.chat.Component;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import org.lwjgl.glfw.GLFW;
+ import net.minecraft.client.input.KeyEvent;
+ 
+@@ -29,10 +29,10 @@
+     private final Screen parent;
+     private final AioaConfig editableConfig;
+     private final Set<String> selectedBiomeIds;
+-    private final List<ResourceLocation> allBiomes;
++    private final List<Identifier> allBiomes;
+ 
+     private final List<Button> optionButtons = new ArrayList<>();
+-    private final List<ResourceLocation> visibleButtonBiomes = new ArrayList<>();
++    private final List<Identifier> visibleButtonBiomes = new ArrayList<>();
+     private EditBox searchBox;
+     private Button selectAllButton;
+     private Button clearButton;
+@@ -41,9 +41,9 @@
+     private Button netherHeader;
+     private Button endHeader;
+     private Button moddedHeader;
+-    private ResourceLocation focusedBiome;
++    private Identifier focusedBiome;
+     private String searchQuery = "";
+-    private List<ResourceLocation> filteredBiomes = List.of();
++    private List<Identifier> filteredBiomes = List.of();
+     private boolean overworldExpanded;
+     private boolean netherExpanded;
+     private boolean endExpanded;
+@@ -97,7 +97,7 @@
+             this.refreshList();
+         }), y);
+ 
+-        for (ResourceLocation ignored : this.allBiomes) {
++        for (Identifier ignored : this.allBiomes) {
+             Button button = this.addScrollable(AioaScreenUtil.button(left, 0, width, "-", b -> this.toggleButton((Button) b)), y);
+             this.setScrollableShown(button, false);
+             this.optionButtons.add(button);
+@@ -105,7 +105,7 @@
+         }
+ 
+         this.selectAllButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Select All Visible", b -> {
+-            for (ResourceLocation biome : this.visibleButtonBiomes) {
++            for (Identifier biome : this.visibleButtonBiomes) {
+                 if (biome != null) {
+                     this.selectedBiomeIds.add(biome.toString());
+                 }
+@@ -114,7 +114,7 @@
+         }), y);
+         y += AioaScreenUtil.BUTTON_HEIGHT + 8;
+         this.clearButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Clear Visible", b -> {
+-            for (ResourceLocation biome : this.visibleButtonBiomes) {
++            for (Identifier biome : this.visibleButtonBiomes) {
+                 if (biome != null) {
+                     this.selectedBiomeIds.remove(biome.toString());
+                 }
+@@ -145,12 +145,12 @@
+             this.focusedBiome = this.filteredBiomes.isEmpty() ? null : this.filteredBiomes.get(0);
+         }
+ 
+-        Map<String, List<ResourceLocation>> groups = new HashMap<>();
++        Map<String, List<Identifier>> groups = new HashMap<>();
+         groups.put("Overworld", new ArrayList<>());
+         groups.put("Nether", new ArrayList<>());
+         groups.put("End", new ArrayList<>());
+         groups.put("Modded", new ArrayList<>());
+-        for (ResourceLocation biome : this.filteredBiomes) {
++        for (Identifier biome : this.filteredBiomes) {
+             groups.computeIfAbsent(AioaScreenUtil.biomeCategory(biome), key -> new ArrayList<>()).add(biome);
+         }
+ 
+@@ -179,7 +179,7 @@
+         this.finishScrollLayout(y + 102);
+     }
+ 
+-    private int layoutGroup(Button header, String label, boolean expanded, List<ResourceLocation> entries, int y, int slotStart) {
++    private int layoutGroup(Button header, String label, boolean expanded, List<Identifier> entries, int y, int slotStart) {
+         this.setScrollableRelativeY(header, y);
+         this.setScrollableShown(header, true);
+         header.setMessage(Component.literal(AioaScreenUtil.sectionLabel(label + " (" + entries.size() + ")", expanded)));
+@@ -188,14 +188,14 @@
+             return y;
+         }
+         int slot = slotStart;
+-        for (ResourceLocation biome : entries) {
++        for (Identifier biome : entries) {
+             y = this.layoutBiomeButton(this.optionButtons.get(slot), slot, biome, y);
+             slot++;
+         }
+         return y + 4;
+     }
+ 
+-    private int layoutBiomeButton(Button button, int slot, ResourceLocation biome, int y) {
++    private int layoutBiomeButton(Button button, int slot, Identifier biome, int y) {
+         boolean selected = this.selectedBiomeIds.contains(biome.toString());
+         boolean focused = biome.equals(this.focusedBiome);
+         this.visibleButtonBiomes.set(slot, biome);
+@@ -215,7 +215,7 @@
+         if (index < 0 || index >= this.visibleButtonBiomes.size()) {
+             return;
+         }
+-        ResourceLocation biome = this.visibleButtonBiomes.get(index);
++        Identifier biome = this.visibleButtonBiomes.get(index);
+         if (biome == null) {
+             return;
+         }
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaConfigScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaConfigScreen.java
+@@ -6,15 +6,14 @@
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.client.gui.components.Button;
+ import net.minecraft.network.chat.Component;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import net.minecraft.client.renderer.RenderPipelines;
+-import net.minecraft.Util;
+-
++import java.awt.Desktop;
+ import java.net.URI;
+ 
+ public final class AioaConfigScreen extends AioaScrollableScreen {
+ 
+-    private static final ResourceLocation LOGO = ResourceLocation.fromNamespaceAndPath("aioa", "textures/gui/aioa-logo2.png");
++    private static final Identifier LOGO = Identifier.fromNamespaceAndPath("aioa", "textures/gui/aioa-logo2.png");
+     private static final int LOGO_TEXTURE_WIDTH = 1024;
+     private static final int LOGO_TEXTURE_HEIGHT = 230;
+ 
+@@ -271,7 +270,11 @@
+     }
+ 
+     private static void openExternal(String url) {
+-        Util.getPlatform().openUri(URI.create(url));
++        try {
++            if (Desktop.isDesktopSupported()) Desktop.getDesktop().browse(URI.create(url));
++        } catch (Exception ignored) {
++            // External links are optional; never trap or crash the configuration screen.
++        }
+     }
+ 
+ }
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityPickerScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityPickerScreen.java
+@@ -7,7 +7,7 @@
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.network.chat.Component;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ 
+ import java.util.ArrayList;
+ import java.util.List;
+@@ -18,8 +18,8 @@
+     private static final int PREVIEW_HEIGHT = 126;
+ 
+     private final Screen parent;
+-    private final List<ResourceLocation> allOptions;
+-    private final Consumer<ResourceLocation> selectionConsumer;
++    private final List<Identifier> allOptions;
++    private final Consumer<Identifier> selectionConsumer;
+     private final String description;
+     private final String actionLabel;
+     private final List<Button> optionButtons = new ArrayList<>();
+@@ -27,15 +27,15 @@
+     private Button addButton;
+     private Button backButton;
+     private Button closeButton;
+-    private ResourceLocation selectedOption;
++    private Identifier selectedOption;
+     private String searchQuery = "";
+-    private List<ResourceLocation> filteredOptions = List.of();
++    private List<Identifier> filteredOptions = List.of();
+ 
+-    AioaEntityPickerScreen(Screen parent, String title, List<ResourceLocation> allOptions, Consumer<ResourceLocation> selectionConsumer) {
++    AioaEntityPickerScreen(Screen parent, String title, List<Identifier> allOptions, Consumer<Identifier> selectionConsumer) {
+         this(parent, title, allOptions, "Search the mob list and add a creature to the day spawn pool.", "Add Selected Mob", selectionConsumer);
+     }
+ 
+-    AioaEntityPickerScreen(Screen parent, String title, List<ResourceLocation> allOptions, String description, String actionLabel, Consumer<ResourceLocation> selectionConsumer) {
++    AioaEntityPickerScreen(Screen parent, String title, List<Identifier> allOptions, String description, String actionLabel, Consumer<Identifier> selectionConsumer) {
+         super(Component.literal(title));
+         this.parent = parent;
+         this.allOptions = new ArrayList<>(allOptions);
+@@ -62,7 +62,7 @@
+         });
+         y += 30;
+ 
+-        for (ResourceLocation ignored : this.allOptions) {
++        for (Identifier ignored : this.allOptions) {
+             Button button = this.addScrollable(AioaScreenUtil.button(left, 0, width, "-", b -> this.selectButton((Button) b)), y);
+             button.visible = false;
+             this.optionButtons.add(button);
+@@ -99,7 +99,7 @@
+                 continue;
+             }
+ 
+-            ResourceLocation id = this.filteredOptions.get(i);
++            Identifier id = this.filteredOptions.get(i);
+             boolean selected = id.equals(this.selectedOption);
+             this.setScrollableRelativeY(button, y);
+             this.setScrollableShown(button, true);
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityToggleScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityToggleScreen.java
+@@ -7,7 +7,7 @@
+ import net.minecraft.client.gui.components.Tooltip;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.network.chat.Component;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import org.lwjgl.glfw.GLFW;
+ import net.minecraft.client.input.KeyEvent;
+ 
+@@ -27,13 +27,13 @@
+ 
+     private final Screen parent;
+     private final String description;
+-    private final List<ResourceLocation> allOptions;
++    private final List<Identifier> allOptions;
+     private final Set<String> selectedIds;
+     private final java.util.function.Consumer<List<String>> saveConsumer;
+     private final boolean groupedByDimension;
+ 
+     private final List<Button> optionButtons = new ArrayList<>();
+-    private final List<ResourceLocation> visibleButtonOptions = new ArrayList<>();
++    private final List<Identifier> visibleButtonOptions = new ArrayList<>();
+     private EditBox searchBox;
+     private Button selectAllButton;
+     private Button clearButton;
+@@ -42,9 +42,9 @@
+     private Button netherHeader;
+     private Button endHeader;
+     private Button moddedHeader;
+-    private ResourceLocation focusedOption;
++    private Identifier focusedOption;
+     private String searchQuery = "";
+-    private List<ResourceLocation> filteredOptions = List.of();
++    private List<Identifier> filteredOptions = List.of();
+     private boolean overworldExpanded;
+     private boolean netherExpanded;
+     private boolean endExpanded;
+@@ -54,7 +54,7 @@
+             Screen parent,
+             String title,
+             String description,
+-            List<ResourceLocation> allOptions,
++            List<Identifier> allOptions,
+             Set<String> selectedIds,
+             java.util.function.Consumer<List<String>> saveConsumer,
+             boolean groupedByDimension
+@@ -136,7 +136,7 @@
+             }), y);
+         }
+ 
+-        for (ResourceLocation ignored : this.allOptions) {
++        for (Identifier ignored : this.allOptions) {
+             Button button = this.addScrollable(AioaScreenUtil.button(left, 0, width, "-", b -> this.toggleButton((Button) b)), y);
+             button.visible = false;
+             this.optionButtons.add(button);
+@@ -144,7 +144,7 @@
+         }
+ 
+         this.selectAllButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Select All Visible", b -> {
+-            for (ResourceLocation option : this.visibleButtonOptions) {
++            for (Identifier option : this.visibleButtonOptions) {
+                 if (option != null) {
+                     this.selectedIds.add(option.toString());
+                 }
+@@ -153,7 +153,7 @@
+         }), y);
+         y += AioaScreenUtil.BUTTON_HEIGHT + 8;
+         this.clearButton = this.addScrollable(AioaScreenUtil.button(left, 0, width, "Clear Visible", b -> {
+-            for (ResourceLocation option : this.visibleButtonOptions) {
++            for (Identifier option : this.visibleButtonOptions) {
+                 if (option != null) {
+                     this.selectedIds.remove(option.toString());
+                 }
+@@ -187,12 +187,12 @@
+         int y = this.previewReservedHeight();
+         int slot = 0;
+         if (this.groupedByDimension) {
+-            Map<String, List<ResourceLocation>> groups = new HashMap<>();
++            Map<String, List<Identifier>> groups = new HashMap<>();
+             groups.put("Overworld", new ArrayList<>());
+             groups.put("Nether", new ArrayList<>());
+             groups.put("End", new ArrayList<>());
+             groups.put("Modded", new ArrayList<>());
+-            for (ResourceLocation id : this.filteredOptions) {
++            for (Identifier id : this.filteredOptions) {
+                 groups.computeIfAbsent(AioaScreenUtil.dimensionCategory(id), key -> new ArrayList<>()).add(id);
+             }
+             y = this.layoutGroup(this.overworldHeader, "Overworld hostiles", this.overworldExpanded, groups.get("Overworld"), y, slot);
+@@ -204,7 +204,7 @@
+             y = this.layoutGroup(this.moddedHeader, "Modded hostiles", this.moddedExpanded, groups.get("Modded"), y, slot);
+             slot += this.moddedExpanded ? groups.get("Modded").size() : 0;
+         } else {
+-            for (ResourceLocation id : this.filteredOptions) {
++            for (Identifier id : this.filteredOptions) {
+                 y = this.layoutOptionButton(this.optionButtons.get(slot), slot, id, y);
+                 slot++;
+             }
+@@ -224,7 +224,7 @@
+         this.finishScrollLayout(y + 102);
+     }
+ 
+-    private int layoutGroup(Button header, String label, boolean expanded, List<ResourceLocation> entries, int y, int slotStart) {
++    private int layoutGroup(Button header, String label, boolean expanded, List<Identifier> entries, int y, int slotStart) {
+         if (header == null) {
+             return y;
+         }
+@@ -236,14 +236,14 @@
+             return y;
+         }
+         int slot = slotStart;
+-        for (ResourceLocation id : entries) {
++        for (Identifier id : entries) {
+             y = this.layoutOptionButton(this.optionButtons.get(slot), slot, id, y);
+             slot++;
+         }
+         return y + 4;
+     }
+ 
+-    private int layoutOptionButton(Button button, int slot, ResourceLocation id, int y) {
++    private int layoutOptionButton(Button button, int slot, Identifier id, int y) {
+         boolean selected = this.selectedIds.contains(id.toString());
+         boolean focused = id.equals(this.focusedOption);
+         this.visibleButtonOptions.set(slot, id);
+@@ -264,7 +264,7 @@
+             return;
+         }
+ 
+-        ResourceLocation id = this.visibleButtonOptions.get(index);
++        Identifier id = this.visibleButtonOptions.get(index);
+         if (id == null) {
+             return;
+         }
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaItemPickerScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaItemPickerScreen.java
+@@ -7,7 +7,7 @@
+ import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.core.registries.BuiltInRegistries;
+ import net.minecraft.network.chat.Component;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
+ 
+@@ -25,17 +25,17 @@
+     private static final int PAGE_SIZE = COLUMNS * ROWS;
+ 
+     private final Screen parent;
+-    private final Consumer<ResourceLocation> selectionConsumer;
+-    private final List<ResourceLocation> allItems = new ArrayList<>();
+-    private List<ResourceLocation> filteredItems = List.of();
++    private final Consumer<Identifier> selectionConsumer;
++    private final List<Identifier> allItems = new ArrayList<>();
++    private List<Identifier> filteredItems = List.of();
+     private EditBox search;
+     private Button useButton;
+     private int page;
+-    private ResourceLocation selected;
++    private Identifier selected;
+     private int gridLeft;
+     private int gridTop;
+ 
+-    AioaItemPickerScreen(Screen parent, ResourceLocation initial, Consumer<ResourceLocation> selectionConsumer) {
++    AioaItemPickerScreen(Screen parent, Identifier initial, Consumer<Identifier> selectionConsumer) {
+         super(Component.literal("Choose equipment item"));
+         this.parent = parent;
+         this.selectionConsumer = selectionConsumer;
+@@ -92,7 +92,7 @@
+             int row = ((int) mouseY - this.gridTop) / CELL;
+             int index = this.page * PAGE_SIZE + row * COLUMNS + column;
+             if (index >= 0 && index < this.filteredItems.size()) {
+-                ResourceLocation clicked = this.filteredItems.get(index);
++                Identifier clicked = this.filteredItems.get(index);
+                 if (clicked.equals(this.selected)) {
+                     confirm();
+                 } else {
+@@ -123,7 +123,7 @@
+         int hoveredIndex = -1;
+         int start = this.page * PAGE_SIZE;
+         for (int slot = 0; slot < PAGE_SIZE && start + slot < this.filteredItems.size(); slot++) {
+-            ResourceLocation id = this.filteredItems.get(start + slot);
++            Identifier id = this.filteredItems.get(start + slot);
+             int x = this.gridLeft + (slot % COLUMNS) * CELL;
+             int y = this.gridTop + (slot / COLUMNS) * CELL;
+             boolean hovered = mouseX >= x && mouseX < x + CELL && mouseY >= y && mouseY < y + CELL;
+@@ -139,7 +139,7 @@
+ 
+         super.render(graphics, mouseX, mouseY, partialTick);
+         if (hoveredIndex >= 0 && hoveredIndex < this.filteredItems.size()) {
+-            ResourceLocation id = this.filteredItems.get(hoveredIndex);
++            Identifier id = this.filteredItems.get(hoveredIndex);
+             String tooltipName = itemName(id);
+             String registryName = id.toString();
+             int tooltipWidth = Math.max(this.font.width(tooltipName), this.font.width(registryName)) + 12;
+@@ -153,7 +153,7 @@
+         this.finishUiRender(graphics);
+     }
+ 
+-    private static String itemName(ResourceLocation id) {
++    private static String itemName(Identifier id) {
+         Item item = BuiltInRegistries.ITEM.getValue(id);
+         return item == null ? id.getPath() : new ItemStack(item).getHoverName().getString();
+     }
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaScreenUtil.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaScreenUtil.java
+@@ -22,8 +22,9 @@
+ import net.minecraft.core.registries.BuiltInRegistries;
+ import net.minecraft.core.registries.Registries;
+ import net.minecraft.network.chat.Component;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntitySpawnReason;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.item.SpawnEggItem;
+@@ -48,12 +49,12 @@
+ 
+ public final class AioaScreenUtil {
+ 
+-    private static final Map<ResourceLocation, LivingEntity> PREVIEW_ENTITY_CACHE = new HashMap<>();
++    private static final Map<Identifier, LivingEntity> PREVIEW_ENTITY_CACHE = new HashMap<>();
+     private static final RandomSource UI_SOUND_RANDOM = RandomSource.create();
+-    private static final ResourceLocation UI_CLICK_SOUND = ResourceLocation.fromNamespaceAndPath("aioa", "ui.click");
+-    private static final ResourceLocation UI_HOVER_SOUND = ResourceLocation.fromNamespaceAndPath("aioa", "ui.hover");
+-    private static final ResourceLocation UI_SLIDER_SOUND = ResourceLocation.fromNamespaceAndPath("aioa", "ui.slider");
+-    private static final ResourceLocation MENU_MUSIC_SOUND = ResourceLocation.fromNamespaceAndPath("aioa", "music.menu");
++    private static final Identifier UI_CLICK_SOUND = Identifier.fromNamespaceAndPath("aioa", "ui.click");
++    private static final Identifier UI_HOVER_SOUND = Identifier.fromNamespaceAndPath("aioa", "ui.hover");
++    private static final Identifier UI_SLIDER_SOUND = Identifier.fromNamespaceAndPath("aioa", "ui.slider");
++    private static final Identifier MENU_MUSIC_SOUND = Identifier.fromNamespaceAndPath("aioa", "music.menu");
+     private static MenuLoopSound menuMusic;
+     private static net.minecraft.client.multiplayer.ClientLevel previewLevel;
+ 
+@@ -114,12 +115,8 @@
+         guiGraphics.fill(left + 1, top + 1, right - 1, top + 4, PANEL_ACCENT);
+     }
+ 
+-    public static void drawScreenBackground(GuiGraphics guiGraphics, int width, int height) {
++    static void drawScreenBackground(GuiGraphics guiGraphics, int width, int height) {
+         guiGraphics.fillGradient(0, 0, width, height, 0xFF111A18, 0xFF0B100F);
+-    }
+-
+-    static void drawBackdrop(GuiGraphics guiGraphics, int width, int height) {
+-        drawScreenBackground(guiGraphics, width, height);
+     }
+ 
+     static void drawInsetPanel(GuiGraphics guiGraphics, int left, int top, int right, int bottom, boolean selected) {
+@@ -229,34 +226,36 @@
+         }
+     }
+ 
+-    static List<ResourceLocation> allEntityIds() {
++    static List<Identifier> allEntityIds() {
+         return new ArrayList<>(BuiltInRegistries.ENTITY_TYPE.keySet().stream()
+-                .sorted(Comparator.comparing(AioaScreenUtil::entitySortKey).thenComparing(ResourceLocation::toString))
++                .sorted(Comparator.comparing(AioaScreenUtil::entitySortKey).thenComparing(Identifier::toString))
+                 .toList());
+     }
+ 
+-    static List<ResourceLocation> hostileEntityIds() {
++    static List<Identifier> hostileEntityIds() {
+         return new ArrayList<>(BuiltInRegistries.ENTITY_TYPE.stream()
+                 .filter(type -> type.getCategory() == MobCategory.MONSTER)
+                 .map(BuiltInRegistries.ENTITY_TYPE::getKey)
+-                .sorted(Comparator.comparing(AioaScreenUtil::entitySortKey).thenComparing(ResourceLocation::toString))
++                .sorted(Comparator.comparing(AioaScreenUtil::entitySortKey).thenComparing(Identifier::toString))
+                 .toList());
+     }
+ 
+-    static List<ResourceLocation> allBiomeIds() {
++    static List<Identifier> allBiomeIds() {
+         Minecraft minecraft = Minecraft.getInstance();
+         if (minecraft.level != null) {
+-            return new ArrayList<>(minecraft.level.registryAccess().lookupOrThrow(Registries.BIOME).listElementIds()
+-                    .map(key -> key.location()).sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString)).toList());
++            return new ArrayList<>(minecraft.level.registryAccess().lookupOrThrow(Registries.BIOME).keySet().stream()
++                    .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(Identifier::toString))
++                    .toList());
+         }
+         if (minecraft.getConnection() != null) {
+-            return new ArrayList<>(minecraft.getConnection().registryAccess().lookupOrThrow(Registries.BIOME).listElementIds()
+-                    .map(key -> key.location()).sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString)).toList());
++            return new ArrayList<>(minecraft.getConnection().registryAccess().lookupOrThrow(Registries.BIOME).keySet().stream()
++                    .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(Identifier::toString))
++                    .toList());
+         }
+         return defaultBiomeIds();
+     }
+ 
+-    private static ArrayList<ResourceLocation> defaultBiomeIds() {
++    private static ArrayList<Identifier> defaultBiomeIds() {
+         List<String> vanillaBiomes = List.of(
+                 "minecraft:badlands",
+                 "minecraft:bamboo_jungle",
+@@ -324,13 +323,13 @@
+                 "minecraft:wooded_badlands"
+         );
+         return new ArrayList<>(vanillaBiomes.stream()
+-                .map(ResourceLocation::tryParse)
++                .map(Identifier::tryParse)
+                 .filter(Objects::nonNull)
+-                .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(ResourceLocation::toString))
++                .sorted(Comparator.comparing(AioaScreenUtil::biomeSortKey).thenComparing(Identifier::toString))
+                 .toList());
+     }
+ 
+-    static String entityDisplayName(ResourceLocation id) {
++    static String entityDisplayName(Identifier id) {
+         EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+         if (type == null) {
+             return id.toString();
+@@ -339,29 +338,29 @@
+         return description == null || description.isBlank() ? id.toString() : description;
+     }
+ 
+-    static String entityLine(ResourceLocation id) {
++    static String entityLine(Identifier id) {
+         EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+         String category = type == null ? "unknown" : type.getCategory().getName();
+         return entityDisplayName(id) + " [" + category + "] - " + id;
+     }
+ 
+-    static String categoryLabel(ResourceLocation id) {
++    static String categoryLabel(Identifier id) {
+         EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+         return type == null ? "unknown" : humanizeEnum(type.getCategory().getName());
+     }
+ 
+-    static String biomeDisplayName(ResourceLocation id) {
++    static String biomeDisplayName(Identifier id) {
+         return Arrays.stream(id.getPath().split("[_/]"))
+                 .filter(part -> !part.isBlank())
+                 .map(part -> Character.toUpperCase(part.charAt(0)) + part.substring(1))
+                 .collect(Collectors.joining(" "));
+     }
+ 
+-    static String biomeLine(ResourceLocation id) {
++    static String biomeLine(Identifier id) {
+         return biomeDisplayName(id) + " - " + id;
+     }
+ 
+-    static String biomeCategory(ResourceLocation id) {
++    static String biomeCategory(Identifier id) {
+         if (!"minecraft".equals(id.getNamespace())) {
+             return "Modded";
+         }
+@@ -383,7 +382,7 @@
+         return "Overworld";
+     }
+ 
+-    static String dimensionCategory(ResourceLocation id) {
++    static String dimensionCategory(Identifier id) {
+         if (!"minecraft".equals(id.getNamespace())) {
+             return "Modded";
+         }
+@@ -407,8 +406,8 @@
+         return "Overworld";
+     }
+ 
+-    static ItemStack entityPreviewItem(ResourceLocation id) {
+-        ResourceLocation eggId = AioaEntityHelper.parseResourceLocation(id.getNamespace() + ":" + id.getPath() + "_spawn_egg");
++    static ItemStack entityPreviewItem(Identifier id) {
++        Identifier eggId = AioaEntityHelper.parseResourceLocation(id.getNamespace() + ":" + id.getPath() + "_spawn_egg");
+         if (eggId == null) {
+             return new ItemStack(Items.BARRIER);
+         }
+@@ -419,7 +418,7 @@
+         return new ItemStack(Items.BARRIER);
+     }
+ 
+-    static void drawMobPreview(GuiGraphics guiGraphics, Font font, int left, int top, int width, int height, ResourceLocation id, boolean selected, List<Component> detailLines) {
++    static void drawMobPreview(GuiGraphics guiGraphics, Font font, int left, int top, int width, int height, Identifier id, boolean selected, List<Component> detailLines) {
+         drawInsetPanel(guiGraphics, left, top, left + width, top + height, selected);
+         int padding = 12;
+         int modelPanelWidth = Math.max(92, Math.min(132, width / 3));
+@@ -448,7 +447,8 @@
+             int modelCenterX = modelLeft + ((left + width - padding - modelLeft) / 2);
+             int modelAnchorY = modelBottom - 10;
+             int scale = Math.max(24, Math.min(42, (modelBottom - modelTop) / 2));
+-            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, modelCenterX - scale, modelTop, modelCenterX + scale, modelAnchorY, scale, 0.0F, 0.0F, 0.0F, previewEntity);
++            InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, modelCenterX - scale, modelTop,
++                    modelCenterX + scale, modelAnchorY, scale, 0.0F, 0.0F, 0.0F, previewEntity);
+         } else {
+             int itemX = modelLeft + (((left + width - padding) - modelLeft) / 2) - 8;
+             int itemY = modelTop + ((modelBottom - modelTop) / 2) - 8;
+@@ -457,7 +457,7 @@
+     }
+ 
+     static void drawEntityViewport(GuiGraphics guiGraphics, Font font, int left, int top, int width, int height,
+-                                   ResourceLocation id, ViewportFrame frame) {
++                                   Identifier id, ViewportFrame frame) {
+         drawInsetPanel(guiGraphics, left, top, left + width, top + height, true);
+         guiGraphics.fill(left + 2, top + 40, left + width - 2, top + height - 2, 0xFF080D0A);
+         guiGraphics.fill(left + 2, top + 2, left + width - 2, top + 20, 0xFF17271E);
+@@ -605,7 +605,7 @@
+         return Math.max(0.0D, Math.min(1.0D, value));
+     }
+ 
+-    static LivingEntity previewEntity(ResourceLocation id) {
++    static LivingEntity previewEntity(Identifier id) {
+         LivingEntity cached = PREVIEW_ENTITY_CACHE.get(id);
+         if (cached != null && cached.isAlive() && cached.level() == Minecraft.getInstance().level) {
+             return cached;
+@@ -676,15 +676,15 @@
+         );
+     }
+ 
+-    private static String entitySortKey(ResourceLocation id) {
++    private static String entitySortKey(Identifier id) {
+         return entityDisplayName(id).toLowerCase(Locale.ROOT);
+     }
+ 
+-    private static String biomeSortKey(ResourceLocation id) {
++    private static String biomeSortKey(Identifier id) {
+         return biomeDisplayName(id).toLowerCase(Locale.ROOT);
+     }
+ 
+-    private static void playUiSound(ResourceLocation soundId, float volume, float pitch) {
++    private static void playUiSound(Identifier soundId, float volume, float pitch) {
+         Minecraft minecraft = Minecraft.getInstance();
+         float configuredVolume = AioaConfigManager.getConfig().clientUi.audioMuted ? 0.0F
+                 : (float) AioaConfigManager.getConfig().clientUi.uiSoundVolume;
+@@ -913,7 +913,7 @@
+         }
+ 
+         @Override
+-        protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++        protected void renderContents(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+             int left = this.getX();
+             int top = this.getY();
+             int right = left + this.width;
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaSpawnEntryEditorScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaSpawnEntryEditorScreen.java
+@@ -4,7 +4,7 @@
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.network.chat.Component;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ 
+ import java.util.List;
+ import java.util.function.Consumer;
+@@ -15,7 +15,7 @@
+     private static final int SLIDER_STACK_END_SPACING = 52;
+ 
+     private final Screen parent;
+-    private final ResourceLocation entityId;
++    private final Identifier entityId;
+     private final Consumer<AioaSpawnEntry> saveConsumer;
+ 
+     private boolean enabled;
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaSpawnPoolScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaSpawnPoolScreen.java
+@@ -8,7 +8,7 @@
+ import net.minecraft.client.gui.components.Tooltip;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.network.chat.Component;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ 
+ import java.util.ArrayList;
+ import java.util.List;
+@@ -68,7 +68,7 @@
+         this.refreshEntries();
+     }
+ 
+-    private void addEntryFor(ResourceLocation id) {
++    private void addEntryFor(Identifier id) {
+         this.editableConfig.daySurfaceSpawns.spawnPoolEntries.add(id + ";enabled=true;weight=10;chance=1.0;min=1;max=3");
+         this.selectedIndex = this.editableConfig.daySurfaceSpawns.spawnPoolEntries.size() - 1;
+         Minecraft.getInstance().setScreen(new AioaSpawnPoolScreen(this.parent, this.editableConfig));
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaSpawnStudioScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaSpawnStudioScreen.java
+@@ -9,11 +9,11 @@
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.world.phys.HitResult;
+ import net.minecraft.world.phys.Vec3;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ 
+-public final class AioaSpawnStudioScreen extends AioaAnimatedScreen {
++public final class AioaSpawnStudioScreen extends Screen {
+     private final Screen parent;
+-    private ResourceLocation entityId = ResourceLocation.fromNamespaceAndPath("minecraft", "zombie");
++    private Identifier entityId = Identifier.fromNamespaceAndPath("minecraft", "zombie");
+     private Button mobButton;
+     private boolean noAi;
+     private boolean facePlayer = true;
+@@ -41,7 +41,7 @@
+         int y = Math.max(82, (this.height - 264) / 2 + 48);
+ 
+         this.mobButton = this.addRenderableWidget(AioaScreenUtil.button(x, y, fieldWidth,
+-                "Mob: " + AioaScreenUtil.entityDisplayName(this.entityId), button -> this.transitionTo(
++                "Mob: " + AioaScreenUtil.entityDisplayName(this.entityId), button -> Minecraft.getInstance().setScreen(
+                         new AioaEntityPickerScreen(this, "Choose Spawn Mob", AioaScreenUtil.allEntityIds(),
+                                 "Search translated mob names and use the live preview. Registry ids stay hidden.", "Done", id -> {
+                             this.entityId = id;
+--- a/common/src/main/java/com/flubburr/aioa/compat/AioaEntityHelper.java
++++ b/common/src/main/java/com/flubburr/aioa/compat/AioaEntityHelper.java
+@@ -3,7 +3,7 @@
+ import com.flubburr.aioa.AioaConstants;
+ import com.flubburr.aioa.config.AioaConfigManager;
+ import net.minecraft.core.registries.BuiltInRegistries;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityType;
+@@ -20,13 +20,13 @@
+ 
+ public final class AioaEntityHelper {
+ 
+-    private static final ConcurrentHashMap<ResourceLocation, MobClassification> CLASSIFICATION_CACHE = new ConcurrentHashMap<>();
++    private static final ConcurrentHashMap<Identifier, MobClassification> CLASSIFICATION_CACHE = new ConcurrentHashMap<>();
+ 
+     private AioaEntityHelper() {
+     }
+ 
+     public static Optional<EntityType<?>> resolveEntityType(String rawEntityId) {
+-        Optional<ResourceLocation> id = resolveEntityId(rawEntityId, warning -> {
++        Optional<Identifier> id = resolveEntityId(rawEntityId, warning -> {
+         });
+         if (id.isEmpty()) {
+             return Optional.empty();
+@@ -35,32 +35,36 @@
+         return resolveEntityType(id.get());
+     }
+ 
+-    public static Optional<EntityType<?>> resolveEntityType(ResourceLocation entityId) {
++    public static Optional<EntityType<?>> resolveEntityType(Identifier entityId) {
+         return BuiltInRegistries.ENTITY_TYPE.containsKey(entityId)
+-                ? Optional.ofNullable(BuiltInRegistries.ENTITY_TYPE.getValue(entityId))
++                ? Optional.of(BuiltInRegistries.ENTITY_TYPE.getValue(entityId))
+                 : Optional.empty();
+     }
+ 
+-    public static Optional<ResourceLocation> resolveEntityId(String rawSelector, Consumer<String> warningConsumer) {
++    public static Identifier parseResourceLocation(String raw) {
++        return raw == null ? null : Identifier.tryParse(raw.trim());
++    }
++
++    public static Optional<Identifier> resolveEntityId(String rawSelector, Consumer<String> warningConsumer) {
+         String trimmed = rawSelector == null ? "" : rawSelector.trim();
+         if (trimmed.isEmpty()) {
+             return Optional.empty();
+         }
+ 
+-        ResourceLocation directId = ResourceLocation.tryParse(trimmed);
++        Identifier directId = Identifier.tryParse(trimmed);
+         if (directId != null && BuiltInRegistries.ENTITY_TYPE.containsKey(directId)) {
+             return Optional.of(directId);
+         }
+ 
+-        ResourceLocation embeddedId = tryParseEmbeddedId(trimmed);
++        Identifier embeddedId = tryParseEmbeddedId(trimmed);
+         if (embeddedId != null && BuiltInRegistries.ENTITY_TYPE.containsKey(embeddedId)) {
+             return Optional.of(embeddedId);
+         }
+ 
+         String normalizedSelector = normalizeSelector(trimmed);
+-        List<ResourceLocation> matches = BuiltInRegistries.ENTITY_TYPE.keySet().stream()
++        List<Identifier> matches = BuiltInRegistries.ENTITY_TYPE.keySet().stream()
+                 .filter(id -> matchesSelector(normalizedSelector, id))
+-                .sorted(Comparator.comparing(ResourceLocation::toString))
++                .sorted(Comparator.comparing(Identifier::toString))
+                 .toList();
+ 
+         if (matches.size() == 1) {
+@@ -72,20 +76,7 @@
+         return Optional.empty();
+     }
+ 
+-    public static ResourceLocation parseResourceLocation(String rawId) {
+-        ResourceLocation parsed = ResourceLocation.tryParse(rawId);
+-        if (parsed != null) {
+-            return parsed;
+-        }
+-
+-        int separator = rawId.indexOf(':');
+-        if (separator > 0 && separator < rawId.length() - 1) {
+-            return ResourceLocation.fromNamespaceAndPath(rawId.substring(0, separator), rawId.substring(separator + 1));
+-        }
+-        return ResourceLocation.withDefaultNamespace(rawId);
+-    }
+-
+-    public static String describeEntity(ResourceLocation entityId) {
++    public static String describeEntity(Identifier entityId) {
+         return toFriendlyName(entityId) + " (" + entityId + ")";
+     }
+ 
+@@ -101,20 +92,20 @@
+         return classify(entityType, level).hostile();
+     }
+ 
+-    public static List<ResourceLocation> enumerateConfigurableMobIds(ServerLevel level) {
++    public static List<Identifier> enumerateConfigurableMobIds(ServerLevel level) {
+         return BuiltInRegistries.ENTITY_TYPE.stream()
+                 .filter(type -> isConfigurableMob(type, level))
+                 .map(BuiltInRegistries.ENTITY_TYPE::getKey)
+-                .sorted(Comparator.comparing(ResourceLocation::toString))
++                .sorted(Comparator.comparing(Identifier::toString))
+                 .toList();
+     }
+ 
+     private static MobClassification classify(EntityType<?> entityType, ServerLevel level) {
+-        ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
++        Identifier id = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
+         return CLASSIFICATION_CACHE.computeIfAbsent(id, ignored -> inspectEntityType(entityType, level, id));
+     }
+ 
+-    private static MobClassification inspectEntityType(EntityType<?> entityType, ServerLevel level, ResourceLocation id) {
++    private static MobClassification inspectEntityType(EntityType<?> entityType, ServerLevel level, Identifier id) {
+         try {
+             Entity entity = entityType.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+             if (!(entity instanceof Mob mob)) {
+@@ -132,7 +123,7 @@
+         }
+     }
+ 
+-    private static boolean matchesSelector(String normalizedSelector, ResourceLocation entityId) {
++    private static boolean matchesSelector(String normalizedSelector, Identifier entityId) {
+         return normalizedSelector.equals(normalizeSelector(entityId.toString()))
+                 || normalizedSelector.equals(normalizeSelector(entityId.getPath()))
+                 || normalizedSelector.equals(normalizeSelector(toFriendlyName(entityId)))
+@@ -140,22 +131,14 @@
+                 || normalizedSelector.equals(normalizeSelector(toFriendlyName(entityId) + " " + entityId));
+     }
+ 
+-    private static ResourceLocation tryParseEmbeddedId(String rawSelector) {
++    private static Identifier tryParseEmbeddedId(String rawSelector) {
+         int open = Math.max(rawSelector.lastIndexOf('('), rawSelector.lastIndexOf('['));
+         int close = Math.max(rawSelector.lastIndexOf(')'), rawSelector.lastIndexOf(']'));
+         if (open < 0 || close <= open) {
+             return null;
+         }
+ 
+-        String embeddedId = rawSelector.substring(open + 1, close).trim();
+-        if (embeddedId.isEmpty()) {
+-            return null;
+-        }
+-        try {
+-            return parseResourceLocation(embeddedId);
+-        } catch (RuntimeException ignored) {
+-            return null;
+-        }
++        return Identifier.tryParse(rawSelector.substring(open + 1, close).trim());
+     }
+ 
+     private static String normalizeSelector(String value) {
+@@ -165,7 +148,7 @@
+                 .trim();
+     }
+ 
+-    private static String toFriendlyName(ResourceLocation entityId) {
++    private static String toFriendlyName(Identifier entityId) {
+         String pathName = titleCase(entityId.getPath());
+         if ("minecraft".equals(entityId.getNamespace())) {
+             return pathName;
+--- a/common/src/main/java/com/flubburr/aioa/compat/AioaRegistryCompat.java
++++ b/common/src/main/java/com/flubburr/aioa/compat/AioaRegistryCompat.java
+@@ -1,10 +1,9 @@
+ package com.flubburr.aioa.compat;
+ 
+ import net.minecraft.core.Registry;
+-import net.minecraft.core.Holder;
+ import net.minecraft.core.registries.BuiltInRegistries;
+ import net.minecraft.core.registries.Registries;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import net.minecraft.sounds.SoundEvent;
+ 
+ /**
+@@ -19,12 +18,12 @@
+ 
+     @SuppressWarnings("unchecked")
+     public static Registry<SoundEvent> soundEvents() {
+-        Object registry = BuiltInRegistries.REGISTRY.get(Registries.SOUND_EVENT.location());
++        Object registry = BuiltInRegistries.REGISTRY.getValue(Registries.SOUND_EVENT.identifier());
+         return registry instanceof Registry<?> found ? (Registry<SoundEvent>) found : null;
+     }
+ 
+-    public static SoundEvent getSoundEvent(ResourceLocation id) {
++    public static SoundEvent getSoundEvent(Identifier id) {
+         Registry<SoundEvent> registry = soundEvents();
+-        return registry == null ? null : registry.get(id).map(Holder::value).orElse(null);
++        return registry == null ? null : registry.getValue(id);
+     }
+ }
+--- a/common/src/main/java/com/flubburr/aioa/config/AioaConfigManager.java
++++ b/common/src/main/java/com/flubburr/aioa/config/AioaConfigManager.java
+@@ -6,7 +6,7 @@
+ import com.google.gson.Gson;
+ import com.google.gson.GsonBuilder;
+ import net.minecraft.core.registries.BuiltInRegistries;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.world.entity.EntityType;
+ 
+@@ -38,7 +38,7 @@
+     private static volatile Path configPath;
+     private static volatile long lastModified = Long.MIN_VALUE;
+     private static volatile long nextFilesystemCheckAt = 0L;
+-    private static volatile Set<ResourceLocation> burnSafeDaySpawnEntityIds = Set.of();
++    private static volatile Set<Identifier> burnSafeDaySpawnEntityIds = Set.of();
+     private static volatile boolean mobCatalogWritten;
+ 
+     private AioaConfigManager() {
+@@ -96,7 +96,7 @@
+ 
+     public static boolean isBurnSafeDaySpawnEntity(EntityType<?> entityType) {
+         bootstrap();
+-        ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
++        Identifier id = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
+         return id != null && burnSafeDaySpawnEntityIds.contains(id);
+     }
+ 
+--- a/common/src/main/java/com/flubburr/aioa/config/AioaSpawnEntry.java
++++ b/common/src/main/java/com/flubburr/aioa/config/AioaSpawnEntry.java
+@@ -1,7 +1,7 @@
+ package com.flubburr.aioa.config;
+ 
+ import com.flubburr.aioa.compat.AioaEntityHelper;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import net.minecraft.util.Mth;
+ 
+ import java.util.Locale;
+@@ -10,7 +10,7 @@
+ 
+ public record AioaSpawnEntry(
+         String rawEntry,
+-        ResourceLocation entityId,
++        Identifier entityId,
+         boolean enabled,
+         int weight,
+         double chance,
+@@ -25,12 +25,12 @@
+         }
+ 
+         String[] segments = trimmed.split(";");
+-        Optional<ResourceLocation> resolvedEntityId = AioaEntityHelper.resolveEntityId(segments[0].trim(), warningConsumer);
++        Optional<Identifier> resolvedEntityId = AioaEntityHelper.resolveEntityId(segments[0].trim(), warningConsumer);
+         if (resolvedEntityId.isEmpty()) {
+             warningConsumer.accept("Ignoring malformed AIOA spawn entry '" + trimmed + "': the mob selector did not resolve.");
+             return Optional.empty();
+         }
+-        ResourceLocation entityId = resolvedEntityId.get();
++        Identifier entityId = resolvedEntityId.get();
+ 
+         boolean enabled = true;
+         int weight = 10;
+--- a/common/src/main/java/com/flubburr/aioa/network/AioaGraphPayload.java
++++ b/common/src/main/java/com/flubburr/aioa/network/AioaGraphPayload.java
+@@ -5,10 +5,10 @@
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.codec.StreamCodec;
+ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ 
+ public record AioaGraphPayload(AioaGraphUpdateRequest request) implements CustomPacketPayload {
+-    public static final Type<AioaGraphPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(AioaConstants.MOD_ID, "graph_update"));
++    public static final Type<AioaGraphPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath(AioaConstants.MOD_ID, "graph_update"));
+     public static final StreamCodec<FriendlyByteBuf, AioaGraphPayload> CODEC = new StreamCodec<>() {
+         @Override public AioaGraphPayload decode(FriendlyByteBuf buffer) {
+             return new AioaGraphPayload(new AioaGraphUpdateRequest(buffer.readUtf(65_536)));
+--- a/common/src/main/java/com/flubburr/aioa/network/AioaSpawnPayload.java
++++ b/common/src/main/java/com/flubburr/aioa/network/AioaSpawnPayload.java
+@@ -5,10 +5,10 @@
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.codec.StreamCodec;
+ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ 
+ public record AioaSpawnPayload(AioaSpawnRequest request) implements CustomPacketPayload {
+-    public static final Type<AioaSpawnPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(AioaConstants.MOD_ID, "spawn_request"));
++    public static final Type<AioaSpawnPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath(AioaConstants.MOD_ID, "spawn_request"));
+     public static final StreamCodec<FriendlyByteBuf, AioaSpawnPayload> CODEC = new StreamCodec<>() {
+         @Override
+         public AioaSpawnPayload decode(FriendlyByteBuf buffer) {
+--- a/common/src/main/java/com/flubburr/aioa/spawn/AioaZombieBehaviour.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/AioaZombieBehaviour.java
+@@ -5,7 +5,7 @@
+ import com.flubburr.aioa.config.AioaConfig;
+ import com.flubburr.aioa.config.AioaConfigManager;
+ import net.minecraft.core.registries.BuiltInRegistries;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.Mob;
+ import net.minecraft.world.entity.PathfinderMob;
+@@ -16,11 +16,11 @@
+ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+ import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
+ import net.minecraft.world.entity.animal.Animal;
+-import net.minecraft.world.entity.animal.IronGolem;
+-import net.minecraft.world.entity.animal.Turtle;
+-import net.minecraft.world.entity.animal.WaterAnimal;
+-import net.minecraft.world.entity.monster.Zombie;
+-import net.minecraft.world.entity.npc.AbstractVillager;
++import net.minecraft.world.entity.animal.fish.WaterAnimal;
++import net.minecraft.world.entity.animal.golem.IronGolem;
++import net.minecraft.world.entity.animal.turtle.Turtle;
++import net.minecraft.world.entity.monster.zombie.Zombie;
++import net.minecraft.world.entity.npc.villager.AbstractVillager;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.phys.Vec3;
+ import net.minecraft.world.phys.AABB;
+@@ -30,8 +30,8 @@
+ 
+ public final class AioaZombieBehaviour {
+ 
+-    private static final ResourceLocation FOLLOW_RANGE_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("aioa", "refined_zombie_follow_range");
+-    private static final ResourceLocation CHASE_SPEED_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("aioa", "refined_zombie_chase_speed");
++    private static final Identifier FOLLOW_RANGE_MODIFIER_ID = Identifier.fromNamespaceAndPath("aioa", "refined_zombie_follow_range");
++    private static final Identifier CHASE_SPEED_MODIFIER_ID = Identifier.fromNamespaceAndPath("aioa", "refined_zombie_chase_speed");
+     private static final AttributeModifier FOLLOW_RANGE_MODIFIER = new AttributeModifier(
+             FOLLOW_RANGE_MODIFIER_ID,
+             10.0D,
+@@ -170,7 +170,7 @@
+                 (currentVelocity.z * 0.92D) + chaseVector.z
+         );
+         mob.fallDistance = 0.0F;
+-        mob.hasImpulse = true;
++        mob.hurtMarked = true;
+ 
+ 
+     }
+@@ -226,9 +226,9 @@
+     }
+ 
+     private static boolean isConfiguredMob(Mob mob, List<String> rawEntityIds) {
+-        ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
++        Identifier entityId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+         for (String rawEntityId : rawEntityIds) {
+-            Optional<ResourceLocation> configuredId = AioaEntityHelper.resolveEntityId(
++            Optional<Identifier> configuredId = AioaEntityHelper.resolveEntityId(
+                     rawEntityId,
+                     warning -> AioaConfigManager.warnOnce("invalid-ai-selector:" + rawEntityId, warning)
+             );
+--- a/common/src/main/java/com/flubburr/aioa/spawn/ApocalypseSpawnManager.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/ApocalypseSpawnManager.java
+@@ -8,7 +8,7 @@
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.core.registries.Registries;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.util.Mth;
+@@ -42,7 +42,7 @@
+         if (settings.overworldOnly && !level.dimension().equals(Level.OVERWORLD)) {
+             return;
+         }
+-        if (settings.requireDaytime && !level.dimensionType().hasFixedTime() && (level.getDayTime() % 24000L) >= 12000L) {
++        if (settings.requireDaytime && !level.isBrightOutside()) {
+             return;
+         }
+         if (level.getGameTime() % settings.spawnIntervalTicks != 0L) {
+@@ -274,7 +274,7 @@
+             return true;
+         }
+ 
+-        ResourceLocation biomeId = level.registryAccess()
++        Identifier biomeId = level.registryAccess()
+                 .lookupOrThrow(Registries.BIOME)
+                 .getKey(level.getBiome(pos).value());
+ 
+@@ -283,7 +283,7 @@
+         }
+ 
+         for (String rawBiomeId : settings.allowedBiomeIds) {
+-            ResourceLocation configuredBiomeId = ResourceLocation.tryParse(rawBiomeId == null ? "" : rawBiomeId.trim());
++            Identifier configuredBiomeId = Identifier.tryParse(rawBiomeId == null ? "" : rawBiomeId.trim());
+             if (configuredBiomeId == null) {
+                 AioaConfigManager.warnOnce(
+                         "invalid-biome:" + rawBiomeId,
+--- a/common/src/main/java/com/flubburr/aioa/spawn/HostileSpawnFilter.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/HostileSpawnFilter.java
+@@ -5,7 +5,7 @@
+ import com.flubburr.aioa.config.AioaConfigManager;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.registries.BuiltInRegistries;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.EntitySpawnReason;
+@@ -55,7 +55,7 @@
+             return false;
+         }
+ 
+-        ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
++        Identifier entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
+         if (isWhitelisted(entityId, settings.whitelistEntityIds)) {
+             return false;
+         }
+@@ -63,9 +63,9 @@
+         return AioaEntityHelper.isHostileMob(entityType, level);
+     }
+ 
+-    private static boolean isWhitelisted(ResourceLocation entityId, List<String> rawWhitelist) {
++    private static boolean isWhitelisted(Identifier entityId, List<String> rawWhitelist) {
+         for (String rawId : rawWhitelist) {
+-            java.util.Optional<ResourceLocation> configuredId = AioaEntityHelper.resolveEntityId(
++            java.util.Optional<Identifier> configuredId = AioaEntityHelper.resolveEntityId(
+                     rawId,
+                     warning -> AioaConfigManager.warnOnce("invalid-whitelist-id:" + rawId, warning)
+             );
+--- a/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabric.java
++++ b/fabric/src/main/java/com/flubburr/aioa/fabric/AioaFabric.java
+@@ -12,7 +12,7 @@
+ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+ import com.flubburr.aioa.compat.AioaRegistryCompat;
+ import net.minecraft.core.Registry;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import net.minecraft.sounds.SoundEvent;
+ 
+ import com.flubburr.aioa.AioaConstants;
+@@ -23,7 +23,7 @@
+ 
+ public final class AioaFabric implements ModInitializer {
+ 
+-    public static final ResourceLocation MENU_MUSIC = ResourceLocation.fromNamespaceAndPath(AioaConstants.MOD_ID, "music.menu");
++    public static final Identifier MENU_MUSIC = Identifier.fromNamespaceAndPath(AioaConstants.MOD_ID, "music.menu");
+     @Override
+     public void onInitialize() {
+         var soundEvents = AioaRegistryCompat.soundEvents();
+--- a/forge/src/main/java/com/flubburr/aioa/forge/AioaForge.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/AioaForge.java
+@@ -9,6 +9,7 @@
+ import com.flubburr.aioa.network.AioaGraphUpdateRequest;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.server.level.ServerLevel;
++import net.minecraftforge.common.MinecraftForge;
+ import net.minecraftforge.event.TickEvent;
+ import net.minecraftforge.fml.common.Mod;
+ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+@@ -28,13 +29,13 @@
+ 
+     static {
+         SOUND_EVENTS.register("music.menu", () -> net.minecraft.sounds.SoundEvent.createVariableRangeEvent(
+-                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(AioaConstants.MOD_ID, "music.menu")
++                net.minecraft.resources.Identifier.fromNamespaceAndPath(AioaConstants.MOD_ID, "music.menu")
+         ));
+     }
+ 
+     private static final int NETWORK_VERSION = 1;
+     public static final SimpleChannel NETWORK = ChannelBuilder
+-            .named(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(AioaConstants.MOD_ID, "main"))
++            .named(net.minecraft.resources.Identifier.fromNamespaceAndPath(AioaConstants.MOD_ID, "main"))
+             .networkProtocolVersion(NETWORK_VERSION)
+             .acceptedVersions(Channel.VersionTest.exact(NETWORK_VERSION))
+             .simpleChannel();
+--- a/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeFallbackConfigScreen.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeFallbackConfigScreen.java
+@@ -110,7 +110,7 @@
+ 
+     @Override
+     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-        guiGraphics.fillGradient(0, 0, this.width, this.height, 0xE0101010, 0xF0050706);
++        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+         guiGraphics.drawCenteredString(
+                 this.font,
+@@ -227,7 +227,7 @@
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            guiGraphics.fillGradient(0, 0, this.width, this.height, 0xE0101010, 0xF0050706);
++            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+             super.render(guiGraphics, mouseX, mouseY, partialTick);
+         }
+@@ -389,7 +389,7 @@
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            guiGraphics.fillGradient(0, 0, this.width, this.height, 0xE0101010, 0xF0050706);
++            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+ 
+             int labelX = this.width / 2 - 150;
+@@ -463,8 +463,6 @@
+                     .setX(editorX)
+                     .setY(editorY)
+                     .setPlaceholder(tr("aioa.forge.fallback.list.entries_hint"))
+-                    .setShowBackground(false)
+-                    .setShowDecorations(false)
+                     .build(this.font, editorWidth, editorHeight, tr("aioa.forge.fallback.list.entries"));
+             this.editor.setCharacterLimit(32767);
+             this.editor.setValue(String.join("\n", this.initialValues));
+@@ -497,7 +495,7 @@
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            guiGraphics.fillGradient(0, 0, this.width, this.height, 0xE0101010, 0xF0050706);
++            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+             guiGraphics.drawCenteredString(this.font, this.description, this.width / 2, 30, 0xA0A0A0);
+             super.render(guiGraphics, mouseX, mouseY, partialTick);
+--- a/common/src/main/java/com/flubburr/aioa/spawn/AioaAmbientAi.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/AioaAmbientAi.java
+@@ -7,7 +7,7 @@
+ import net.minecraft.world.entity.ai.goal.WrappedGoal;
+ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+ import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
+-import net.minecraft.world.entity.monster.Zombie;
++import net.minecraft.world.entity.monster.zombie.Zombie;
+ import net.minecraft.world.entity.player.Player;
+ 
+ import java.util.List;
+--- a/common/src/main/java/com/flubburr/aioa/client/config/BehaviorBoard.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/BehaviorBoard.java
+@@ -4,7 +4,7 @@
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.GuiGraphics;
+ import com.flubburr.aioa.compat.AioaEntityHelper;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ 
+ /** Drawing and picking for the editor's redstone wiring board. Coordinates are GUI pixels. */
+ final class BehaviorBoard {
+@@ -15,7 +15,7 @@
+     enum Part {
+         ROOT, CLOCK, SENSOR, TARGET, MOTION, COMBAT, GATE, EFFECT, SIGNAL, EGG, BOOK;
+ 
+-        private static final ResourceLocation ATLAS = AioaEntityHelper.parseResourceLocation("aioa:textures/gui/behavior_parts.png");
++        private static final Identifier ATLAS = AioaEntityHelper.parseResourceLocation("aioa:textures/gui/behavior_parts.png");
+ 
+         void draw(GuiGraphics g, int x, int y) {
+             g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, ATLAS, x, y, ordinal() * 16, 0, 16, 16, 176, 16);

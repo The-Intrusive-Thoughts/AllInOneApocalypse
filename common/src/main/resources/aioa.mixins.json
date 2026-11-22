@@ -8,9 +8,10 @@
     "accessor.MobAccessor",
     "LivingEntityMixin",
     "MobMixin",
+    "BrainMixin",
     "SpawnPlacementsMixin"
   ],
-  "client": [],
+  "client": ["ClientGuiScaleMixin"],
   "server": [],
   "injectors": {
     "defaultRequire": 1

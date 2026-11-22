@@ -188,7 +188,7 @@ modrinth {
             : "Release ${forgeVersionNumber}"
     uploadFile = tasks.named('jar')
     gameVersions = modrinthGameVersions
-    loaders = ['forge']
+    loaders = ['forge', 'neoforge']
 
     dependencies {
         optional.project 'yacl'

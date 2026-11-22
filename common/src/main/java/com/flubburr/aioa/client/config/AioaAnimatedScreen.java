@@ -7,9 +7,10 @@ import net.minecraft.network.chat.Component;
 abstract class AioaAnimatedScreen extends Screen {
 
     private static final int TRANSITION_TICKS = 1;
-    private static final int OPEN_OVERLAY_ALPHA = 28;
+    private static final int OPEN_OVERLAY_ALPHA = 68;
     private static final int CLOSE_OVERLAY_ALPHA = 20;
 
+    private long openedAt = System.nanoTime();
     private int openTicks;
     private int closingTicks = -1;
     private Screen pendingScreen;
@@ -19,12 +20,22 @@ abstract class AioaAnimatedScreen extends Screen {
         super(title);
     }
 
+    @Override
+    public void added() {
+        super.added();
+        // The game reads the window dimensions immediately after this callback.
+        var client = net.minecraft.client.Minecraft.getInstance();
+        var window = client.getWindow();
+        int scale = AioaInterfaceScale.requested(client, client.options.guiScale().get());
+        window.setGuiScale(window.calculateScale(scale, client.isEnforceUnicode()));
+    }
+
     protected final void transitionTo(Screen screen) {
         if (this.minecraft == null || this.closingTicks >= 0) {
             return;
         }
         if (screen instanceof AioaAnimatedScreen animatedScreen) {
-            animatedScreen.skipOpenTransition = true;
+            animatedScreen.openedAt = System.nanoTime();
         }
         this.pendingScreen = screen;
         this.closingTicks = TRANSITION_TICKS + 1;
@@ -119,7 +130,8 @@ abstract class AioaAnimatedScreen extends Screen {
         if (this.skipOpenTransition) {
             return 0;
         }
-        float openProgress = Math.min(1.0F, this.openTicks / (float) TRANSITION_TICKS);
+        float openProgress = Math.min(1.0F, (System.nanoTime() - openedAt) / 180_000_000.0F);
+        openProgress = 1.0F - (1.0F - openProgress) * (1.0F - openProgress);
         int alpha = Math.round(OPEN_OVERLAY_ALPHA * (1.0F - openProgress));
         return (alpha << 24) | 0x00060805;
     }

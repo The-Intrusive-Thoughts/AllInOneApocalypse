@@ -1,0 +1,144 @@
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaScrollableScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaScrollableScreen.java
+@@ -83,7 +83,7 @@
+     }
+ 
+     @Override
+-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+-        return this.handleScroll(verticalAmount, 28) || super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
++    public boolean mouseScrolled(double mouseX, double mouseY, double deltaX, double deltaY) {
++        return this.handleScroll(deltaY, 28) || super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
+     }
+ }
+--- a/common/src/main/java/com/flubburr/aioa/spawn/AioaZombieBehaviour.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/AioaZombieBehaviour.java
+@@ -30,15 +30,13 @@
+ 
+ public final class AioaZombieBehaviour {
+ 
+-    private static final ResourceLocation FOLLOW_RANGE_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("aioa", "refined_zombie_follow_range");
+-    private static final ResourceLocation CHASE_SPEED_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("aioa", "refined_zombie_chase_speed");
+     private static final AttributeModifier FOLLOW_RANGE_MODIFIER = new AttributeModifier(
+-            FOLLOW_RANGE_MODIFIER_ID,
++            ResourceLocation.fromNamespaceAndPath(AioaConstants.MOD_ID, "refined_zombie_follow_range"),
+             10.0D,
+             AttributeModifier.Operation.ADD_VALUE
+     );
+     private static final AttributeModifier CHASE_SPEED_MODIFIER = new AttributeModifier(
+-            CHASE_SPEED_MODIFIER_ID,
++            ResourceLocation.fromNamespaceAndPath(AioaConstants.MOD_ID, "refined_zombie_chase_speed"),
+             0.08D,
+             AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
+     );
+@@ -183,24 +181,24 @@
+         }
+ 
+         if (refinedAiEnabled) {
+-            if (!followRange.hasModifier(FOLLOW_RANGE_MODIFIER_ID)) {
++            if (!followRange.hasModifier(FOLLOW_RANGE_MODIFIER.id())) {
+                 followRange.addTransientModifier(FOLLOW_RANGE_MODIFIER);
+             }
+             if (mob.getTarget() != null) {
+-                if (!movementSpeed.hasModifier(CHASE_SPEED_MODIFIER_ID)) {
++                if (!movementSpeed.hasModifier(CHASE_SPEED_MODIFIER.id())) {
+                     movementSpeed.addTransientModifier(CHASE_SPEED_MODIFIER);
+                 }
+-            } else if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER_ID)) {
+-                movementSpeed.removeModifier(CHASE_SPEED_MODIFIER_ID);
+-            }
+-            return;
+-        }
+-
+-        if (followRange.hasModifier(FOLLOW_RANGE_MODIFIER_ID)) {
+-            followRange.removeModifier(FOLLOW_RANGE_MODIFIER_ID);
+-        }
+-        if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER_ID)) {
+-            movementSpeed.removeModifier(CHASE_SPEED_MODIFIER_ID);
++            } else if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER.id())) {
++                movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
++            }
++            return;
++        }
++
++        if (followRange.hasModifier(FOLLOW_RANGE_MODIFIER.id())) {
++            followRange.removeModifier(FOLLOW_RANGE_MODIFIER);
++        }
++        if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER.id())) {
++            movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
+         }
+ 
+     }
+--- a/fabric/src/main/java/com/flubburr/aioa/fabric/config/AioaMidnightConfig.java
++++ b/fabric/src/main/java/com/flubburr/aioa/fabric/config/AioaMidnightConfig.java
+@@ -3,7 +3,6 @@
+ import com.flubburr.aioa.AioaConstants;
+ import com.flubburr.aioa.config.AioaConfig;
+ import com.flubburr.aioa.config.AioaConfigManager;
+-import eu.midnightdust.lib.config.EntryInfo;
+ import eu.midnightdust.lib.config.MidnightConfig;
+ 
+ import java.lang.reflect.Field;
+@@ -226,7 +225,8 @@
+ 
+     private static Field resolveEntryInfoField(String fieldName) {
+         try {
+-            Field field = EntryInfo.class.getDeclaredField(fieldName);
++            Class<?> entryInfoClass = Class.forName("eu.midnightdust.lib.config.EntryInfo");
++            Field field = entryInfoClass.getDeclaredField(fieldName);
+             field.setAccessible(true);
+             return field;
+         } catch (Exception exception) {
+--- a/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeFallbackConfigScreen.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeFallbackConfigScreen.java
+@@ -110,6 +110,7 @@
+ 
+     @Override
+     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+         guiGraphics.drawCenteredString(
+                 this.font,
+@@ -226,6 +227,7 @@
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+             super.render(guiGraphics, mouseX, mouseY, partialTick);
+         }
+@@ -381,12 +383,17 @@
+         }
+ 
+         @Override
++        public void tick() {
++        }
++
++        @Override
+         public void onClose() {
+             this.minecraft.setScreen(this.parent);
+         }
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+ 
+             int labelX = this.width / 2 - 150;
+@@ -490,12 +497,17 @@
+         }
+ 
+         @Override
++        public void tick() {
++        }
++
++        @Override
+         public void onClose() {
+             this.minecraft.setScreen(this.parent);
+         }
+ 
+         @Override
+         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+             guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
+             guiGraphics.drawCenteredString(this.font, this.description, this.width / 2, 30, 0xA0A0A0);
+             super.render(guiGraphics, mouseX, mouseY, partialTick);

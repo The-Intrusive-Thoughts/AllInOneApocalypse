@@ -1,0 +1,124 @@
+--- a/common/src/main/java/com/flubburr/aioa/spawn/AioaZombieBehaviour.java
++++ b/common/src/main/java/com/flubburr/aioa/spawn/AioaZombieBehaviour.java
+@@ -30,13 +30,15 @@
+ 
+ public final class AioaZombieBehaviour {
+ 
++    private static final ResourceLocation FOLLOW_RANGE_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("aioa", "refined_zombie_follow_range");
++    private static final ResourceLocation CHASE_SPEED_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("aioa", "refined_zombie_chase_speed");
+     private static final AttributeModifier FOLLOW_RANGE_MODIFIER = new AttributeModifier(
+-            ResourceLocation.fromNamespaceAndPath(AioaConstants.MOD_ID, "refined_zombie_follow_range"),
++            FOLLOW_RANGE_MODIFIER_ID,
+             10.0D,
+             AttributeModifier.Operation.ADD_VALUE
+     );
+     private static final AttributeModifier CHASE_SPEED_MODIFIER = new AttributeModifier(
+-            ResourceLocation.fromNamespaceAndPath(AioaConstants.MOD_ID, "refined_zombie_chase_speed"),
++            CHASE_SPEED_MODIFIER_ID,
+             0.08D,
+             AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
+     );
+@@ -181,24 +183,24 @@
+         }
+ 
+         if (refinedAiEnabled) {
+-            if (!followRange.hasModifier(FOLLOW_RANGE_MODIFIER.id())) {
++            if (!followRange.hasModifier(FOLLOW_RANGE_MODIFIER_ID)) {
+                 followRange.addTransientModifier(FOLLOW_RANGE_MODIFIER);
+             }
+             if (mob.getTarget() != null) {
+-                if (!movementSpeed.hasModifier(CHASE_SPEED_MODIFIER.id())) {
++                if (!movementSpeed.hasModifier(CHASE_SPEED_MODIFIER_ID)) {
+                     movementSpeed.addTransientModifier(CHASE_SPEED_MODIFIER);
+                 }
+-            } else if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER.id())) {
+-                movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
+-            }
+-            return;
+-        }
+-
+-        if (followRange.hasModifier(FOLLOW_RANGE_MODIFIER.id())) {
+-            followRange.removeModifier(FOLLOW_RANGE_MODIFIER);
+-        }
+-        if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER.id())) {
+-            movementSpeed.removeModifier(CHASE_SPEED_MODIFIER);
++            } else if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER_ID)) {
++                movementSpeed.removeModifier(CHASE_SPEED_MODIFIER_ID);
++            }
++            return;
++        }
++
++        if (followRange.hasModifier(FOLLOW_RANGE_MODIFIER_ID)) {
++            followRange.removeModifier(FOLLOW_RANGE_MODIFIER_ID);
++        }
++        if (movementSpeed.hasModifier(CHASE_SPEED_MODIFIER_ID)) {
++            movementSpeed.removeModifier(CHASE_SPEED_MODIFIER_ID);
+         }
+ 
+     }
+--- a/fabric/src/main/java/com/flubburr/aioa/fabric/config/AioaMidnightConfig.java
++++ b/fabric/src/main/java/com/flubburr/aioa/fabric/config/AioaMidnightConfig.java
+@@ -3,6 +3,7 @@
+ import com.flubburr.aioa.AioaConstants;
+ import com.flubburr.aioa.config.AioaConfig;
+ import com.flubburr.aioa.config.AioaConfigManager;
++import eu.midnightdust.lib.config.EntryInfo;
+ import eu.midnightdust.lib.config.MidnightConfig;
+ 
+ import java.lang.reflect.Field;
+@@ -225,8 +226,7 @@
+ 
+     private static Field resolveEntryInfoField(String fieldName) {
+         try {
+-            Class<?> entryInfoClass = Class.forName("eu.midnightdust.lib.config.EntryInfo");
+-            Field field = entryInfoClass.getDeclaredField(fieldName);
++            Field field = EntryInfo.class.getDeclaredField(fieldName);
+             field.setAccessible(true);
+             return field;
+         } catch (Exception exception) {
+--- a/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeFallbackConfigScreen.java
++++ b/forge/src/main/java/com/flubburr/aioa/forge/config/AioaForgeFallbackConfigScreen.java
+@@ -383,10 +383,6 @@
+         }
+ 
+         @Override
+-        public void tick() {
+-        }
+-
+-        @Override
+         public void onClose() {
+             this.minecraft.setScreen(this.parent);
+         }
+@@ -495,10 +491,6 @@
+         }
+ 
+         @Override
+-        public void tick() {
+-        }
+-
+-        @Override
+         public void onClose() {
+             this.minecraft.setScreen(this.parent);
+         }
+--- a/neoforge/src/main/java/com/flubburr/aioa/neoforge/AioaNeoForgeClient.java
++++ b/neoforge/src/main/java/com/flubburr/aioa/neoforge/AioaNeoForgeClient.java
+@@ -16,7 +16,7 @@
+ import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+ import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
+ import net.neoforged.neoforge.common.NeoForge;
+-import net.neoforged.neoforge.network.PacketDistributor;
++import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+ import org.lwjgl.glfw.GLFW;
+ 
+ final class AioaNeoForgeClient {
+@@ -26,8 +26,8 @@
+     static void register(IEventBus modBus, ModContainer container) {
+         modBus.addListener(AioaNeoForgeClient::registerKeys);
+         container.registerExtensionPoint(IConfigScreenFactory.class, (mod, parent) -> AioaConfigScreen.create(parent));
+-        AioaClientNetworking.registerSender(request -> PacketDistributor.sendToServer(new AioaSpawnPayload(request)));
+-        AioaClientNetworking.registerGraphSender(request -> PacketDistributor.sendToServer(new AioaGraphPayload(request)));
++        AioaClientNetworking.registerSender(request -> ClientPacketDistributor.sendToServer(new AioaSpawnPayload(request)));
++        AioaClientNetworking.registerGraphSender(request -> ClientPacketDistributor.sendToServer(new AioaGraphPayload(request)));
+         NeoForge.EVENT_BUS.addListener(AioaNeoForgeClient::clientTick);
+     }
+ 

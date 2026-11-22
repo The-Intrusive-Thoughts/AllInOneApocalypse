@@ -76,7 +76,7 @@ public final class ApocalypseSpawnManager {
                     continue;
                 }
 
-                nearbyManaged += spawnGroup(level, basePosition, chosenEntry, settings, level.getRandom(), instanceTag);
+                nearbyManaged += spawnGroup(level, basePosition, chosenEntry, settings, level.getRandom(), instanceTag, settings.maxNearbyManagedMobs - nearbyManaged);
             }
         }
     }
@@ -152,6 +152,7 @@ public final class ApocalypseSpawnManager {
         for (int attempt = 0; attempt < 32; attempt++) {
             int x = player.getBlockX() + randomOffset(random, settings.minSpawnDistance, settings.maxSpawnDistance);
             int z = player.getBlockZ() + randomOffset(random, settings.minSpawnDistance, settings.maxSpawnDistance);
+            if (!level.hasChunk(x >> 4, z >> 4)) continue;
             BlockPos surface = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, new BlockPos(x, 0, z));
 
             if (!level.getWorldBorder().isWithinBounds(surface)) {
@@ -182,15 +183,16 @@ public final class ApocalypseSpawnManager {
             ResolvedSpawnEntry resolvedEntry,
             AioaConfig.DaySurfaceSpawns settings,
             RandomSource random,
-            String instanceTag
+            String instanceTag, int remainingCapacity
     ) {
         int groupSize = Mth.nextInt(random, resolvedEntry.entry().minGroupSize(), resolvedEntry.entry().maxGroupSize());
         int spawned = 0;
 
-        for (int index = 0; index < groupSize; index++) {
-            for (int retry = 0; retry < 4; retry++) {
+        for (int index = 0; index < Math.min(groupSize, remainingCapacity); index++) {
+            for (int retry = 0; retry < Math.min(4, remainingCapacity); retry++) {
                 int x = basePosition.getX() + random.nextInt(9) - 4;
                 int z = basePosition.getZ() + random.nextInt(9) - 4;
+                if (!level.hasChunk(x >> 4, z >> 4)) continue;
                 BlockPos spawnPosition = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, new BlockPos(x, 0, z));
 
                 if (trySpawn(level, spawnPosition, resolvedEntry.entityType(), settings, random, instanceTag)) {
@@ -236,9 +238,7 @@ public final class ApocalypseSpawnManager {
         if (!AioaZombieBehaviour.applyVariantMode(mob, settings)) {
             return false;
         }
-        if (settings.preventSunlightBurn) {
-            mob.addTag(AioaConstants.DAY_SPAWN_TAG);
-        }
+        mob.addTag(AioaConstants.DAY_SPAWN_TAG);
         mob.addTag(instanceTag);
 
         level.addFreshEntityWithPassengers(mob);

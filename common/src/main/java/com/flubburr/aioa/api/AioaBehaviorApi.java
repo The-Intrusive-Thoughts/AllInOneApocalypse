@@ -16,17 +16,22 @@ public final class AioaBehaviorApi {
     private static final Map<String, AioaBehaviorGraph> RUNTIME_GRAPHS = new ConcurrentHashMap<>();
     private static final Map<String, MobGraphContributor> CONTRIBUTORS = new ConcurrentHashMap<>();
 
+    private static volatile long graphRevision;
+
+    public static long graphRevision() { return graphRevision; }
+
     private AioaBehaviorApi() {}
 
-    public static void registerGraph(String id, AioaBehaviorGraph graph) {
+    public static synchronized void registerGraph(String id, AioaBehaviorGraph graph) {
         if (id == null || id.isBlank() || graph == null) throw new IllegalArgumentException("Namespaced graph id and graph are required");
         AioaBehaviorGraph copy = graph.copy();
         copy.id = id.toString();
         RUNTIME_GRAPHS.put(id, copy);
+        graphRevision++;
     }
 
-    public static void unregisterGraph(String id) {
-        if (id != null) RUNTIME_GRAPHS.remove(id);
+    public static synchronized void unregisterGraph(String id) {
+        if (id != null && RUNTIME_GRAPHS.remove(id) != null) graphRevision++;
     }
 
     public static void registerMobContributor(String id, MobGraphContributor contributor) {
@@ -52,7 +57,8 @@ public final class AioaBehaviorApi {
         AioaBehaviorGraph.Node base = new AioaBehaviorGraph.Node("base", AioaBehaviorGraph.NodeType.MOB_BASE, -180, 60)
                 .parameter("entity", typeId == null ? "auto" : typeId.toString())
                 .parameter("health", decimal(mob.getMaxHealth()))
-                .parameter("damage", decimal(mob.getAttributeValue(Attributes.ATTACK_DAMAGE)))
+                .parameter("damage", decimal(mob.getAttributes().hasAttribute(Attributes.ATTACK_DAMAGE)
+                        ? mob.getAttributeValue(Attributes.ATTACK_DAMAGE) : 0.0D))
                 .parameter("speed", decimal(mob.getAttributeValue(Attributes.MOVEMENT_SPEED)));
         AioaBehaviorGraph.Node tick = new AioaBehaviorGraph.Node("tick", AioaBehaviorGraph.NodeType.ON_TICK, 20, 60);
         graph.nodes.add(base);
