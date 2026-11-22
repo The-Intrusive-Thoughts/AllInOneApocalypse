@@ -13,6 +13,7 @@ jobs:
     outputs:
       matrix: ${{ steps.versions.outputs.matrix }}
       release: ${{ steps.versions.outputs.release }}
+      pending: ${{ steps.versions.outputs.pending }}
     steps:
       - uses: actions/checkout@v4
       - id: versions
