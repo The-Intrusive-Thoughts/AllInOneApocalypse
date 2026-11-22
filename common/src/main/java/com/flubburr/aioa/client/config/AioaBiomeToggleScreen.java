@@ -132,6 +132,7 @@ final class AioaBiomeToggleScreen extends AioaScrollableScreen {
 
     @Override
     public void tick() {
+        super.tick();
         if (this.searchBox != null) {
             this.searchBox.tick();
         }

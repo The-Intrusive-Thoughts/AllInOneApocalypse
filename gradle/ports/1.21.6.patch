@@ -287,3 +287,11 @@
              });
          }
  
+--- a/common/src/main/java/com/flubburr/aioa/client/config/AioaScriptEditorScreen.java
++++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaScriptEditorScreen.java
+@@ -36,3 +36,4 @@
+         Component hint = Component.literal("if target_exists then move_to_target(1.1) end");
+-        MultiLineEditBox code = new MultiLineEditBox(this.font, left + 10, 88, width - 20, footer - 112, hint, this.title);
++        MultiLineEditBox code = MultiLineEditBox.builder().setX(left + 10).setY(88).setPlaceholder(hint)
++                .build(this.font, width - 20, footer - 112, this.title);
+         code.setCharacterLimit(AioaLuaScript.SOURCE_LIMIT);

@@ -78,6 +78,7 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
 
     @Override
     public void tick() {
+        super.tick();
         if (this.searchBox != null) {
             this.searchBox.tick();
         }
@@ -148,6 +149,7 @@ final class AioaEntityPickerScreen extends AioaScrollableScreen {
                 return true;
             }
         }
+        if (mouseY < this.contentTop || mouseY >= this.contentBottom) return false;
         return super.mouseClicked(mouseX, mouseY, button);
     }
 

@@ -1041,7 +1041,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
         if ("entity".equals(key)) return "Choose mob...";
         if ("name".equals(key) && this.selected.type == AioaBehaviorGraph.NodeType.FIND_PLAYER_NAME) return "Choose online player...";
         if ("name".equals(key) && isVariableNode(this.selected.type)) return "Cycle variable name";
-        if (this.selected.type == AioaBehaviorGraph.NodeType.SCRIPT) return "Open script documentation";
+        if (this.selected.type == AioaBehaviorGraph.NodeType.SCRIPT) return "Open script editor";
         if (isBooleanParameter(this.selected.type, key)) return "Toggle true / false";
         if ("pattern".equals(key)) return "Cycle particle pattern";
         if ("operation".equals(key)) return "Cycle math operation";
@@ -1086,13 +1086,20 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             return;
         }
         if (this.selected.type == AioaBehaviorGraph.NodeType.SCRIPT) {
-            String currentScript = this.parameterValue.getValue();
-            this.transitionTo(new AioaScriptEditorScreen(this, currentScript, script -> {
-                snapshot();
-                this.selected.parameters.put("script", script);
-                this.parameterIndex = new ArrayList<>(this.selected.parameters.keySet()).indexOf("script");
-                this.status = "Script commands updated.";
-            }));
+            var scriptNode = this.selected;
+            String currentScript = scriptNode.parameters.getOrDefault("script", "");
+            String language = scriptNode.parameters.getOrDefault("language", "legacy");
+            this.transitionTo(new AioaScriptEditorScreen(this, this.graph.id + "/" + scriptNode.id, language, currentScript,
+                    (savedLanguage, script) -> {
+                        snapshot();
+                        scriptNode.parameters.put("language", savedLanguage);
+                        scriptNode.parameters.put("script", script);
+                        this.parameterIndex = new ArrayList<>(scriptNode.parameters.keySet()).indexOf("script");
+                        this.parameterKey.setValue("script");
+                        this.parameterValue.setValue(script);
+                        this.parametersCollapsed = true;
+                        this.status = "Script saved to the graph";
+                    }));
             return;
         }
         if ("name".equals(key) && isVariableNode(this.selected.type)) {
@@ -1440,14 +1447,26 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (this.activeTopMenu != null && topMenuClicked(mouseX, mouseY, button)) return true;
-        if (this.activeTopMenu != null && !(mouseY >= 28 && mouseY <= 52)) {
+        if (this.activeTopMenu != null) {
+            if (topMenuClicked(mouseX, mouseY, button)) return true;
+            int menuBarRight = 8 + 5 * (menuWidth() + 4);
+            if (button == 0 && mouseX >= 8 && mouseX < menuBarRight && mouseY >= 28 && mouseY < 52) {
+                int stride = menuWidth() + 4;
+                int offset = (int) mouseX - 8;
+                if (offset % stride < menuWidth()) {
+                    String menu = List.of("File", "Edit", "View", "Graph", "Help").get(offset / stride);
+                    this.activeTopMenu = menu.equals(this.activeTopMenu) ? null : menu;
+                    return true;
+                }
+            }
             this.activeTopMenu = null;
+            return true;
         }
         if (this.showContextMenu) {
             if (contextMenuClicked(mouseX, mouseY, button)) return true;
             this.showContextMenu = false;
             this.contextNode = null;
+            return true;
         }
         if (!this.parametersCollapsed) {
             boolean insideParameters = mouseX >= this.parametersX && mouseX <= this.parametersX + this.parametersWidth
@@ -1458,7 +1477,10 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
                 return true;
             }
             if (insideParameters) return super.mouseClicked(mouseX, mouseY, button);
-            if (button == 0) closeParameterPopover();
+            if (button == 0) {
+                closeParameterPopover();
+                return true;
+            }
         }
         FloatingWindow focusedWindow = floatingAt(mouseX, mouseY);
         if (focusedWindow != null) bringToFront(focusedWindow);
@@ -1891,6 +1913,7 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        if (this.activeTopMenu != null || this.showContextMenu) return true;
         if (mouseY >= 2 && mouseY <= 24
                 && mouseX >= tabStart() && mouseX <= this.width) {
             int maxOffset = Math.max(0, this.graphs.size() - visibleTabSlots());
@@ -2781,7 +2804,8 @@ public final class AioaBehaviorEditorScreen extends AioaAnimatedScreen {
             case MATH_VARIABLE -> node.parameter("name", "value").parameter("operation", "add").parameter("value", "1");
             case COMPARE_VARIABLE -> node.parameter("name", "value").parameter("comparison", ">=").parameter("value", "1");
             case SET_PHASE -> node.parameter("phase", "1");
-            case SCRIPT -> node.parameter("script", "say={mob} started; rotate=90; glow=true");
+            case SCRIPT -> node.parameter("script", "if target_exists then\n    move_to_target(1.1)\nend")
+                    .parameter("language", "lua");
             case FUNCTION_GROUP -> node.parameter("name", "Function group")
                     .parameter("_groupId", "group_" + UUID.randomUUID().toString().substring(0, 8));
             case SET_BODY_ROTATION, SET_HEAD_ROTATION -> node.parameter("degrees", "0");

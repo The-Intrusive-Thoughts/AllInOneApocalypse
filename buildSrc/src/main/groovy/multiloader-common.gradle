@@ -68,7 +68,16 @@ sourcesJar {
     }
 }
 
+configurations { embeddedLua }
+dependencies {
+    implementation 'org.luaj:luaj-jse:3.0.1'
+    embeddedLua 'org.luaj:luaj-jse:3.0.1'
+}
+
 jar {
+    from({ configurations.embeddedLua.collect { zipTree(it) } }) {
+        include 'org/luaj/vm2/**'
+    }
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${mod_name}" }
     }

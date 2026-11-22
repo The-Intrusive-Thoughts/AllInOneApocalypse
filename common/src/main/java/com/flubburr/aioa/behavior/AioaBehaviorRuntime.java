@@ -5,6 +5,7 @@ import com.flubburr.aioa.api.AioaBehaviorApi;
 import com.flubburr.aioa.compat.AioaEntityHelper;
 import com.flubburr.aioa.compat.AioaRegistryCompat;
 import com.flubburr.aioa.config.AioaConfigManager;
+import org.luaj.vm2.LuaValue;
 import com.flubburr.aioa.mixin.accessor.MobAccessor;
 import com.flubburr.aioa.spawn.AioaZombieBehaviour;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -596,6 +597,27 @@ public final class AioaBehaviorRuntime {
     }
 
     private static void runCreatorScript(AioaBehaviorGraph.Node node, Mob mob, ExecutionContext context) {
+        if ("lua".equals(node.parameters.get("language"))) {
+            long tick = mob.level().getGameTime();
+            String key = "lua:" + node.id;
+            if (tick < context.state.cooldowns.getOrDefault(key, Long.MIN_VALUE)) return;
+            context.state.cooldowns.put(key, tick + 5);
+            LivingEntity target = context.target != null ? context.target : mob.getTarget();
+            Map<String, LuaValue> input = Map.of(
+                    "health", LuaValue.valueOf(mob.getHealth()),
+                    "max_health", LuaValue.valueOf(mob.getMaxHealth()),
+                    "health_percent", LuaValue.valueOf(mob.getHealth() / Math.max(1.0F, mob.getMaxHealth())),
+                    "target_exists", LuaValue.valueOf(target != null && target.isAlive()),
+                    "target_distance", target == null ? LuaValue.NIL : LuaValue.valueOf(Math.sqrt(mob.distanceToSqr(target))),
+                    "tick", LuaValue.valueOf((double) tick));
+            String error = AioaLuaScript.run(node.parameters.getOrDefault("script", ""), input,
+                    context.variables, (action, argument) -> runScriptCall(action + "(" + argument + ")", mob, context));
+            if (error != null) {
+                context.state.cooldowns.put(key, tick + 100);
+                AioaConfigManager.warnOnce(key, "Mob Lua: " + error);
+            }
+            return;
+        }
         String script = node.parameters.getOrDefault("script", "").replace(';', '\n');
         ArrayDeque<Boolean> parents = new ArrayDeque<>();
         ArrayDeque<Boolean> conditions = new ArrayDeque<>();

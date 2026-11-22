@@ -180,8 +180,13 @@ public final class AioaBehaviorValidator {
             case SET_PHASE -> number(node, "phase", 1, 4, issues);
             case SCRIPT -> {
                 String script = node.parameters.getOrDefault("script", "");
-                if (script.length() > 8192) issues.add("Script nodes are limited to 8,192 characters.");
-                validateScript(script, issues);
+                if ("lua".equals(node.parameters.get("language"))) {
+                    String error = AioaLuaScript.validate(script);
+                    if (error != null) issues.add(error);
+                } else {
+                    if (script.length() > 8192) issues.add("Script nodes are limited to 8,192 characters.");
+                    validateScript(script, issues);
+                }
             }
             default -> { }
         }
@@ -264,7 +269,7 @@ public final class AioaBehaviorValidator {
             case COMPARE_VARIABLE -> Set.of("name", "comparison", "value");
             case SET_BODY_ROTATION, SET_HEAD_ROTATION -> Set.of("degrees");
             case SET_PHASE -> Set.of("phase");
-            case SCRIPT -> Set.of("script");
+            case SCRIPT -> Set.of("script", "language");
             case FUNCTION_GROUP -> Set.of("name");
             case COMMENT -> Set.of("text");
             default -> Set.of();

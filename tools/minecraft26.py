@@ -43,6 +43,12 @@ def port_client(staging, game):
 
 def port_sdl_input(text):
     text = text.replace("InputConstants.Type.KEYSYM", "InputConstants.Type.KEYBOARD")
+    text = text.replace("int button = event.button();", """int button = switch (event.button()) {
+            case 1 -> 0; // SDL left
+            case 3 -> 1; // SDL right
+            case 2 -> 2; // SDL middle
+            default -> event.button();
+        };""")
     if "import org.lwjgl.glfw.GLFW;" not in text:
         return text
     text = text.replace("import org.lwjgl.glfw.GLFW;", "")

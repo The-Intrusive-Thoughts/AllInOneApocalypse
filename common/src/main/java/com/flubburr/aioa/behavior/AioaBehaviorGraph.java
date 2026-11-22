@@ -183,7 +183,7 @@ public final class AioaBehaviorGraph {
         COMPARE_VARIABLE("Conditions", "Branches by comparing a stored value with a numeric threshold."),
         SET_PHASE("Values", "Stores a persistent boss phase from one through four."),
         PHASE_BRANCH("Conditions", "Routes execution through one of four persistent boss phase outputs."),
-        SCRIPT("Scripting", "Runs a safe creator script made from documented wait, say, rotate, glow, and stop commands."),
+        SCRIPT("Scripting", "Runs Lua with mob inputs and actions. Open the script editor to write or check code."),
         SET_BODY_ROTATION("Model", "Separately changes the mob body's display rotation."),
         SET_HEAD_ROTATION("Model", "Separately changes the mob head's display rotation."),
         DESPAWN_SELF("State", "Safely removes the graph mob from the world."),

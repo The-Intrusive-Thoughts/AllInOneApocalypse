@@ -64,6 +64,7 @@ final class AioaTextListScreen extends AioaAnimatedScreen {
 
     @Override
     public void tick() {
+        super.tick();
         this.editor.tick();
     }
 

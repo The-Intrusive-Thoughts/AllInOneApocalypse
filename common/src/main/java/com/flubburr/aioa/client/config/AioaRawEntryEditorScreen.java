@@ -37,6 +37,7 @@ final class AioaRawEntryEditorScreen extends AioaAnimatedScreen {
 
     @Override
     public void tick() {
+        super.tick();
         this.rawEntryBox.tick();
     }
 

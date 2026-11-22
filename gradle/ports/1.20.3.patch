@@ -19,16 +19,16 @@
      }
 --- a/common/src/main/java/com/flubburr/aioa/client/config/AioaBehaviorEditorScreen.java
 +++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaBehaviorEditorScreen.java
-@@ -1873,7 +1873,7 @@
+@@ -1905,7 +1905,7 @@
      }
  
      @Override
 -    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
 +    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double delta) {
+         if (this.activeTopMenu != null || this.showContextMenu) return true;
          if (mouseY >= 2 && mouseY <= 24
                  && mouseX >= tabStart() && mouseX <= this.width) {
-             int maxOffset = Math.max(0, this.graphs.size() - visibleTabSlots());
-@@ -1902,7 +1902,7 @@
+@@ -1935,7 +1935,7 @@
              }
              return true;
          }
@@ -39,10 +39,10 @@
      private boolean insideCanvas(double x, double y) {
 --- a/common/src/main/java/com/flubburr/aioa/client/config/AioaBiomeToggleScreen.java
 +++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaBiomeToggleScreen.java
-@@ -132,9 +132,6 @@
- 
+@@ -133,9 +133,6 @@
      @Override
      public void tick() {
+         super.tick();
 -        if (this.searchBox != null) {
 -            this.searchBox.tick();
 -        }
@@ -51,10 +51,10 @@
      private void refreshList() {
 --- a/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityPickerScreen.java
 +++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityPickerScreen.java
-@@ -78,9 +78,6 @@
- 
+@@ -79,9 +79,6 @@
      @Override
      public void tick() {
+         super.tick();
 -        if (this.searchBox != null) {
 -            this.searchBox.tick();
 -        }
@@ -63,10 +63,10 @@
      private void refreshList() {
 --- a/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityToggleScreen.java
 +++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaEntityToggleScreen.java
-@@ -171,9 +171,6 @@
- 
+@@ -172,9 +172,6 @@
      @Override
      public void tick() {
+         super.tick();
 -        if (this.searchBox != null) {
 -            this.searchBox.tick();
 -        }
@@ -109,10 +109,10 @@
  }
 --- a/common/src/main/java/com/flubburr/aioa/client/config/AioaRawEntryEditorScreen.java
 +++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaRawEntryEditorScreen.java
-@@ -37,7 +37,6 @@
- 
+@@ -38,7 +38,6 @@
      @Override
      public void tick() {
+         super.tick();
 -        this.rawEntryBox.tick();
      }
  
@@ -209,10 +209,10 @@
  }
 --- a/common/src/main/java/com/flubburr/aioa/client/config/AioaTextListScreen.java
 +++ b/common/src/main/java/com/flubburr/aioa/client/config/AioaTextListScreen.java
-@@ -64,7 +64,6 @@
- 
+@@ -65,7 +65,6 @@
      @Override
      public void tick() {
+         super.tick();
 -        this.editor.tick();
      }
  
