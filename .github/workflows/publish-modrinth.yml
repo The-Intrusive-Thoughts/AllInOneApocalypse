@@ -18,18 +18,29 @@ jobs:
       - id: versions
         shell: python
         run: |
-          import json, os, sys
+          import json, os, sys, time, urllib.request
           sys.path.insert(0, 'tools')
           from build_target import PROFILES, available_loaders
+          from publish_modrinth import API, PROJECT, CHANGELOG
           targets = [dict(game=game, loader=loader, jdk=25 if game.startswith('26.') else 21)
                      for game in PROFILES for loader in available_loaders(game)]
-          release = os.environ['GITHUB_REF_NAME'].removeprefix('aioa-publish-')
+          release, _, retry = os.environ['GITHUB_REF_NAME'].removeprefix('aioa-publish-').partition('.retry')
+          if retry:
+              request = urllib.request.Request(f'{API}/project/{PROJECT}/version?cache={time.time_ns()}',
+                                               headers={'User-Agent': 'The-Intrusive-Thoughts/AllInOneApocalypse release'})
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  published = {entry['version_number'].removesuffix('.r2') for entry in json.load(response)
+                               if entry.get('changelog') == CHANGELOG}
+              targets = [target for target in targets
+                         if f"{release}+mc{target['game']}-{target['loader']}" not in published]
           with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
               print('matrix=' + json.dumps({'include': targets}), file=out)
               print('release=' + release, file=out)
+              print('pending=' + str(bool(targets)).lower(), file=out)
 
   publish:
     needs: targets
+    if: needs.targets.outputs.pending == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -38,11 +49,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
+        if: matrix.loader == 'forge' && matrix.jdk == 25
+        with:
+          distribution: temurin
+          java-version: '8'
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: ${{ matrix.jdk }}
       - uses: gradle/actions/setup-gradle@v4
       - run: python3 tools/build_target.py ${{ matrix.game }} --loader ${{ matrix.loader }}
+        env:
+          JAVA_TOOL_OPTIONS: -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_8_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
       - run: python3 tools/publish_modrinth.py ${{ matrix.game }} ${{ matrix.loader }} ${{ needs.targets.outputs.release }}
         env:
           MODRINTH_TOKEN: ${{ secrets.AIOA_MODRINTH_RELEASE_TOKEN }}
